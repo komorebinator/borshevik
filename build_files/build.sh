@@ -4,6 +4,7 @@ set -ouex pipefail
 
 /ctx/scripts/cleanup.sh
 /ctx/scripts/install-google-chrome.sh
+/ctx/scripts/install-steam.sh
 /ctx/scripts/user-settings.sh
 
 
