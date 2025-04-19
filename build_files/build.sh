@@ -3,7 +3,7 @@
 set -ouex pipefail
 
 ### Enable Google Chrome repo
-scripts/enable-google-chrome.sh
+/ctx/build_files/scripts/enable-google-chrome.sh
 
 
 ### Install packages
