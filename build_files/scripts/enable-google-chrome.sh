@@ -4,6 +4,7 @@ set -oue pipefail
 
 # Create /opt directory
 mkdir /usr/share/google
+mkdir /opt
 mkdir /opt/google
 ln -sfn /usr/share/google /opt/google
 
