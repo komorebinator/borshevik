@@ -1,0 +1,12 @@
+[Unit]
+Description=App Choice Subscription - Auto-install missing Flatpaks
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/app-choice-subscription.sh
+StandardOutput=journal
+
+[Install]
+WantedBy=multi-user.target

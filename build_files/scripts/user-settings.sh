@@ -9,3 +9,5 @@ EOF
 
 # Compile schemas so GNOME picks up the new defaults
 glib-compile-schemas /usr/share/glib-2.0/schemas
+
+systemctl enable app-choice-subscription.service
