@@ -3,9 +3,8 @@
 set -oue pipefail
 
 # Create /opt directory
-mkdir /usr/share/google
-mkdir /opt
-mkdir /opt/google
+mkdir -p /usr/share/google
+mkdir -p /opt/google
 ln -sfn /usr/share/google /opt/google
 
 # Part of an attempt to add Google Chrome in the usual way.
