@@ -2,10 +2,6 @@
 
 set -oue pipefail
 
-# Create /opt directory
-mkdir -p /usr/lib/opt/google
-ln -sfn /usr/lib/opt/google /opt/google
-
 # Part of an attempt to add Google Chrome in the usual way.
 echo "Fixing google-chrome yum repo"
 sed -i '/enabled/d' /etc/yum.repos.d/google-chrome.repo 
