@@ -48,3 +48,8 @@ echo "Downloading Google Signing Key"
 curl https://dl.google.com/linux/linux_signing_key.pub > /tmp/linux_signing_key.pub
 
 rpm --import /tmp/linux_signing_key.pub
+
+rpm-ostree install -y google-chrome-stable
+
+sed -i 's|^Exec=/usr/bin/google-chrome-stable %U$|Exec=/usr/bin/google-chrome-stable --enable-features=TouchpadOverscrollHistoryNavigation --ozone-platform=wayland %U|' \
+  /usr/share/applications/google-chrome.desktop
