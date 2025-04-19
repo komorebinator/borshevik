@@ -2,4 +2,4 @@
 
 set -oue pipefail
 
-cp -r ../root/. /
+cp -r /ctx/build/root/. /
