@@ -1,4 +1,3 @@
 #!/bin/bash
 
-dnf config-manager --set-enabled rpmfusion-free
-dnf config-manager --set-enabled rpmfusion-nonfree
+sed -i 's/enabled=0/enabled=1/' /etc/yum.repos.d/rpmfusion-*.repo
