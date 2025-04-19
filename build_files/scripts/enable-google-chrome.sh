@@ -3,7 +3,6 @@
 set -oue pipefail
 
 # Create /opt directory
-mkdir -p /opt
 mkdir -p /usr/lib/opt/google
 ln -sfn /usr/lib/opt/google /opt/google
 
