@@ -1,5 +1,8 @@
-#!/bin/bash
+# Get the absolute path to the current script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 
-set -oue pipefail
+# Root folder is one level up from script directory
+ROOT_DIR="${SCRIPT_DIR}/../root"
 
-cp -r /ctx/build/root/. /
+# Copy everything (including hidden files and empty dirs)
+cp -r "${ROOT_DIR}/." /
