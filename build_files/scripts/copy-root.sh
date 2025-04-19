@@ -4,12 +4,14 @@ set -oue pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 ROOT_DIR="${SCRIPT_DIR}/../root"
 
-# Fix invalid /usr/local if needed
+# If /usr/local exists and is NOT a directory, forcibly remove it
 if [ -e /usr/local ] && [ ! -d /usr/local ]; then
-    echo "Fixing /usr/local (was not a directory)"
-    rm -f /usr/local
-    mkdir -p /usr/local
+    echo "⚠️  /usr/local exists but is not a directory. Removing it."
+    rm -rf /usr/local
 fi
 
-# Copy everything
+# Ensure /usr/local exists
+mkdir -p /usr/local
+
+# Copy everything from root/ into /
 cp -r "${ROOT_DIR}/." /
