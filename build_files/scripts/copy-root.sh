@@ -1,17 +1,14 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -oue pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 ROOT_DIR="${SCRIPT_DIR}/../root"
 
-# If /usr/local exists and is NOT a directory, forcibly remove it
+# Safety: remove /usr/local if it's a file or a broken symlink
 if [ -e /usr/local ] && [ ! -d /usr/local ]; then
-    echo "⚠️  /usr/local exists but is not a directory. Removing it."
+    echo "Fixing /usr/local — removing non-directory version"
     rm -rf /usr/local
 fi
 
-# Ensure /usr/local exists
-mkdir -p /usr/local
-
-# Copy everything from root/ into /
-cp -r "${ROOT_DIR}/." /
+# Copy everything from root/ to /
+rsync -a "${ROOT_DIR}/" /
