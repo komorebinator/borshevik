@@ -4,7 +4,6 @@ set -oue pipefail
 
 # Create /opt directory
 mkdir /var/opt
-mkdir /opt
 sudo ln -sfn /var/opt /opt
 
 # Part of an attempt to add Google Chrome in the usual way.
