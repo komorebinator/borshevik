@@ -4,7 +4,7 @@ set -oue pipefail
 
 # Create /opt directory
 mkdir /usr/share/google
-ln -sfn /var/share/google /opt/google
+ln -sfn /usr/share/google /opt/google
 
 # Part of an attempt to add Google Chrome in the usual way.
 echo "Fixing google-chrome yum repo"
