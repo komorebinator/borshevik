@@ -2,6 +2,24 @@
 
 set -oue pipefail
 
+# Create /opt directory
+echo "Fixing /opt if it's not a dir..."
+[ ! -d /opt ] && rm -f /opt
+mkdir -p /opt
+mkdir -p /usr/lib/opt/google
+
+# Remove /opt/google, if not symlink
+if [ -d /opt/google ] && [ ! -L /opt/google ]; then
+    echo "Removing existing /opt/google directory"
+    rm -rf /opt/google
+fi
+
+# Make symlink
+ln -sfn /usr/lib/opt/google /opt/google
+
+echo "Symlink created:"
+ls -l /opt/google
+
 # Part of an attempt to add Google Chrome in the usual way.
 echo "Fixing google-chrome yum repo"
 sed -i '/enabled/d' /etc/yum.repos.d/google-chrome.repo 
