@@ -34,7 +34,6 @@ flatpak install -y --noninteractive flathub \
   com.obsproject.Studio \
   org.gnome.Snapshot \
   io.gitlab.theevilskeleton.Upscaler \
-  org.gnome.DiskUtility \
   org.gnome.World.Secrets \
   com.github.unrud.VideoDownloader \
   com.transmissionbt.Transmission \
