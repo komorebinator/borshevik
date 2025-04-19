@@ -15,6 +15,8 @@ set -ouex pipefail
 
 # this installs a package from fedora repos
 
+rpm-ostree override remove firefox firefox-langpacks
+
 # Use a COPR Example:
 #
 # dnf5 -y copr enable ublue-os/staging
