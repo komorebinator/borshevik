@@ -51,5 +51,15 @@ rpm --import /tmp/linux_signing_key.pub
 
 rpm-ostree install -y google-chrome-stable
 
+# Make Chrome default
+mkdir -p /etc/xdg
+
+cat << EOF > /etc/xdg/mimeapps.list
+[Default Applications]
+x-scheme-handler/http=google-chrome.desktop
+x-scheme-handler/https=google-chrome.desktop
+text/html=google-chrome.desktop
+EOF
+
 sed -i 's|^Exec=/usr/bin/google-chrome-stable %U$|Exec=/usr/bin/google-chrome-stable --enable-features=TouchpadOverscrollHistoryNavigation --ozone-platform=wayland %U|' \
   /usr/share/applications/google-chrome.desktop
