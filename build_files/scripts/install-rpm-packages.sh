@@ -2,4 +2,6 @@
 
 set -ouex pipefail
 
-rpm-ostree install -y htop mc gnome-tweaks pwgen openssl distrobox gnome-disk-utility zsh
+dnf copr enable pgdev/ghostty
+
+rpm-ostree install -y htop mc gnome-tweaks pwgen openssl distrobox gnome-disk-utility zsh ghostty
