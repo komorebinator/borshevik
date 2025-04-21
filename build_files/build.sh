@@ -8,5 +8,4 @@ set -ouex pipefail
 /ctx/scripts/install-rpm-packages.sh
 /ctx/scripts/user-settings.sh
 
-gtk-update-icon-cache -f /usr/share/icons/hicolor
 systemctl enable podman.socket
