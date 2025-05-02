@@ -4,20 +4,83 @@
    version="1.2"
    width="128"
    id="svg5967"
+   sodipodi:docname="logo_v_5.svg"
+   inkscape:version="1.4 (e7c3feb100, 2024-10-09)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
    xmlns="http://www.w3.org/2000/svg"
    xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview5967"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="1.0500454"
+     inkscape:cx="199.03901"
+     inkscape:cy="239.98961"
+     inkscape:window-width="1648"
+     inkscape:window-height="961"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg5967">
+    <inkscape:page
+       x="0"
+       y="0"
+       width="128"
+       height="128"
+       id="page2"
+       margin="0"
+       bleed="0" />
+  </sodipodi:namedview>
   <defs
-     id="defs1" />
+     id="defs1">
+    <linearGradient
+       id="linearGradient1"
+       inkscape:collect="always">
+      <stop
+         style="stop-color:#7fb7bc;stop-opacity:1;"
+         offset="0"
+         id="stop1" />
+      <stop
+         style="stop-color:#80b1d3;stop-opacity:1;"
+         offset="0.32647163"
+         id="stop3" />
+      <stop
+         style="stop-color:#fccde5;stop-opacity:1;"
+         offset="0.69824064"
+         id="stop4" />
+      <stop
+         style="stop-color:#a772a7;stop-opacity:1;"
+         offset="1"
+         id="stop2" />
+    </linearGradient>
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient1"
+       id="linearGradient2"
+       x1="0.61116219"
+       y1="256.92224"
+       x2="512.3111"
+       y2="256.92224"
+       gradientUnits="userSpaceOnUse"
+       gradientTransform="matrix(0.25014309,0,0,0.25060177,-0.15198061,-0.38517121)" />
+  </defs>
   <circle
      cx="64"
      cy="64"
      fill="#222222"
-     r="64"
      id="circle1"
-     style="stroke-width:0.25" />
+     style="stroke:url(#linearGradient2);stroke-width:1.96923;stroke-dasharray:none;stroke-opacity:1"
+     r="63.015385" />
   <g
      id="g5211"
-     transform="scale(0.25)">
+     transform="matrix(0.30892671,0,0,0.30949319,-15.224721,-16.518851)">
     <line
        stroke="#8dd3c7"
        stroke-width="1.4"
@@ -1821,7 +1884,7 @@
   </g>
   <g
      id="g5463"
-     transform="scale(0.25)">
+     transform="matrix(0.30892671,0,0,0.30949319,-15.224721,-16.518851)">
     <line
        stroke="#bebada"
        stroke-width="1.4"
@@ -3985,7 +4048,7 @@
   </g>
   <g
      id="g5652"
-     transform="scale(0.25)">
+     transform="matrix(0.30892671,0,0,0.30949319,-15.224721,-16.518851)">
     <line
        stroke="#80b1d3"
        stroke-width="1.4"
@@ -5609,7 +5672,7 @@
   </g>
   <g
      id="g5820"
-     transform="scale(0.25)">
+     transform="matrix(0.30892671,0,0,0.30949319,-15.224721,-16.518851)">
     <line
        stroke="#fccde5"
        stroke-width="1.4"
@@ -7053,7 +7116,7 @@
   </g>
   <g
      id="g5967"
-     transform="scale(0.25)">
+     transform="matrix(0.30892671,0,0,0.30949319,-15.224721,-16.518851)">
     <line
        stroke="#bc80bd"
        stroke-width="1.4"
