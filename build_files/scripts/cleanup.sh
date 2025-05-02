@@ -2,4 +2,4 @@
 
 set -ouex pipefail
 
-rpm-ostree override remove firefox firefox-langpacks toolbox
+rpm-ostree override remove firefox firefox-langpacks toolbox gnome-shell-extension-*
