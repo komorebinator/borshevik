@@ -32,7 +32,7 @@ def read_list(path):
 
 def is_installed(uuid):
     result = subprocess.run(
-        [str(VENV_DIR / "bin/gext"), "list", "--no-color", "--enabled"],
+        [str(VENV_DIR / "bin/gext"), "list", "--enabled"],
         capture_output=True, text=True
     )
     return uuid in result.stdout
