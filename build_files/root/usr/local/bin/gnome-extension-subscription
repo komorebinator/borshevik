@@ -47,8 +47,8 @@ def mark_installed(uuid):
 
 def install(uuid):
     print(f"⬇️ Installing {uuid}")
-    subprocess.run([str(VENV_DIR / "bin/gext"), "install", "--no-color", uuid], check=True)
-    subprocess.run([str(VENV_DIR / "bin/gext"), "enable", "--no-color", uuid], check=True)
+    subprocess.run([str(VENV_DIR / "bin/gext"), "install", uuid], check=True)
+    subprocess.run([str(VENV_DIR / "bin/gext"), "enable", uuid], check=True)
     mark_installed(uuid)
     print(f"✅ Installed {uuid}")
 
