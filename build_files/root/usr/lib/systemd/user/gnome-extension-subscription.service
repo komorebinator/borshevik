@@ -1,0 +1,9 @@
+[Unit]
+Description=Install GNOME Shell extensions (Python version)
+After=network-online.target graphical-session.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStartPre=/usr/bin/sleep 5
+ExecStart=/usr/local/bin/gnome-extension-subscription

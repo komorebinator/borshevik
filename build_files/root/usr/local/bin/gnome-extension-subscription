@@ -1,0 +1,55 @@
+#!/usr/bin/env python3
+
+import subprocess
+import os
+from pathlib import Path
+
+LIST_FILE = "/usr/share/gnome-extension-subscription/extensions.txt"
+MARK_FILE = Path.home() / ".local/share/gnome-extension-subscription/installed.txt"
+
+def ensure_paths():
+    MARK_FILE.parent.mkdir(parents=True, exist_ok=True)
+    if not MARK_FILE.exists():
+        MARK_FILE.touch()
+
+def read_list(path):
+    with open(path, "r") as f:
+        return [line.strip() for line in f if line.strip()]
+
+def is_installed(uuid):
+    result = subprocess.run(
+        ["/mnt/data/gnome-extension-subscription/venv/bin/gext", "list", "--no-color", "--enabled"],
+        capture_output=True, text=True
+    )
+    return uuid in result.stdout
+
+def was_previously_installed(uuid):
+    with open(MARK_FILE, "r") as f:
+        return uuid in f.read().splitlines()
+
+def mark_installed(uuid):
+    with open(MARK_FILE, "a") as f:
+        f.write(f"{uuid}\n")
+
+def install(uuid):
+    print(f"🔧 Installing {uuid}")
+    subprocess.run(["/mnt/data/gnome-extension-subscription/venv/bin/gext", "install", "--no-color", uuid], check=True)
+    subprocess.run(["/mnt/data/gnome-extension-subscription/venv/bin/gext", "enable", "--no-color", uuid], check=True)
+    mark_installed(uuid)
+    print(f"✅ Installed {uuid}")
+
+def main():
+    ensure_paths()
+    uuids = read_list(LIST_FILE)
+    for uuid in uuids:
+        if was_previously_installed(uuid):
+            continue
+        if is_installed(uuid):
+            continue
+        try:
+            install(uuid)
+        except subprocess.CalledProcessError:
+            print(f"❌ Failed to install {uuid}")
+
+if __name__ == "__main__":
+    main()
