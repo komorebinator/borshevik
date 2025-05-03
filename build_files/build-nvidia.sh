@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
+set -oue pipefail
 
-set -ouex pipefail
+# Add RPM Fusion repositories
+dnf5 install -y \
+  https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
+  https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
 
-# Enable only the NVIDIA driver repo (assumes RPM Fusion repos are already present but disabled)
-dnf5 config-manager setopt rpmfusion-nonfree-nvidia.enabled=1
-
-# Install NVIDIA components
-dnf install -y \
-    akmod-nvidia \
-    xorg-x11-drv-nvidia \
-    xorg-x11-drv-nvidia-cuda \
-    nvidia-settings
+# Install NVIDIA driver packages
+dnf5 install -y \
+  akmod-nvidia \
+  xorg-x11-drv-nvidia \
+  xorg-x11-drv-nvidia-cuda \
+  nvidia-settings
