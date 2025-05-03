@@ -10,4 +10,3 @@ set -ouex pipefail
 /ctx/scripts/user-settings.sh
 
 systemctl enable podman.socket
-rpm-ostree kargs --append-if-missing=preempt=full

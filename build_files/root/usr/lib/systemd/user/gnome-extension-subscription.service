@@ -6,4 +6,4 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 ExecStartPre=/usr/bin/sleep 5
-ExecStart=/usr/local/bin/gnome-extension-subscription
+ExecStart=/usr/local/bin/gnome-extension-subscription.py
