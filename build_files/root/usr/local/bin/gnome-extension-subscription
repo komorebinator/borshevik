@@ -2,13 +2,27 @@
 
 import subprocess
 import os
+import sys
 from pathlib import Path
 
-LIST_FILE = "/usr/share/gnome-extension-subscription/extensions.txt"
-MARK_FILE = Path.home() / ".local/share/gnome-extension-subscription/installed.txt"
+BASE_DIR = Path.home() / ".local/share/gnome-extension-subscription"
+VENV_DIR = BASE_DIR / "venv"
+MARK_FILE = BASE_DIR / "installed.txt"
+LIST_FILE = Path("/usr/share/gnome-extension-subscription/extensions.txt")
+
+def ensure_venv():
+    if not VENV_DIR.exists():
+        print("🔧 Creating venv and installing gext...")
+        subprocess.run([sys.executable, "-m", "venv", str(VENV_DIR)], check=True)
+
+    print("🔄 Ensuring gnome-extensions-cli is up to date...")
+    subprocess.run(
+        [str(VENV_DIR / "bin/pip"), "install", "--upgrade", "--quiet", "gnome-extensions-cli"],
+        check=True
+    )
 
 def ensure_paths():
-    MARK_FILE.parent.mkdir(parents=True, exist_ok=True)
+    BASE_DIR.mkdir(parents=True, exist_ok=True)
     if not MARK_FILE.exists():
         MARK_FILE.touch()
 
@@ -18,7 +32,7 @@ def read_list(path):
 
 def is_installed(uuid):
     result = subprocess.run(
-        ["/mnt/data/gnome-extension-subscription/venv/bin/gext", "list", "--no-color", "--enabled"],
+        [str(VENV_DIR / "bin/gext"), "list", "--no-color", "--enabled"],
         capture_output=True, text=True
     )
     return uuid in result.stdout
@@ -32,13 +46,14 @@ def mark_installed(uuid):
         f.write(f"{uuid}\n")
 
 def install(uuid):
-    print(f"🔧 Installing {uuid}")
-    subprocess.run(["/mnt/data/gnome-extension-subscription/venv/bin/gext", "install", "--no-color", uuid], check=True)
-    subprocess.run(["/mnt/data/gnome-extension-subscription/venv/bin/gext", "enable", "--no-color", uuid], check=True)
+    print(f"⬇️ Installing {uuid}")
+    subprocess.run([str(VENV_DIR / "bin/gext"), "install", "--no-color", uuid], check=True)
+    subprocess.run([str(VENV_DIR / "bin/gext"), "enable", "--no-color", uuid], check=True)
     mark_installed(uuid)
     print(f"✅ Installed {uuid}")
 
 def main():
+    ensure_venv()
     ensure_paths()
     uuids = read_list(LIST_FILE)
     for uuid in uuids:
