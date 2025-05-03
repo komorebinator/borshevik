@@ -11,4 +11,3 @@ EOF
 glib-compile-schemas /usr/share/glib-2.0/schemas
 
 systemctl enable app-choice-subscription.service
-systemctl enable gnome-extension-subscription.service
