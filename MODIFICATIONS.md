@@ -1,4 +1,4 @@
-# Borshevik OS — MODIFICATIONS.md
+# Borshevik — MODIFICATIONS.md
 
 ## 🎨 Plymouth Boot Splash
 
