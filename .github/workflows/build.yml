@@ -10,6 +10,7 @@
     push:
       branches:
         - main
+        - stable
       paths-ignore:
         - '**/README.md'
     workflow_dispatch:
@@ -41,46 +42,37 @@
         - name: Checkout
           uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
   
-        - name: Get current date
-          id: date
-          run: echo "date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_OUTPUT
-  
-        - name: Metadata for ${{ matrix.variant }}
-          uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5
-          id: metadata
-          with:
-            images: ${{ env.IMAGE_REGISTRY }}/${{ matrix.variant }}
-            tags: |
-              type=raw,value=latest
-              type=raw,value=latest.{{date 'YYYYMMDD'}}
-              type=raw,value={{date 'YYYYMMDD'}}
-              type=sha,enable=${{ github.event_name == 'pull_request' }}
-              type=ref,event=pr
-            labels: |
-              org.opencontainers.image.created=${{ steps.date.outputs.date }}
-              org.opencontainers.image.title=${{ matrix.variant }}
-              org.opencontainers.image.version=latest
-              org.opencontainers.image.description=${{ env.IMAGE_DESC }}
-              org.opencontainers.image.source=https://github.com/${{ github.repository }}/blob/main/Containerfile
-              org.opencontainers.image.documentation=https://github.com/${{ github.repository }}/blob/main/README.md
-              org.opencontainers.image.licenses=Apache-2.0
-              org.opencontainers.image.vendor=${{ github.repository_owner }}
-              io.artifacthub.package.logo-url=${{ env.ARTIFACTHUB_LOGO_URL }}
-              io.artifacthub.package.keywords=bootc,ublue,universal-blue
-              containers.bootc=1
+        - name: Set build tags based on branch
+          id: taggen
+          run: |
+            if [[ "${GITHUB_REF##*/}" == "stable" ]]; then
+              echo "BUILD_TAGS=stable" >> $GITHUB_ENV
+            else
+              echo "BUILD_TAGS=latest" >> $GITHUB_ENV
+            fi
   
         - name: Build ${{ matrix.variant }} image
           uses: redhat-actions/buildah-build@7a95fa7ee0f02d552a32753e7414641a04307056 # v2
           with:
             containerfiles: ./Containerfile
             image: ${{ matrix.variant }}
-            tags: ${{ steps.metadata.outputs.tags }}
-            labels: ${{ steps.metadata.outputs.labels }}
+            tags: ${{ env.BUILD_TAGS }}
+            labels: |
+              org.opencontainers.image.title=${{ matrix.variant }}
+              org.opencontainers.image.description=${{ env.IMAGE_DESC }}
+              org.opencontainers.image.licenses=Apache-2.0
+              org.opencontainers.image.vendor=${{ github.repository_owner }}
+              org.opencontainers.image.url=https://github.com/${{ github.repository }}
+              org.opencontainers.image.source=https://github.com/${{ github.repository }}/blob/main/Containerfile
+              org.opencontainers.image.documentation=https://github.com/${{ github.repository }}/blob/main/README.md
+              io.artifacthub.package.logo-url=${{ env.ARTIFACTHUB_LOGO_URL }}
+              io.artifacthub.package.keywords=bootc,ublue,universal-blue
+              containers.bootc=1
             oci: false
   
         - name: Login to GitHub Container Registry
           uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3
-          if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+          if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable')
           with:
             registry: ghcr.io
             username: ${{ github.actor }}
@@ -100,26 +92,25 @@
   
         - name: Push to GHCR
           uses: redhat-actions/push-to-registry@5ed88d269cf581ea9ef6dd6806d01562096bee9c # v2
-          if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+          if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable')
           with:
             image: ${{ steps.image_case.outputs.lowercase }}
-            tags: ${{ steps.metadata.outputs.tags }}
+            tags: ${{ env.BUILD_TAGS }}
             registry: ${{ steps.registry_case.outputs.lowercase }}
             username: ${{ github.actor }}
             password: ${{ secrets.GITHUB_TOKEN }}
   
         - name: Install Cosign
           uses: sigstore/cosign-installer@d7d6bc7722e3daa8354c50bcb52f4837da5e9b6a # v3.8.1
-          if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+          if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable')
   
         - name: Sign image ${{ matrix.variant }}
-          if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+          if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable')
           run: |
-            IMAGE_FULL="${{ steps.registry_case.outputs.lowercase }}/${{ steps.image_case.outputs.lowercase }}"
-            for tag in ${{ steps.metadata.outputs.tags }}; do
-              cosign sign -y --key env://COSIGN_PRIVATE_KEY $IMAGE_FULL:$tag
+            IMAGE_FULL="ghcr.io/${{ steps.registry_case.outputs.lowercase }}/${{ steps.image_case.outputs.lowercase }}"
+            for tag in $BUILD_TAGS; do
+              cosign sign -y --key env://COSIGN_PRIVATE_KEY "$IMAGE_FULL:$tag"
             done
           env:
             COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
-            COSIGN_EXPERIMENTAL: false
-  
+            COSIGN_EXPERIMENTAL: false  
