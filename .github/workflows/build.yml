@@ -14,6 +14,7 @@ on:
   workflow_dispatch:
 
 env:
+  BUILD_TAGS: "latest stable"
   IMAGE_DESC: "My Customized Universal Blue Image"
   IMAGE_REGISTRY: "ghcr.io/${{ github.repository_owner }}"
   ARTIFACTHUB_LOGO_URL: "https://avatars.githubusercontent.com/u/120078124?s=200&v=4"
@@ -26,9 +27,6 @@ jobs:
   build_and_push:
     name: Build and push both images
     runs-on: ubuntu-24.04
-    env:
-      BUILD_TAGS: latest stable
-      COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
     permissions:
       contents: read
       packages: write
@@ -110,4 +108,5 @@ jobs:
             cosign sign -y --key env://COSIGN_PRIVATE_KEY "$IMAGE_FULL:$tag"
           done
         env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
           COSIGN_EXPERIMENTAL: false
