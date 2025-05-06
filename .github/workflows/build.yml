@@ -27,6 +27,8 @@ jobs:
   build_and_push:
     name: Build and push both images
     runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
     permissions:
       contents: read
       packages: write
