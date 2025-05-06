@@ -2,7 +2,7 @@
 Description=Ensure correct kernel arguments
 DefaultDependencies=no
 After=systemd-udev-settle.service
-Before=graphical.target plymouth-quit.service
+Before=display-manager.service plymouth-quit.service
 Conflicts=shutdown.target
 ConditionKernelCommandLine=!recovery
 
