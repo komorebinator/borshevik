@@ -27,7 +27,8 @@
     {
         "repo": "https://github.com/vchlum/notification-timeout",
         "branch": "13",
-        "dir": "notification-timeout-13"
+        "dir": "notification-timeout-13/extension",
+        "schemas": "schemas"
     },
     {
         "repo": "https://github.com/Rafostar/gnome-shell-extension-pip-on-top",
