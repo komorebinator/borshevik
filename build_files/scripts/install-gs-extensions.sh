@@ -5,26 +5,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EXT_JSON="${SCRIPT_DIR}/extensions.json"
 DEST="/usr/share/gnome-shell/extensions"
 
-command -v jq >/dev/null || {
-    echo "Error: jq is required" >&2
-    exit 1
-}
-command -v curl >/dev/null || {
-    echo "Error: curl is required" >&2
-    exit 1
-}
-command -v unzip >/dev/null || {
-    echo "Error: unzip is required" >&2
-    exit 1
-}
-command -v git >/dev/null || {
-    echo "Error: git is required" >&2
-    exit 1
-}
-command -v glib-compile-schemas >/dev/null || {
-    echo "Error: glib-compile-schemas is required" >&2
-    exit 1
-}
+for cmd in jq curl unzip git glib-compile-schemas; do
+    command -v "$cmd" >/dev/null || {
+        echo "Error: $cmd is required" >&2
+        exit 1
+    }
+done
 
 echo ">>> Installing GNOME extensions from extensions.json …"
 
@@ -63,10 +49,18 @@ jq -c '.[]' "$EXT_JSON" | while read -r ENTRY; do
                 rm -rf "$TMP_DIR"
                 exit 1
             }
+
             ZIP_FILE="$TMP_DIR/ext.zip"
             curl -fsSL "$DL_URL" -o "$ZIP_FILE"
             unzip -q "$ZIP_FILE" -d "$TMP_DIR/unzipped"
-            EXT_SRC=$(find "$TMP_DIR/unzipped" -type d -name metadata.json -exec dirname {} \; | head -n1)
+
+            EXT_SRC="$TMP_DIR/unzipped"
+            META_FILE="$EXT_SRC/metadata.json"
+            [[ -f "$META_FILE" ]] || {
+                echo "Error: metadata.json not found at archive root of $ASSET_NAME" >&2
+                rm -rf "$TMP_DIR"
+                exit 1
+            }
         elif [[ -n "$BRANCH" ]]; then
             echo " • Cloning $REPO_PATH (branch: $BRANCH)"
             git clone --depth 1 --branch "$BRANCH" "$REPO_URL" "$TMP_DIR/repo"
