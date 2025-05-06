@@ -27,7 +27,7 @@
     {
         "repo": "https://github.com/vchlum/notification-timeout",
         "branch": "13",
-        "dir": "notification-timeout-13/extension",
+        "dir": "extension",
         "schemas": "schemas"
     },
     {
