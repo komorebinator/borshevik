@@ -1,6 +1,7 @@
 [
     {
-        "repo": "https://github.com/Tudmotu/gnome-shell-extension-clipboard-indicator"
+        "repo": "https://github.com/Tudmotu/gnome-shell-extension-clipboard-indicator",
+        "branch": "main"
     },
     {
         "repo": "https://github.com/aunetx/blur-my-shell"
