@@ -21,7 +21,8 @@
     },
     {
         "repo": "https://github.com/eonpatapon/gnome-shell-extension-caffeine",
-        "branch": "v57"
+        "branch": "v57",
+        "dir": "caffeine@patapon.info"
     },
     {
         "repo": "https://github.com/vchlum/notification-timeout",
