@@ -1,14 +1,16 @@
 [Unit]
-Description=Set kernel args on first boot
+Description=Ensure correct kernel arguments
 DefaultDependencies=no
-After=systemd-remount-fs.service local-fs.target systemd-udev-settle.service
-Before=plymouth-quit.service
+After=systemd-udev-settle.service
+Before=graphical.target plymouth-quit.service
+Conflicts=shutdown.target
+ConditionKernelCommandLine=!recovery
 
 [Service]
 Type=oneshot
 ExecStart=/usr/local/bin/setup-kargs.sh
-RemainAfterExit=yes
+RemainAfterExit=no
 StandardOutput=journal+console
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=graphical.target
