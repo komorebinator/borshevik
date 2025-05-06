@@ -12,17 +12,20 @@
         "asset": "gsconnect@andyholmes.github.io.zip"
     },
     {
-        "repo": "https://github.com/maniacx/Battery-Health-Charging"
+        "repo": "https://github.com/maniacx/Battery-Health-Charging",
+        "branch": "v074-GNOME45"
     },
     {
         "repo": "https://github.com/pomoke/battery_time",
         "branch": "main"
     },
     {
-        "repo": "https://github.com/eonpatapon/gnome-shell-extension-caffeine"
+        "repo": "https://github.com/eonpatapon/gnome-shell-extension-caffeine",
+        "branch": "v57"
     },
     {
-        "repo": "https://github.com/vchlum/notification-timeout"
+        "repo": "https://github.com/vchlum/notification-timeout",
+        "branch": "13"
     },
     {
         "repo": "https://github.com/Rafostar/gnome-shell-extension-pip-on-top",
