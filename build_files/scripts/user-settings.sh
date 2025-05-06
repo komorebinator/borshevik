@@ -11,4 +11,4 @@ EOF
 glib-compile-schemas /usr/share/glib-2.0/schemas
 
 systemctl enable app-choice-subscription.service
-systemctl enable reset-kargs.service
+systemctl enable setup-kargs.service
