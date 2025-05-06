@@ -37,6 +37,7 @@
     },
     {
         "repo": "https://gitlab.com/sagidayan/primary-input-on-lockscreen",
+        "dir": "primary_input_on_lockscreen@sagidayan.com",
         "branch": "main"
     },
     {
@@ -45,6 +46,8 @@
         "dir": "src"
     },
     {
-        "repo": "https://github.com/CleoMenezesJr/weather-oclock"
+        "repo": "https://github.com/CleoMenezesJr/weather-oclock",
+        "dir": "weatheroclock@CleoMenezesJr.github.io",
+        "schemas": "schemas"
     }
 ]
