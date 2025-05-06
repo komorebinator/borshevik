@@ -6,7 +6,7 @@ Before=plymouth-quit.service
 
 [Service]
 Type=oneshot
-ExecStart=/bin/sh -c '/usr/bin/plymouth display-message --text="Setting kernel arguments, please wait"; /usr/local/bin/reset-kargs.sh'
+ExecStart=/usr/local/bin/setup-kargs.sh
 RemainAfterExit=yes
 StandardOutput=journal+console
 
