@@ -2,7 +2,7 @@
 set -euo pipefail
 
 NEEDED_ARGS=("preempt=full")
-if rpm -q kmod-nvidia >/dev/null 2>&1; then
+if rpm -q akmod-nvidia >/dev/null 2>&1; then
     NEEDED_ARGS+=("nvidia-drm.modeset=1" "modprobe.blacklist=nouveau")
 fi
 
