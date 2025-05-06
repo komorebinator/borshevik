@@ -1,0 +1,40 @@
+[
+    {
+        "repo": "https://github.com/Tudmotu/gnome-shell-extension-clipboard-indicator"
+    },
+    {
+        "repo": "https://github.com/aunetx/blur-my-shell"
+    },
+    {
+        "repo": "https://github.com/GSConnect/gnome-shell-extension-gsconnect"
+    },
+    {
+        "repo": "https://github.com/maniacx/Battery-Health-Charging"
+    },
+    {
+        "repo": "https://github.com/pomoke/battery_time",
+        "branch": "main"
+    },
+    {
+        "repo": "https://github.com/eonpatapon/gnome-shell-extension-caffeine"
+    },
+    {
+        "repo": "https://github.com/vchlum/notification-timeout"
+    },
+    {
+        "repo": "https://github.com/Rafostar/gnome-shell-extension-pip-on-top",
+        "schemas": "schemas"
+    },
+    {
+        "repo": "https://gitlab.com/sagidayan/primary-input-on-lockscreen",
+        "branch": "main"
+    },
+    {
+        "repo": "https://github.com/crazygolem/bilingual-app-search",
+        "branch": "main",
+        "subdir": "src"
+    },
+    {
+        "repo": "https://github.com/CleoMenezesJr/weather-oclock"
+    }
+]
