@@ -1,5 +1,4 @@
-#!/bin/bash
-
+#!/usr/bin/env bash
 set -euo pipefail
 
 NEEDED_ARGS=("preempt=full")
@@ -7,7 +6,7 @@ if rpm -q kmod-nvidia >/dev/null 2>&1; then
     NEEDED_ARGS+=("nvidia-drm.modeset=1" "modprobe.blacklist=nouveau")
 fi
 
-CURRENT_KARGS=$(bootctl status | awk '/options:/ {$1=""; print substr($0,2)}')
+CURRENT_KARGS=$(</proc/cmdline)
 MISSING_ARGS=()
 
 for arg in "${NEEDED_ARGS[@]}"; do
@@ -18,17 +17,15 @@ done
 
 # --- Nothing to do ---
 if [ "${#MISSING_ARGS[@]}" -eq 0 ]; then
+    echo "Nothing to do"
     exit 0
-    echo "Nothing to do";
 fi
 
 plymouth display-message --text="Setting kernel arguments, please wait"
 
-# --- Apply all at once ---
+# --- Apply all missing args ---
 echo "Adding missing kernel args: ${MISSING_ARGS[*]}"
 rpm-ostree kargs --append-if-missing "${MISSING_ARGS[@]}"
 
-# --- Reboot to apply ---
-echo "Kernel arguments updated. Rebooting..."
-plymouth display-message --text="Kernel arguments updated. Rebooting."
+echo "Rebooting"
 systemctl reboot
