@@ -41,6 +41,7 @@ jq -c '.[]' "$EXT_JSON" | while read -r ENTRY; do
     BRANCH=$(jq -r '.branch // empty' <<<"$ENTRY")
     SUBDIR=$(jq -r '.subdir // empty' <<<"$ENTRY")
     SCHEMAS_DIR=$(jq -r '.schemas // empty' <<<"$ENTRY")
+    ASSET_NAME=$(jq -r '.asset // empty' <<<"$ENTRY")
 
     [[ -n "$REPO_URL" ]] || {
         echo "Error: entry #$INDEX missing 'repo'" >&2
@@ -51,22 +52,30 @@ jq -c '.[]' "$EXT_JSON" | while read -r ENTRY; do
     TMP_DIR="$(mktemp -d)"
     EXT_SRC=""
 
-    if [[ "$REPO_URL" =~ github\.com ]] && [[ -z "$BRANCH" ]]; then
-        echo " • Fetching release for $REPO_PATH"
-        API_URL="https://api.github.com/repos/$REPO_PATH/releases/latest"
-        DL_URL=$(curl -fsSL "$API_URL" |
-            jq -r '.assets[]? | select(.name | test("zip$")) | .browser_download_url' | head -n1 || true)
-
-        [[ -n "$DL_URL" ]] || {
-            echo "Error: no release found for $REPO_PATH and no branch specified" >&2
+    if [[ "$REPO_URL" =~ github\.com ]]; then
+        if [[ -n "$ASSET_NAME" ]]; then
+            echo " • Fetching release asset '$ASSET_NAME' for $REPO_PATH"
+            API_URL="https://api.github.com/repos/$REPO_PATH/releases/latest"
+            DL_URL=$(curl -fsSL "$API_URL" |
+                jq -r --arg name "$ASSET_NAME" '.assets[]? | select(.name == $name) | .browser_download_url' | head -n1 || true)
+            [[ -n "$DL_URL" ]] || {
+                echo "Error: asset '$ASSET_NAME' not found in latest release of $REPO_PATH" >&2
+                rm -rf "$TMP_DIR"
+                exit 1
+            }
+            ZIP_FILE="$TMP_DIR/ext.zip"
+            curl -fsSL "$DL_URL" -o "$ZIP_FILE"
+            unzip -q "$ZIP_FILE" -d "$TMP_DIR/unzipped"
+            EXT_SRC=$(find "$TMP_DIR/unzipped" -type d -name metadata.json -exec dirname {} \; | head -n1)
+        elif [[ -n "$BRANCH" ]]; then
+            echo " • Cloning $REPO_PATH (branch: $BRANCH)"
+            git clone --depth 1 --branch "$BRANCH" "$REPO_URL" "$TMP_DIR/repo"
+            EXT_SRC="$TMP_DIR/repo"
+        else
+            echo "Error: neither 'asset' nor 'branch' specified for GitHub repo $REPO_PATH" >&2
             rm -rf "$TMP_DIR"
             exit 1
-        }
-
-        ZIP_FILE="$TMP_DIR/ext.zip"
-        curl -fsSL "$DL_URL" -o "$ZIP_FILE"
-        unzip -q "$ZIP_FILE" -d "$TMP_DIR/unzipped"
-        EXT_SRC=$(find "$TMP_DIR/unzipped" -type d -name metadata.json -exec dirname {} \; | head -n1)
+        fi
     else
         echo " • Cloning $REPO_PATH${BRANCH:+ (branch: $BRANCH)}"
         if [[ -n "$BRANCH" ]]; then

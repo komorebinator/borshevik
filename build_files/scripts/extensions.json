@@ -4,26 +4,32 @@
         "branch": "master"
     },
     {
-        "repo": "https://github.com/aunetx/blur-my-shell"
+        "repo": "https://github.com/aunetx/blur-my-shell",
+        "asset": "blur-my-shell@aunetx.shell-extension.zip"
     },
     {
-        "repo": "https://github.com/GSConnect/gnome-shell-extension-gsconnect"
+        "repo": "https://github.com/GSConnect/gnome-shell-extension-gsconnect",
+        "asset": "gsconnect@andyholmes.github.io.zip"
     },
     {
-        "repo": "https://github.com/maniacx/Battery-Health-Charging"
+        "repo": "https://github.com/maniacx/Battery-Health-Charging",
+        "asset": "v074-GNOME45.zip"
     },
     {
         "repo": "https://github.com/pomoke/battery_time",
         "branch": "main"
     },
     {
-        "repo": "https://github.com/eonpatapon/gnome-shell-extension-caffeine"
+        "repo": "https://github.com/eonpatapon/gnome-shell-extension-caffeine",
+        "asset": "v57.zip"
     },
     {
-        "repo": "https://github.com/vchlum/notification-timeout"
+        "repo": "https://github.com/vchlum/notification-timeout",
+        "asset": "13.zip"
     },
     {
         "repo": "https://github.com/Rafostar/gnome-shell-extension-pip-on-top",
+        "branch": "main",
         "schemas": "schemas"
     },
     {
@@ -36,6 +42,7 @@
         "subdir": "src"
     },
     {
-        "repo": "https://github.com/CleoMenezesJr/weather-oclock"
+        "repo": "https://github.com/CleoMenezesJr/weather-oclock",
+        "asset": "47.0.zip"
     }
 ]
