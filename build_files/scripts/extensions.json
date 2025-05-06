@@ -13,7 +13,6 @@
     },
     {
         "repo": "https://github.com/maniacx/Battery-Health-Charging",
-        "asset": "v074-GNOME45.zip"
     },
     {
         "repo": "https://github.com/pomoke/battery_time",
@@ -21,11 +20,9 @@
     },
     {
         "repo": "https://github.com/eonpatapon/gnome-shell-extension-caffeine",
-        "asset": "v57.zip"
     },
     {
         "repo": "https://github.com/vchlum/notification-timeout",
-        "asset": "13.zip"
     },
     {
         "repo": "https://github.com/Rafostar/gnome-shell-extension-pip-on-top",
@@ -39,10 +36,9 @@
     {
         "repo": "https://github.com/crazygolem/bilingual-app-search",
         "branch": "main",
-        "subdir": "src"
+        "dir": "src"
     },
     {
         "repo": "https://github.com/CleoMenezesJr/weather-oclock",
-        "asset": "47.0.zip"
     }
 ]
