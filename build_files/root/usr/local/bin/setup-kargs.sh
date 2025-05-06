@@ -4,23 +4,38 @@ set -euo pipefail
 NEEDED_ARGS=("preempt=full")
 REMOVE_ARGS=()
 
+# Parse current kernel command line into array
+read -ra CMDLINE_ARGS <<< "$(</proc/cmdline)"
+
+# Check for NVIDIA driver
 if rpm -q akmod-nvidia >/dev/null 2>&1; then
     NEEDED_ARGS+=("nvidia-drm.modeset=1" "modprobe.blacklist=nouveau")
 else
-    # If akmod-nvidia is not present, remove these args if present
-    [[ $(</proc/cmdline) == *"nvidia-drm.modeset=1"* ]] && REMOVE_ARGS+=("nvidia-drm.modeset=1")
-    [[ $(</proc/cmdline) == *"modprobe.blacklist=nouveau"* ]] && REMOVE_ARGS+=("modprobe.blacklist=nouveau")
+    # If NVIDIA is not present, mark those args for removal if found
+    for arg in "nvidia-drm.modeset=1" "modprobe.blacklist=nouveau"; do
+        for existing in "${CMDLINE_ARGS[@]}"; do
+            if [[ "$existing" == "$arg" ]]; then
+                REMOVE_ARGS+=("$arg")
+                break
+            fi
+        done
+    done
 fi
 
-CURRENT_KARGS=$(</proc/cmdline)
+# Check which required args are missing
 MISSING_ARGS=()
-
-for arg in "${NEEDED_ARGS[@]}"; do
-    if [[ "$CURRENT_KARGS" != *"$arg"* ]]; then
-        MISSING_ARGS+=("$arg")
-    fi
+for needed in "${NEEDED_ARGS[@]}"; do
+    found=0
+    for existing in "${CMDLINE_ARGS[@]}"; do
+        if [[ "$existing" == "$needed" ]]; then
+            found=1
+            break
+        fi
+    done
+    [[ "$found" -eq 0 ]] && MISSING_ARGS+=("$needed")
 done
 
+# If nothing needs to be added or removed, exit early
 if [ ${#MISSING_ARGS[@]} -eq 0 ] && [ ${#REMOVE_ARGS[@]} -eq 0 ]; then
     echo "Nothing to do"
     exit 0
@@ -28,16 +43,19 @@ fi
 
 plymouth display-message --text="Setting kernel arguments, please wait"
 
+# Apply missing arguments
 if [ ${#MISSING_ARGS[@]} -gt 0 ]; then
     echo "Adding missing kernel args: ${MISSING_ARGS[*]}"
     rpm-ostree kargs --append-if-missing "${MISSING_ARGS[@]}"
 fi
 
+# Remove unnecessary arguments
 if [ ${#REMOVE_ARGS[@]} -gt 0 ]; then
     echo "Removing kernel args: ${REMOVE_ARGS[*]}"
     rpm-ostree kargs --delete "${REMOVE_ARGS[@]}"
 fi
 
 plymouth display-message --text="Rebooting"
+
 echo "Rebooting"
 systemctl reboot
