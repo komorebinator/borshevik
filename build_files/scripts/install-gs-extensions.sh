@@ -46,6 +46,7 @@ jq -c '.[]' "$EXT_JSON" | while read -r ENTRY; do
     dir=$(jq -r '.dir     // empty' <<<"$ENTRY")
     script_rel=$(jq -r '.script // empty' <<<"$ENTRY")
     schemas=$(jq -r '.schemas // empty' <<<"$ENTRY")
+    forceGnomeVersion=$(jq -r '.forceGnomeVersion // false' <<<"$ENTRY")
 
     [[ -n "$repo_url" ]] || {
         echo "Error: entry missing repo" >&2
@@ -154,6 +155,15 @@ jq -c '.[]' "$EXT_JSON" | while read -r ENTRY; do
     if [[ -n "$schemas" ]]; then
         echo "   → Compiling schemas in $schemas"
         glib-compile-schemas "$DEST/$uuid/$schemas"
+    fi
+
+    # Force shell-version if requested
+    if [[ "$forceGnomeVersion" == "true" ]]; then
+        # Extract version from RPM package
+        ver=$(rpm -q --queryformat '%{VERSION}' gnome-shell)
+        meta_dest="$DEST/$uuid/metadata.json"
+        jq --arg v "$ver" '.["shell-version"] = [$v]' "$meta_dest" >"$meta_dest.tmp" && mv "$meta_dest.tmp" "$meta_dest"
+        echo " → Forced shell-version to [$ver]"
     fi
 
     rm -rf "$tmp"

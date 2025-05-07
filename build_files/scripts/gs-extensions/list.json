@@ -52,6 +52,7 @@
     {
         "repo": "https://github.com/CleoMenezesJr/weather-oclock",
         "dir": "weatheroclock@CleoMenezesJr.github.io",
-        "schemas": "schemas"
+        "schemas": "schemas",
+        "forceGnomeVersion": true
     }
 ]
