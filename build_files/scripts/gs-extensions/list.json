@@ -10,11 +10,13 @@
     },
     {
         "repo": "https://github.com/GSConnect/gnome-shell-extension-gsconnect",
-        "asset": "gsconnect@andyholmes.github.io.zip"
+        "asset": "gsconnect@andyholmes.github.io.zip",
+        "schemas": "schemas"
     },
     {
         "repo": "https://github.com/maniacx/Battery-Health-Charging",
-        "branch": "v074-GNOME45"
+        "branch": "v074-GNOME45",
+        "schemas": "schemas"
     },
     {
         "repo": "https://github.com/pomoke/battery_time",
@@ -23,7 +25,8 @@
     {
         "repo": "https://github.com/eonpatapon/gnome-shell-extension-caffeine",
         "branch": "v57",
-        "dir": "caffeine@patapon.info"
+        "dir": "caffeine@patapon.info",
+        "schemas": "schemas"
     },
     {
         "repo": "https://github.com/vchlum/notification-timeout",
