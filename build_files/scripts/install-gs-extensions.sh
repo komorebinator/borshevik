@@ -101,22 +101,39 @@ jq -c '.[]' "$EXT_JSON" | while read -r ENTRY; do
     # apply dir
     [[ -n "$dir" ]] && ext_src="$ext_src/$dir"
 
-    # 2. Custom script override
+    # 2. Custom script override (use only local scripts next to list.json)
     if [[ -n "$script_rel" ]]; then
         script_path="$SCRIPT_DIR/gs-extensions/$script_rel"
-        [[ -x "$script_path" ]] || {
+        if [[ ! -x "$script_path" ]]; then
             echo "Error: script '$script_rel' not found or not executable" >&2
             rm -rf "$tmp"
             exit 1
-        }
+        fi
 
         echo "   → Running custom script $script_rel"
         (cd "$ext_src" && exec "$script_path")
-        # after script installation, still compile schemas if requested
+
+        # After custom install, extract UUID and validate installation directory
+        uuid=$(jq -r '.uuid' "$ext_src/metadata.json")
+        if [[ -z "$uuid" || "$uuid" == "null" ]]; then
+            echo "Error: cannot determine UUID after custom install" >&2
+            rm -rf "$tmp"
+            exit 1
+        fi
+
+        dest="$DEST/$uuid"
+        if [[ ! -d "$dest" ]]; then
+            echo "Error: custom script did not install to $dest" >&2
+            rm -rf "$tmp"
+            exit 1
+        fi
+
+        # Compile schemas if requested
         if [[ -n "$schemas" ]]; then
             echo "   → Compiling schemas in $schemas"
-            glib-compile-schemas "$DEST/$(jq -r '.uuid' <<<"$ENTRY")/$schemas"
+            glib-compile-schemas "$dest/$schemas"
         fi
+
         rm -rf "$tmp"
         continue
     fi
