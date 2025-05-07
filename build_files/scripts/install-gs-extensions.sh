@@ -16,7 +16,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-EXT_JSON="${SCRIPT_DIR}/extensions/list.json"
+EXT_JSON="${SCRIPT_DIR}/gs-extensions/list.json"
 DEST="/usr/share/gnome-shell/extensions"
 
 # Dependencies: jq curl unzip git glib-compile-schemas rsync tar
@@ -103,7 +103,7 @@ jq -c '.[]' "$EXT_JSON" | while read -r ENTRY; do
 
     # 2. Custom script override
     if [[ -n "$script_rel" ]]; then
-        script_path="$SCRIPT_DIR/extensions/$script_rel"
+        script_path="$SCRIPT_DIR/gs-extensions/$script_rel"
         [[ -x "$script_path" ]] || {
             echo "Error: script '$script_rel' not found or not executable" >&2
             rm -rf "$tmp"
