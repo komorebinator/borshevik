@@ -6,8 +6,7 @@
     {
         "repo": "https://github.com/aunetx/blur-my-shell",
         "asset": "blur-my-shell@aunetx.shell-extension.zip",
-        "schemas": "schemas",
-        "script": "install-blur-my-shell.sh"
+        "schemas": "schemas"
     },
     {
         "repo": "https://github.com/GSConnect/gnome-shell-extension-gsconnect",
