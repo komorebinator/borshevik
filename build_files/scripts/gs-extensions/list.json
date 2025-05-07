@@ -9,11 +9,6 @@
         "schemas": "schemas"
     },
     {
-        "repo": "https://github.com/GSConnect/gnome-shell-extension-gsconnect",
-        "asset": "gsconnect@andyholmes.github.io.zip",
-        "script": "install-gsconnect.sh"
-    },
-    {
         "repo": "https://github.com/maniacx/Battery-Health-Charging",
         "branch": "v074-GNOME45",
         "schemas": "schemas"
