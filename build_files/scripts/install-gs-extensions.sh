@@ -146,7 +146,7 @@ jq -c '.[]' "$EXT_JSON" | while read -r ENTRY; do
         exit 1
     }
 
-    uuid=$(jq -r '.uuid' <<<"$ENTRY")
+    uuid=$(jq -r '.uuid' "$meta")
     echo "   → Installing $uuid"
     mkdir -p "$DEST/$uuid"
     rsync -a --delete --exclude=.git "$ext_src/" "$DEST/$uuid/"
