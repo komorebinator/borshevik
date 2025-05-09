@@ -14,6 +14,7 @@ LABEL org.opencontainers.image.version=$IMAGE_TAG
 
 # Apply the overlay (etc/, usr/, etc.) from build_files/root
 COPY build_files/root/ /
+COPY cosign.pub /etc/pki/containers/cosign.pub
 
 # Run the build script by mounting it ephemeral (not persisting in image)
 RUN --mount=type=bind,from=ctx,source=/build_scripts,target=/build_scripts \
