@@ -1,8 +1,10 @@
-# shared build context
+# Stage for build scripts (these will be mounted, not persisted)
 FROM scratch AS ctx
-COPY build_files /
 
-# === BASE IMAGE (Borshevik) ===
+# Copy all build scripts into /build_scripts
+COPY build_files/scripts /build_scripts/
+
+# Base image (Borshevik) based on uBlue-Silverblue
 FROM ghcr.io/ublue-os/silverblue-main:latest AS borshevik
 
 ARG IMAGE_NAME=komorebi-os
@@ -10,15 +12,15 @@ ARG IMAGE_TAG=main
 LABEL org.opencontainers.image.title=$IMAGE_NAME
 LABEL org.opencontainers.image.version=$IMAGE_TAG
 
-COPY --from=ctx / /ctx
-RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
-    --mount=type=cache,dst=/var/cache \
-    --mount=type=cache,dst=/var/log \
-    --mount=type=tmpfs,dst=/tmp \
-    /ctx/build.sh && \
+# Apply the overlay (etc/, usr/, etc.) from build_files/root
+COPY build_files/root/ /
+
+# Run the build script by mounting it ephemeral (not persisting in image)
+RUN --mount=type=bind,from=ctx,source=/build_scripts,target=/build_scripts \
+    /build_scripts/build.sh && \
     ostree container commit
 
-# === NVIDIA VARIANT ===
+# NVIDIA variant: run the NVIDIA-specific build script in similar manner
 FROM borshevik AS borshevik-nvidia
 
 ARG IMAGE_NAME=komorebi-os-nvidia
@@ -26,14 +28,10 @@ ARG IMAGE_TAG=nvidia
 LABEL org.opencontainers.image.title=$IMAGE_NAME
 LABEL org.opencontainers.image.version=$IMAGE_TAG
 
-COPY --from=ctx / /ctx
-RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
-    --mount=type=cache,dst=/var/cache \
-    --mount=type=cache,dst=/var/log \
-    --mount=type=tmpfs,dst=/tmp \
-    /ctx/build-nvidia.sh && \
+RUN --mount=type=bind,from=ctx,source=/build_scripts,target=/build_scripts \
+    /build_scripts/build-nvidia.sh && \
     ostree container commit
 
-# === LINTING ===
+# Linting stage to validate the container
 FROM borshevik-nvidia AS lint
 RUN bootc container lint

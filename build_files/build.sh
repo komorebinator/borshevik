@@ -3,7 +3,6 @@
 set -ouex pipefail
 
 /ctx/scripts/cleanup.sh
-/ctx/scripts/copy-root.sh
 /ctx/scripts/install-gs-extensions.sh
 /ctx/scripts/install-copr-packages.sh
 /ctx/scripts/install-google-chrome.sh
