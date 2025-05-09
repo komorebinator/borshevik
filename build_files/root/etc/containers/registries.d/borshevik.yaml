@@ -1,5 +1,3 @@
-unqualified-search-registries = []
-
-[[registry]]
-prefix = "ghcr.io/komorebithrowsatable"
-use-sigstore-attachments = true
+docker:
+  ghcr.io/komorebithrowsatable:
+    use-sigstore-attachments: true
