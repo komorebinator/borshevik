@@ -19,7 +19,8 @@ on:
     branches:
       - main
     paths:
-      - './iso.toml'
+      - './komorebi-os.toml'
+      - './komorebi-os-nvidia.toml'
       - './.github/workflows/build-iso.yml'
       - './Justfile'
 
@@ -57,20 +58,15 @@ jobs:
 
       - name: Maximize build space (AMD64)
         if: inputs.platform != 'arm64'
-        uses: ublue-os/remove-unwanted-software@cc0becac701cf642c8f0a6613bbdaf5dc36b259e # v9
+        uses: ublue-os/remove-unwanted-software@cc0becac701cf642c8f0a6613bbdaf5dc36b259e
         with:
           remove-codeql: true
 
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Setup Just
-        uses: extractions/setup-just@e33e0265a09d6d736e2ee1e0eb685ef1de4669ff # v3
-
-      - name: Prepare Kickstart for ${{ matrix.variant }}
-        run: |
-          cp iso.toml iso-${{ matrix.variant }}.toml
-          sed -i "s|${IMAGE_REGISTRY}/komorebi-os:${DEFAULT_TAG}|${IMAGE_REGISTRY}/${{ matrix.variant }}:${DEFAULT_TAG}|g" iso-${{ matrix.variant }}.toml
+        uses: extractions/setup-just@e33e0265a09d6d736e2ee1e0eb685ef1de4669ff
 
       - name: Build ISO ${{ matrix.variant }}
         id: build
@@ -78,12 +74,12 @@ jobs:
         with:
           bootc-image-builder-image: ghcr.io/centos-workstation/bootc-image-builder:latest
           use-librepo: true
-          config-file: ./iso-${{ matrix.variant }}.toml
+          config-file: ./${{ matrix.variant }}.toml
           image: ${{ env.IMAGE_REGISTRY }}/${{ matrix.variant }}:${{ env.DEFAULT_TAG }}
 
       - name: Upload ISO ${{ matrix.variant }} to Artifacts
         if: inputs.upload-to-s3 != true && github.event_name != 'pull_request'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: iso-${{ matrix.variant }}
           path: ${{ steps.build.outputs.output-directory }}
