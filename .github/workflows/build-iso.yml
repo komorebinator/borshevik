@@ -1,104 +1,76 @@
-name: Build ISOs
+name: Build ISOs for Komorebi
 
 on:
   workflow_dispatch:
-    inputs:
-      upload-to-s3:
-        description: "Upload to S3"
-        required: false
-        default: false
-        type: boolean
-      platform:
-        description: "Target platform"
-        required: true
-        type: choice
-        options:
-          - amd64
-          - arm64
-  pull_request:
-    branches:
-      - main
-    paths:
-      - './komorebi-os.toml'
-      - './komorebi-os-nvidia.toml'
-      - './.github/workflows/build-iso.yml'
-      - './Justfile'
+  workflow_call:
 
 env:
   IMAGE_REGISTRY: "ghcr.io/${{ github.repository_owner }}"
-  DEFAULT_TAG: "latest"
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref || github.run_id }}
+  group: ${{ github.workflow }}-${{ github.ref || github.run_id }}-iso
   cancel-in-progress: true
 
 jobs:
-  build:
+  build-iso:
     name: Build ISOs
-    runs-on: ${{ inputs.platform == 'amd64' && 'ubuntu-24.04' || 'ubuntu-24.04-arm' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
     strategy:
       fail-fast: false
       matrix:
-        variant: [komorebi-os, komorebi-os-nvidia]
-    permissions:
-      contents: read
-      packages: read
-      id-token: write
-
+        image_name:
+          - komorebi-os
+          - komorebi-os-nvidia
+        major_version:
+          - 42
     steps:
-      - name: Lowercase IMAGE_REGISTRY
-        run: |
-          echo "IMAGE_REGISTRY=${IMAGE_REGISTRY,,}" >> $GITHUB_ENV
+      - name: Checkout Repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
-      - name: Install dependencies (ARM64)
-        if: inputs.platform == 'arm64'
+      - name: Set Image Tag
+        id: generate-tag
         run: |
-          sudo apt update -y
-          sudo apt install -y podman
+          TAG="latest"
+          if [[ "${{ github.ref_name }}" == "stable" ]]; then
+            TAG="stable"
+          fi
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
 
-      - name: Maximize build space (AMD64)
-        if: inputs.platform != 'arm64'
-        uses: ublue-os/remove-unwanted-software@cc0becac701cf642c8f0a6613bbdaf5dc36b259e
+      - name: Lowercase Registry
+        id: registry_case
+        uses: ASzc/change-string-case-action@d0603cd0a7dd490be678164909f65c7737470a7f # v6
         with:
-          remove-codeql: true
+          string: ${{ env.IMAGE_REGISTRY }}
 
-      - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-
-      - name: Setup Just
-        uses: extractions/setup-just@e33e0265a09d6d736e2ee1e0eb685ef1de4669ff
-
-      - name: Build ISO ${{ matrix.variant }}
+      - name: Build ISO
         id: build
-        uses: ublue-os/bootc-image-builder-action@main
+        uses: jasonn3/build-container-installer@d77e9563739921c2f93de778d4fbad854f52d389 # v1.3.0
         with:
-          bootc-image-builder-image: ghcr.io/centos-workstation/bootc-image-builder:latest
-          use-librepo: true
-          config-file: ./${{ matrix.variant }}.toml
-          image: ${{ env.IMAGE_REGISTRY }}/${{ matrix.variant }}:${{ env.DEFAULT_TAG }}
+          arch: x86_64
+          image_name: ${{ matrix.image_name }}
+          image_repo: ${{ steps.registry_case.outputs.lowercase }}
+          image_tag: ${{ steps.generate-tag.outputs.tag }}
+          version: ${{ matrix.major_version }}
+          variant: komorebi
+          iso_name: ${{ matrix.image_name }}-${{ steps.generate-tag.outputs.tag }}-${{ matrix.major_version }}.iso
 
-      - name: Upload ISO ${{ matrix.variant }} to Artifacts
-        if: inputs.upload-to-s3 != true && github.event_name != 'pull_request'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - name: Move ISOs to Upload Directory
+        id: upload-directory
+        run: |
+          mkdir -p upload
+          mv "${{ steps.build.outputs.iso_path }}" upload/
+          mv "${{ steps.build.outputs.iso_path }}-CHECKSUM" upload/
+
+      - name: Upload ISOs and Checksum to Job Artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: iso-${{ matrix.variant }}
-          path: ${{ steps.build.outputs.output-directory }}
+          name: ${{ matrix.image_name }}-${{ steps.generate-tag.outputs.tag }}-${{ matrix.major_version }}
+          path: upload/
           if-no-files-found: error
           retention-days: 0
           compression-level: 0
           overwrite: true
-
-      - name: Upload ISO ${{ matrix.variant }} to S3
-        if: inputs.upload-to-s3 == true && github.event_name != 'pull_request'
-        shell: bash
-        env:
-          RCLONE_CONFIG_S3_TYPE: s3
-          RCLONE_CONFIG_S3_PROVIDER: ${{ secrets.S3_PROVIDER }}
-          RCLONE_CONFIG_S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
-          RCLONE_CONFIG_S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
-          RCLONE_CONFIG_S3_REGION: ${{ secrets.S3_REGION }}
-          RCLONE_CONFIG_S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y rclone
-          rclone copy "${{ steps.build.outputs.output-directory }}" S3:${{ secrets.S3_BUCKET_NAME }}
