@@ -61,15 +61,17 @@ jobs:
       - name: Move ISOs to Upload Directory
         id: upload-directory
         run: |
-          mkdir -p upload
-          mv "${{ steps.build.outputs.iso_path }}" upload/
-          mv "${{ steps.build.outputs.iso_path }}-CHECKSUM" upload/
+          ISO_UPLOAD_DIR=${{ github.workspace }}/upload
+          mkdir -p "${ISO_UPLOAD_DIR}"
+          mv "${{ steps.build.outputs.iso_path }}/${{ steps.build.outputs.iso_name }}" "${ISO_UPLOAD_DIR}"
+          mv "${{ steps.build.outputs.iso_path }}/${{ steps.build.outputs.iso_name }}-CHECKSUM" "${ISO_UPLOAD_DIR}"
+          echo "iso-upload-dir=${ISO_UPLOAD_DIR}" >> $GITHUB_OUTPUT
 
       - name: Upload ISOs and Checksum to Job Artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ${{ matrix.image_name }}-${{ steps.generate-tag.outputs.tag }}-${{ matrix.major_version }}
-          path: upload/
+          path: ${{ steps.upload-directory.outputs.iso-upload-dir }}
           if-no-files-found: error
           retention-days: 0
           compression-level: 0
