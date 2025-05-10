@@ -3,6 +3,7 @@ ID=borshevik
 ID_LIKE=fedora
 VARIANT="Universal Blue Custom Image"
 VARIANT_ID=komorebi
+PLATFORM_ID="platform:f42"
 VERSION="Alpha (Rolling)"
 VERSION_ID="42"
 PRETTY_NAME="Borshevik (Alpha)"
