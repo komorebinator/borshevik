@@ -1,4 +1,4 @@
-name: Build ISOs for Komorebi
+name: Build ISOs
 
 on:
   workflow_dispatch:
