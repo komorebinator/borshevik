@@ -40,8 +40,8 @@
         "branch": "main"
     },
     {
-        "repo": "https://github.com/crazygolem/bilingual-app-search",
-        "branch": "main",
+        "repo": "https://github.com/statyan/gnome-extension-transcode-searchapp",
+        "branch": "master",
         "dir": "src"
     },
     {
