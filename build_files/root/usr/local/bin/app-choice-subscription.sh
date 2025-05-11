@@ -18,18 +18,19 @@ fi
 while read -r app; do
     [ -z "$app" ] && continue
 
-    # Skip if already installed manually or in system image
-    if flatpak list --app | grep -q "$app"; then
-        continue
-    fi
-
     # Skip if it was installed earlier by this script, then removed manually
     if grep -Fxq "$app" "$STATE_FILE"; then
         continue
     fi
 
+    # Skip if already installed manually or in system image
+    if flatpak list --app | grep -q "$app"; then
+        echo "$app" >>"$STATE_FILE"
+        continue
+    fi
+
     echo "Installing missing flatpak: $app"
     if flatpak install -y --noninteractive flathub "$app"; then
-        echo "$app" >> "$STATE_FILE"
+        echo "$app" >>"$STATE_FILE"
     fi
-done < "$LIST_FILE"
+done <"$LIST_FILE"
