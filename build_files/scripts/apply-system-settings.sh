@@ -4,7 +4,7 @@ set -oue pipefail
 # Create override file to set default GNOME favorites (dock icons)
 cat <<EOF >/usr/share/glib-2.0/schemas/99-chrome-favorite.gschema.override
 [org.gnome.shell]
-favorite-apps=['google-chrome.desktop', 'org.gnome.Nautilus.desktop']
+favorite-apps=['google-chrome.desktop', 'org.telegram.desktop', 'org.gnome.Nautilus.desktop','org.gnome.Calendar.desktop','org.gnome.World.Secrets.desktop','com.usebottles.bottles.desktop','com.valvesoftware.Steam.desktop','org.gnome.Software.desktop']
 EOF
 
 # Compile schemas so GNOME picks up the new defaults

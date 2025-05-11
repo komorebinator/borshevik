@@ -1,4 +1,4 @@
-  com.valvesoftware.Steam
+  org.telegram.desktop
   org.gnome.Weather
   org.gnome.clocks
   org.gnome.Calculator
@@ -30,3 +30,4 @@
   com.github.unrud.VideoDownloader
   com.transmissionbt.Transmission
   org.localsend.localsend_app
+  com.valvesoftware.Steam
