@@ -69,7 +69,6 @@ jobs:
           iso_name: ${{ matrix.image_name }}-${{ steps.generate-tag.outputs.tag }}-${{ matrix.major_version }}.iso
           additional_templates: |
             /github/workspace/installer/lorax_templates/partitioning.tmpl
-            /github/workspace/installer/lorax_templates/modules.tmpl
             ${{ env.SWITCH_TPL }}
 
       - name: Move ISOs to Upload Directory
