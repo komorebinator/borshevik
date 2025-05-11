@@ -50,9 +50,9 @@ jobs:
         id: pick
         run: |
           if [[ "${{ matrix.image_name }}" == *-nvidia ]]; then
-            echo "SWITCH_TPL=installer/lorax_templates/bootc-switch-nvidia.tmpl" >> $GITHUB_ENV
+            echo "SWITCH_TPL=/github/workspace/installer/lorax_templates/bootc-switch-nvidia.tmpl" >> $GITHUB_ENV
           else
-            echo "SWITCH_TPL=installer/lorax_templates/bootc-switch.tmpl" >> $GITHUB_ENV
+            echo "SWITCH_TPL=/github/workspace/installer/lorax_templates/bootc-switch.tmpl" >> $GITHUB_ENV
           fi
       - name: Build ISO
         id: build
@@ -68,8 +68,8 @@ jobs:
           variant: borshevik
           iso_name: ${{ matrix.image_name }}-${{ steps.generate-tag.outputs.tag }}-${{ matrix.major_version }}.iso
           additional_templates: |
-            installer/lorax_templates/partitioning.tmpl
-            installer/lorax_templates/modules.tmpl
+            /github/workspace/installer/lorax_templates/partitioning.tmpl
+            /github/workspace/installer/lorax_templates/modules.tmpl
             ${{ env.SWITCH_TPL }}
 
       - name: Move ISOs to Upload Directory
