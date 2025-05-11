@@ -6,14 +6,13 @@ on:
 
 env:
   IMAGE_REGISTRY: "ghcr.io/${{ github.repository_owner }}"
-  DEFAULT_TAG: "latest"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref || github.run_id }}-iso
   cancel-in-progress: true
 
 jobs:
-  build:
+  build-iso:
     name: Build ISOs
     runs-on: ubuntu-latest
     permissions:
@@ -23,9 +22,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        variant:
+        image_name:
           - borshevik
           - borshevik-nvidia
+        major_version:
+          - 42
     steps:
       - name: Checkout Repo
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
@@ -45,20 +46,47 @@ jobs:
         with:
           string: ${{ env.IMAGE_REGISTRY }}
 
-      - name: Build ISO ${{ matrix.variant }}
+      - name: Pick bootc-switch template
+        id: pick
+        run: |
+          if [[ "${{ matrix.image_name }}" == *-nvidia ]]; then
+            echo "SWITCH_TPL=installer/lorax_templates/bootc-switch-nvidia.tmpl" >> $GITHUB_ENV
+          else
+            echo "SWITCH_TPL=installer/lorax_templates/bootc-switch.tmpl" >> $GITHUB_ENV
+          fi
+      - name: Build ISO
         id: build
-        uses: ublue-os/bootc-image-builder-action@main
+        uses: jasonn3/build-container-installer@d77e9563739921c2f93de778d4fbad854f52d389 # v1.3.0
         with:
-          bootc-image-builder-image: ghcr.io/centos-workstation/bootc-image-builder:latest
-          use-librepo: true
-          config-file: ./${{ matrix.variant }}.toml
-          image: ${{ steps.registry_case.outputs.lowercase }}/${{ matrix.variant }}:${{ steps.generate-tag.outputs.tag }}
+          enable_cache_dnf: "false"
+          enable_cache_skopeo: "false"
+          arch: x86_64
+          image_name: ${{ matrix.image_name }}
+          image_repo: ${{ steps.registry_case.outputs.lowercase }}
+          image_tag: ${{ steps.generate-tag.outputs.tag }}
+          version: ${{ matrix.major_version }}
+          variant: borshevik
+          iso_name: ${{ matrix.image_name }}-${{ steps.generate-tag.outputs.tag }}-${{ matrix.major_version }}.iso
+          additional_templates: |
+            installer/lorax_templates/partitioning.tmpl
+            installer/lorax_templates/modules.tmpl
+            ${{ env.SWITCH_TPL }}
 
-      - name: Upload ISO ${{ matrix.variant }}
+      - name: Move ISOs to Upload Directory
+        id: upload-directory
+        run: |
+          ISO_UPLOAD_DIR=${{ github.workspace }}/upload
+          mkdir -p "${ISO_UPLOAD_DIR}"
+          mv "${{ steps.build.outputs.iso_path }}/${{ steps.build.outputs.iso_name }}" "${ISO_UPLOAD_DIR}"
+          mv "${{ steps.build.outputs.iso_path }}/${{ steps.build.outputs.iso_name }}-CHECKSUM" "${ISO_UPLOAD_DIR}"
+          echo "iso-upload-dir=${ISO_UPLOAD_DIR}" >> $GITHUB_OUTPUT
+
+      - name: Upload ISOs and Checksum to Job Artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: iso-${{ matrix.variant }}
-          path: ${{ steps.build.outputs.output-directory }}
+          name: ${{ matrix.image_name }}-${{ steps.generate-tag.outputs.tag }}-${{ matrix.major_version }}
+          path: ${{ steps.upload-directory.outputs.iso-upload-dir }}
+          if-no-files-found: error
           retention-days: 0
           compression-level: 0
           overwrite: true
