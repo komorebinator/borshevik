@@ -7,7 +7,7 @@ COPY build_files/scripts /build_scripts/
 # Base image (Borshevik) based on uBlue-Silverblue
 FROM ghcr.io/ublue-os/silverblue-main:latest AS borshevik
 
-ARG IMAGE_NAME=komorebi-os
+ARG IMAGE_NAME=borshevik
 ARG IMAGE_TAG=main
 LABEL org.opencontainers.image.title=$IMAGE_NAME
 LABEL org.opencontainers.image.version=$IMAGE_TAG
@@ -24,7 +24,7 @@ RUN --mount=type=bind,from=ctx,source=/build_scripts,target=/build_scripts \
 # NVIDIA variant: run the NVIDIA-specific build script in similar manner
 FROM borshevik AS borshevik-nvidia
 
-ARG IMAGE_NAME=komorebi-os-nvidia
+ARG IMAGE_NAME=borshevik-nvidia
 ARG IMAGE_TAG=nvidia
 LABEL org.opencontainers.image.title=$IMAGE_NAME
 LABEL org.opencontainers.image.version=$IMAGE_TAG

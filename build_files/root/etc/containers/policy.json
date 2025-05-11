@@ -41,7 +41,7 @@
                     }
                 }
             ],
-            "ghcr.io/komorebithrowsatable": [
+            "ghcr.io/komorebinator": [
                 {
                     "type": "sigstoreSigned",
                     "keyPath": "/etc/pki/containers/cosign.pub",

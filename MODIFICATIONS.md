@@ -49,7 +49,7 @@
   * Enabled **Fractional Scaling**
   * Enabled **VRR (Variable Refresh Rate)**
 * Installed via custom RPM
-* Built from custom source with COPR: [https://copr.fedorainfracloud.org/coprs/komorebithrows/borshevik/](https://copr.fedorainfracloud.org/coprs/komorebithrows/borshevik/)
+* Built from custom source with COPR: [https://copr.fedorainfracloud.org/coprs/komorebinator/borshevik/](https://copr.fedorainfracloud.org/coprs/komorebinator/borshevik/)
 
 ## 🌐 Google Chrome
 

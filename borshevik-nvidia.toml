@@ -4,7 +4,7 @@ clearpart --all --initlabel
 autopart --type=lvm --fstype=ext4
 
 %post
-bootc switch --mutate-in-place --transport registry ghcr.io/komorebithrows/komorebi-os-nvidia:latest
+bootc switch --mutate-in-place --transport registry ghcr.io/komorebinator/borshevik-nvidia:latest
 %end
 """
 

@@ -37,9 +37,9 @@ jobs:
     strategy:
       matrix:
         include:
-          - variant: komorebi-os
+          - variant: borshevik
             target: borshevik
-          - variant: komorebi-os-nvidia
+          - variant: borshevik-nvidia
             target: borshevik-nvidia
 
     steps:
