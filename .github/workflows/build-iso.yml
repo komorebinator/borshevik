@@ -51,7 +51,7 @@ jobs:
         with:
           bootc-image-builder-image: ghcr.io/centos-workstation/bootc-image-builder:latest
           use-librepo: true
-          config-file: ${{ matrix.variant }}.toml
+          config-file: ./${{ matrix.variant }}.toml
           image: ${{ steps.registry_case.outputs.lowercase }}/${{ matrix.variant }}:${{ steps.generate-tag.outputs.tag }}
 
       - name: Upload ISO ${{ matrix.variant }}
