@@ -1,7 +1,11 @@
-name        = "borshevik-nvidia"
-description = "Borshevik installer (nvidia version)"
+name        = "borshevik-installer-nvidia"
+description = "Borshevik installer (nvidia)"
 version     = "42"
 distro      = "fedora-42"
+
+[customizations.ostree]
+url = "registry:ghcr.io/komorebinator/borshevik-nvidia:latest"
+ref = "borshevik-nvidia"
 
 [customizations.installer.kickstart]
 contents = """
@@ -9,7 +13,7 @@ clearpart --all --initlabel
 autopart --type=lvm --fstype=ext4
 
 %post
-bootc switch --mutate-in-place --transport registry ghcr.io/komorebinator/borshevik-nvidia:latest
+bootc switch --mutate-in-place --transport ostree ref=borshevik-nvidia
 %end
 """
 
@@ -23,5 +27,5 @@ disable = [
   "org.fedoraproject.Anaconda.Modules.Services",
   "org.fedoraproject.Anaconda.Modules.Users",
   "org.fedoraproject.Anaconda.Modules.Subscription",
-  "org.fedoraproject.Anaconda.Modules.Timezone" 
+  "org.fedoraproject.Anaconda.Modules.Timezone"
 ]
