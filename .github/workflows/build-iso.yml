@@ -23,8 +23,8 @@ jobs:
       fail-fast: false
       matrix:
         image_name:
-          - komorebi-os
-          - komorebi-os-nvidia
+          - borshevik
+          - borshevik-nvidia
         major_version:
           - 42
     steps:
@@ -57,7 +57,7 @@ jobs:
           image_repo: ${{ steps.registry_case.outputs.lowercase }}
           image_tag: ${{ steps.generate-tag.outputs.tag }}
           version: ${{ matrix.major_version }}
-          variant: komorebi
+          variant: borshevik
           iso_name: ${{ matrix.image_name }}-${{ steps.generate-tag.outputs.tag }}-${{ matrix.major_version }}.iso
 
       - name: Move ISOs to Upload Directory
