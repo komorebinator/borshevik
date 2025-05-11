@@ -1,3 +1,2 @@
-%post
-bootc switch --mutate-in-place --transport registry ghcr.io/komorebithrows/borshevik:latest
-%end
+append usr/share/anaconda/interactive-defaults.ks \
+  "\\n%post\\nbootc switch --mutate-in-place --transport registry ghcr.io/komorebinator/borshevik:latest\\n%end"
