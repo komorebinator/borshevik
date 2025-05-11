@@ -6,13 +6,14 @@ on:
 
 env:
   IMAGE_REGISTRY: "ghcr.io/${{ github.repository_owner }}"
+  DEFAULT_TAG: "latest"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref || github.run_id }}-iso
   cancel-in-progress: true
 
 jobs:
-  build-iso:
+  build:
     name: Build ISOs
     runs-on: ubuntu-latest
     permissions:
@@ -22,11 +23,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image_name:
+        variant:
           - borshevik
           - borshevik-nvidia
-        major_version:
-          - 42
     steps:
       - name: Checkout Repo
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
@@ -46,35 +45,20 @@ jobs:
         with:
           string: ${{ env.IMAGE_REGISTRY }}
 
-      - name: Build ISO
+      - name: Build ISO ${{ matrix.variant }}
         id: build
-        uses: jasonn3/build-container-installer@d77e9563739921c2f93de778d4fbad854f52d389 # v1.3.0
+        uses: ublue-os/bootc-image-builder-action@main
         with:
-          enable_cache_dnf: "false"
-          enable_cache_skopeo: "false"
-          arch: x86_64
-          image_name: ${{ matrix.image_name }}
-          image_repo: ${{ steps.registry_case.outputs.lowercase }}
-          image_tag: ${{ steps.generate-tag.outputs.tag }}
-          version: ${{ matrix.major_version }}
-          variant: borshevik
-          iso_name: ${{ matrix.image_name }}-${{ steps.generate-tag.outputs.tag }}-${{ matrix.major_version }}.iso
+          bootc-image-builder-image: ghcr.io/centos-workstation/bootc-image-builder:latest
+          use-librepo: true
+          config-file: ${{ matrix.variant }}.toml
+          image: ${{ steps.registry_case.outputs.lowercase }}/${{ matrix.variant }}:${{ steps.generate-tag.outputs.tag }}
 
-      - name: Move ISOs to Upload Directory
-        id: upload-directory
-        run: |
-          ISO_UPLOAD_DIR=${{ github.workspace }}/upload
-          mkdir -p "${ISO_UPLOAD_DIR}"
-          mv "${{ steps.build.outputs.iso_path }}/${{ steps.build.outputs.iso_name }}" "${ISO_UPLOAD_DIR}"
-          mv "${{ steps.build.outputs.iso_path }}/${{ steps.build.outputs.iso_name }}-CHECKSUM" "${ISO_UPLOAD_DIR}"
-          echo "iso-upload-dir=${ISO_UPLOAD_DIR}" >> $GITHUB_OUTPUT
-
-      - name: Upload ISOs and Checksum to Job Artifacts
+      - name: Upload ISO ${{ matrix.variant }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: ${{ matrix.image_name }}-${{ steps.generate-tag.outputs.tag }}-${{ matrix.major_version }}
-          path: ${{ steps.upload-directory.outputs.iso-upload-dir }}
-          if-no-files-found: error
+          name: iso-${{ matrix.variant }}
+          path: ${{ steps.build.outputs.output-directory }}
           retention-days: 0
           compression-level: 0
           overwrite: true
