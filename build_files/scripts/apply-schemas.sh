@@ -7,20 +7,6 @@ SCHEMA_DST="/usr/share/glib-2.0/schemas"
 
 mkdir -p "$SCHEMA_DST"
 
-echo "→ Enable extensions by default"
-EXT_DIRS=(/usr/share/gnome-shell/extensions/*)
-LIST=""
-for d in "${EXT_DIRS[@]}"; do
-  NAME=$(basename "$d")
-  LIST="$LIST,'$NAME'"
-done
-LIST="[${LIST#,}]"
-
-cat <<EOF >"$SCHEMA_DST/90-extensions.gschema.override"
-[org.gnome.shell]
-enabled-extensions=$LIST
-EOF
-
 if compgen -G "$SCHEMA_SRC"/* >/dev/null; then
   echo "→ Copying schemas from $SCHEMA_SRC → $SCHEMA_DST"
   cp -a "$SCHEMA_SRC"/* "$SCHEMA_DST"/
