@@ -7,8 +7,7 @@ dconf compile /usr/share/gdm/greeter-dconf-defaults "$SCRIPT_DIR/dconf/gdm.d"
 mkdir -p /etc/dconf/db/local.d
 
 echo "→ Installing user-default INI files"
-for ini in "$SCRIPT_DIR"/dconf/local.d/*; do
-    cp "$ini" /etc/dconf/db/local.d/$(basename "$ini")
-done
+cp -r "$SCRIPT_DIR"/dconf/local.d/. /etc/dconf/db/local.d/ 2>/dev/null || true
 
 dconf update
+echo "✅ DConf update complete"
