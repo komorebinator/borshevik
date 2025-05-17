@@ -32,7 +32,7 @@ jobs:
       
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.variant }}
-      cancel-in-progress: false
+      cancel-in-progress: true
 
     strategy:
       matrix:
