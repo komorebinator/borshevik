@@ -10,9 +10,6 @@ set -ouex pipefail
 /build_scripts/apply-schemas.sh
 /build_scripts/apply-dconf.sh
 /build_scripts/enable-services.sh
-
-ln -s /usr/lib/modules /lib/modules
-dracut --force --kver "$(uname -r)"
-rm -f /lib/modules
+/build_scripts/rebuild_initramfs.sh
 
 systemctl enable podman.socket
