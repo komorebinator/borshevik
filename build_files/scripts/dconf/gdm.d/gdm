@@ -5,3 +5,6 @@ logo='/usr/share/pixmaps/borshevik_logo.svg'
 tap-to-click=true
 click-method='areas'
 two-finger-scrolling-enabled=true
+
+[org/gnome/desktop/interface]
+accent-color='pink'
