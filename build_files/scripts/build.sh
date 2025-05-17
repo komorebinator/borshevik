@@ -11,6 +11,8 @@ set -ouex pipefail
 /build_scripts/apply-dconf.sh
 /build_scripts/enable-services.sh
 
+ln -s /usr/lib/modules /lib/modules
 dracut --force --kver "$(rpm -q --queryformat '%{VERSION}-%{RELEASE}' kernel)"
+rm -f /lib/modules
 
 systemctl enable podman.socket
