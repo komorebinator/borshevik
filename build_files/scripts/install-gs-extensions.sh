@@ -20,7 +20,7 @@ EXT_JSON="${SCRIPT_DIR}/gs-extensions/list.json"
 DEST="/usr/share/gnome-shell/extensions"
 
 # Dependencies: jq curl unzip git glib-compile-schemas rsync tar
-for cmd in jq curl unzip git glib-compile-schemas rsync tar; do
+for cmd in jq curl unzip git glib-compile-schemas rsync tar patch; do
     command -v "$cmd" >/dev/null || {
         echo "Error: $cmd is required" >&2
         exit 1
@@ -57,7 +57,7 @@ jq -c '.[]' "$EXT_JSON" | while read -r ENTRY; do
     tmp=$(mktemp -d)
     ext_src=""
 
-    # 1. Resolve source → ext_src
+    # Resolve source → ext_src
     if [[ "$repo_url" =~ github\.com ]]; then
         api_rel="https://api.github.com/repos/$repo_path/releases/latest"
 
@@ -102,7 +102,21 @@ jq -c '.[]' "$EXT_JSON" | while read -r ENTRY; do
     # apply dir
     [[ -n "$dir" ]] && ext_src="$ext_src/$dir"
 
-    # 2. Custom script override (use only local scripts next to list.json)
+    # Apply patches
+    if jq -e '.patches? | type=="object" and (length>0)' <<<"$ENTRY" >/dev/null; then
+        echo "   → Applying patches"
+        while read -r patch_file rel_target; do
+            patch_src="$SCRIPT_DIR/gs-extensions/$patch_file"
+            [[ -f "$patch_src" ]] || {
+                echo "Error: $patch_file not found" >&2
+                exit 1
+            }
+            echo "     • $patch_file → $rel_target"
+            patch "$ext_src/$rel_target" <"$patch_src"
+        done < <(jq -r '.patches|to_entries[]|"\(.key) \(.value)"' <<<"$ENTRY")
+    fi
+
+    # Custom script override (use only local scripts next to list.json)
     if [[ -n "$script_rel" ]]; then
         script_path="$SCRIPT_DIR/gs-extensions/$script_rel"
         if [[ ! -x "$script_path" ]]; then
@@ -139,7 +153,7 @@ jq -c '.[]' "$EXT_JSON" | while read -r ENTRY; do
         continue
     fi
 
-    # 3. Default install: validate metadata + copy + schemas
+    # Default install: validate metadata + copy + schemas
     meta="$ext_src/metadata.json"
     [[ -f "$meta" ]] || {
         echo "Error: metadata.json not found in $ext_src"

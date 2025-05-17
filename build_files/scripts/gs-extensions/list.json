@@ -6,7 +6,10 @@
     {
         "repo": "https://github.com/aunetx/blur-my-shell",
         "asset": "blur-my-shell@aunetx.shell-extension.zip",
-        "schemas": "schemas"
+        "schemas": "schemas",
+        "patches": {
+            "blur-my-shell-defaults.patch": "schemas/org.gnome.shell.extensions.blur-my-shell.gschema.xml"
+        }
     },
     {
         "repo": "https://github.com/maniacx/Battery-Health-Charging",
