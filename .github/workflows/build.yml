@@ -33,6 +33,10 @@ jobs:
       contents: read
       packages: write
       id-token: write
+      
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.variant }}
+      cancel-in-progress: true
 
     strategy:
       matrix:
