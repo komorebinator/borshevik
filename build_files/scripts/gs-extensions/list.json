@@ -55,6 +55,7 @@
     },
     {
         "repo": "https://github.com/maweki/twitchlive-extension",
+        "branch": "master",
         "forceGnomeVersion": true
     }
 ]
