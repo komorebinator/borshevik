@@ -52,5 +52,9 @@
         "dir": "weatheroclock@CleoMenezesJr.github.io",
         "schemas": "schemas",
         "forceGnomeVersion": true
+    },
+    {
+        "repo": "https://github.com/maweki/twitchlive-extension",
+        "forceGnomeVersion": true
     }
 ]
