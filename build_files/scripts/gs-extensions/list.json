@@ -57,5 +57,9 @@
         "repo": "https://github.com/maweki/twitchlive-extension",
         "branch": "master",
         "forceGnomeVersion": true
+    },
+    {
+        "repo": "https://github.com/mukul29/legacy-theme-auto-switcher-gnome-extension",
+        "branch": "main"
     }
 ]
