@@ -61,5 +61,10 @@
     {
         "repo": "https://github.com/mukul29/legacy-theme-auto-switcher-gnome-extension",
         "branch": "main"
+    },
+    {
+        "repo": "https://github.com/felipeftn/emoji-copy",
+        "branch": "master",
+        "script": "install.sh"
     }
 ]
