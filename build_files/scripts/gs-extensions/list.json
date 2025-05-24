@@ -65,6 +65,7 @@
     {
         "repo": "https://github.com/felipeftn/emoji-copy",
         "branch": "master",
-        "script": "install.sh"
+        "dir": "emoji-copy@felipeftn",
+        "schemas": "schemas"
     }
 ]

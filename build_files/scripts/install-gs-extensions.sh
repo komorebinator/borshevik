@@ -120,14 +120,9 @@ jq -c '.[]' "$EXT_JSON" | while read -r ENTRY; do
     if [[ -n "$script_rel" ]]; then
         script_path="$SCRIPT_DIR/gs-extensions/$script_rel"
         if [[ ! -x "$script_path" ]]; then
-            alt_path="$ext_src/$script_rel"
-            if [[ -x "$alt_path" ]]; then
-                script_path="$alt_path"
-            else
-                echo "Error: script '$script_rel' not found or not executable" >&2
-                rm -rf "$tmp"
-                exit 1
-            fi
+            echo "Error: script '$script_rel' not found or not executable" >&2
+            rm -rf "$tmp"
+            exit 1
         fi
 
         echo "   → Running custom script $script_rel"
