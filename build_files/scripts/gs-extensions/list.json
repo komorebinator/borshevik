@@ -67,5 +67,10 @@
         "branch": "master",
         "dir": "emoji-copy@felipeftn",
         "schemas": "schemas"
+    },
+    {
+        "repo": "https://github.com/komorebinator/fullscreen-to-new-workspace",
+        "branch": "master",
+        "dir": "src"
     }
 ]
