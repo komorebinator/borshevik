@@ -49,6 +49,11 @@
                         "type": "matchRepository"
                     }
                 }
+            ],
+            "registry.fedoraproject.org": [
+                {
+                    "type": "insecureAcceptAnything"
+                }
             ]
         }
     }
