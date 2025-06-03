@@ -1,11 +1,16 @@
 {
     "default": [
         {
-            "type": "insecureAcceptAnything"
+            "type": "reject"
         }
     ],
     "transports": {
         "docker": {
+            "default": [
+                {
+                    "type": "insecureAcceptAnything"
+                }
+            ],
             "registry.access.redhat.com": [
                 {
                     "type": "signedBy",
