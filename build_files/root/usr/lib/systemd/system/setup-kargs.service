@@ -8,7 +8,7 @@ ConditionKernelCommandLine=!recovery
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/setup-kargs.sh
+ExecStart=/usr/libexec/borshevik/setup-kargs.sh
 RemainAfterExit=no
 StandardOutput=journal+console
 

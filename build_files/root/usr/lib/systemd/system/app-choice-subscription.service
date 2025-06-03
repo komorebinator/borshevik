@@ -5,7 +5,7 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/app-choice-subscription.sh
+ExecStart=/usr/libexec/borshevik/app-choice-subscription.sh
 StandardOutput=journal
 
 [Install]
