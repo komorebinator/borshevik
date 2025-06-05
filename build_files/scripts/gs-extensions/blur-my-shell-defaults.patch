@@ -1,5 +1,5 @@
 diff --git a/schemas/org.gnome.shell.extensions.blur-my-shell.gschema.xml b/schemas/org.gnome.shell.extensions.blur-my-shell.gschema.xml
-index 5708ca3..565f5cb 100644
+index 5708ca3..0d3ebcf 100644
 --- a/schemas/org.gnome.shell.extensions.blur-my-shell.gschema.xml
 +++ b/schemas/org.gnome.shell.extensions.blur-my-shell.gschema.xml
 @@ -22,6 +22,13 @@
@@ -23,5 +23,14 @@ index 5708ca3..565f5cb 100644
 -            <default>1</default>
 +            <default>2</default>
              <summary>Enum to select the style of the components in overview (0 not styled, 1 light, 2 dark, 3 transparent)</summary>
+         </key>
+     </schema>
+@@ -193,7 +200,7 @@
+         </key>
+         <!-- STYLE DIALOGS -->
+         <key type="i" name="style-dialogs">
+-            <default>1</default>
++            <default>3</default>
+             <summary>Enum to select the style of the appfolder dialogs (0 not styled, 1 transparent, 2 light, 3 dark)</summary>
          </key>
      </schema>
