@@ -56,7 +56,11 @@
     {
         "repo": "https://github.com/maweki/twitchlive-extension",
         "branch": "master",
-        "forceGnomeVersion": true
+        "forceGnomeVersion": true,
+        "schemas": "schemas",
+        "patches": {
+            "twitch-live-defaults.patch": "schemas/org.gnome.shell.extensions.twitchlive.gschema.xml"
+        }
     },
     {
         "repo": "https://github.com/mukul29/legacy-theme-auto-switcher-gnome-extension",

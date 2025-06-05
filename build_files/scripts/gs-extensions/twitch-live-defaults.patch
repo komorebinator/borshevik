@@ -1,0 +1,13 @@
+diff --git a/schemas/org.gnome.shell.extensions.twitchlive.gschema.xml b/schemas/org.gnome.shell.extensions.twitchlive.gschema.xml
+index e0fe54e..6ecf072 100644
+--- a/schemas/org.gnome.shell.extensions.twitchlive.gschema.xml
++++ b/schemas/org.gnome.shell.extensions.twitchlive.gschema.xml
+@@ -38,7 +38,7 @@
+ 		<description></description>
+     </key>
+     <key type="s" name="topbarmode">
+-		<default>'all-icons'</default>
++		<default>'count-only'</default>
+ 		<summary>Indicator display setting</summary>
+ 		<description>empty, text-only, icon-only, count-only, all-icons</description>
+     </key>
