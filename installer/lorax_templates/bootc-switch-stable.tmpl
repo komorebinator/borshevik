@@ -1,0 +1,2 @@
+append usr/share/anaconda/interactive-defaults.ks \
+  "\\n%post\\nbootc switch --mutate-in-place --transport registry --enforce-container-sigpolicy ghcr.io/komorebinator/borshevik:stable\\n%end"

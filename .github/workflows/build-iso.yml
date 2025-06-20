@@ -35,7 +35,7 @@ jobs:
         id: generate-tag
         run: |
           TAG="latest"
-          if [[ "${{ github.ref }}" == "stable" ]]; then
+          if [[ "${{ github.ref }}" == "refs/heads/stable" ]]; then
             TAG="stable"
           fi
           echo "tag=${TAG}" >> $GITHUB_OUTPUT
@@ -47,13 +47,24 @@ jobs:
           string: ${{ env.IMAGE_REGISTRY }}
 
       - name: Pick bootc-switch template
-        id: pick
+        id: pick-templates
         run: |
-          if [[ "${{ matrix.image_name }}" == *-nvidia ]]; then
-            echo "SWITCH_TPL=/github/workspace/installer/lorax_templates/bootc-switch-nvidia.tmpl" >> $GITHUB_ENV
+          BRANCH_NAME="${GITHUB_REF##*/}"
+
+          if [[ "$BRANCH_NAME" == "stable" ]]; then
+            if [[ "${{ matrix.image_name }}" == *-nvidia ]]; then
+              echo "SWITCH_TPL=/github/workspace/installer/lorax_templates/bootc-switch-nvidia-stable.tmpl" >> "$GITHUB_ENV"
+            else
+              echo "SWITCH_TPL=/github/workspace/installer/lorax_templates/bootc-switch-stable.tmpl" >> "$GITHUB_ENV"
+            fi
           else
-            echo "SWITCH_TPL=/github/workspace/installer/lorax_templates/bootc-switch.tmpl" >> $GITHUB_ENV
+            if [[ "${{ matrix.image_name }}" == *-nvidia ]]; then
+              echo "SWITCH_TPL=/github/workspace/installer/lorax_templates/bootc-switch-nvidia.tmpl" >> "$GITHUB_ENV"
+            else
+              echo "SWITCH_TPL=/github/workspace/installer/lorax_templates/bootc-switch.tmpl" >> "$GITHUB_ENV"
+            fi
           fi
+
       - name: Build ISO
         id: build
         uses: jasonn3/build-container-installer@d77e9563739921c2f93de778d4fbad854f52d389 # v1.3.0
