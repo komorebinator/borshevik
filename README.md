@@ -1,6 +1,4 @@
-# Borshevik
-![Logo](borshevik_logo.svg)
-
+# <img src="borshevik_logo.svg" alt="Logo" width="26"> Borshevik
 [🇬🇧 English](README.md) | [🇷🇺 Русский](README.ru.md)
 
 ## 🌸 Core Image
