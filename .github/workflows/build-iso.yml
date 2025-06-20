@@ -35,7 +35,7 @@ jobs:
         id: generate-tag
         run: |
           TAG="latest"
-          if [[ "${{ github.ref_name }}" == "stable" ]]; then
+          if [[ "${{ github.ref }}" == "stable" ]]; then
             TAG="stable"
           fi
           echo "tag=${TAG}" >> $GITHUB_OUTPUT
@@ -65,7 +65,7 @@ jobs:
           image_repo: ${{ steps.registry_case.outputs.lowercase }}
           image_tag: ${{ steps.generate-tag.outputs.tag }}
           version: ${{ matrix.major_version }}
-          variant: borshevik
+          variant: ${{ matrix.image_name }}
           iso_name: ${{ matrix.image_name }}-${{ steps.generate-tag.outputs.tag }}-${{ matrix.major_version }}.iso
           additional_templates: |
             /github/workspace/installer/lorax_templates/partitioning.tmpl
