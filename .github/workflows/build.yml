@@ -14,7 +14,6 @@ on:
   workflow_dispatch:
 
 env:
-  BUILD_TAGS: "latest stable"
   IMAGE_DESC: "My Customized Universal Blue Image"
   IMAGE_REGISTRY: "ghcr.io/${{ github.repository_owner }}"
   ARTIFACTHUB_LOGO_URL: "https://avatars.githubusercontent.com/u/120078124?s=200&v=4"
@@ -24,7 +23,8 @@ jobs:
     name: Build and push both images
     runs-on: ubuntu-24.04
     env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      BUILD_TAGS: ${{ github.ref == 'main' && 'latest' || github.ref == 'stable' && 'stable' }}
     permissions:
       contents: read
       packages: write
@@ -93,8 +93,8 @@ jobs:
         uses: redhat-actions/push-to-registry@5ed88d269cf581ea9ef6dd6806d01562096bee9c # v2
         with:
           registry: ${{ steps.registry_case.outputs.lowercase }}
-          image: ${{ steps.build.outputs.image }}       # exact image just built
-          tags: ${{ env.BUILD_TAGS }}                   # "latest stable"
+          image: ${{ steps.build.outputs.image }}
+          tags: ${{ env.BUILD_TAGS }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
