@@ -5,7 +5,7 @@ NEEDED_ARGS=("preempt=full")
 REMOVE_ARGS=()
 
 # Parse current kernel command line into array
-read -ra CMDLINE_ARGS <<< "$(</proc/cmdline)"
+read -ra CMDLINE_ARGS <<<"$(</proc/cmdline)"
 
 # Check for NVIDIA driver
 if rpm -q akmod-nvidia >/dev/null 2>&1; then
@@ -43,16 +43,18 @@ fi
 
 plymouth display-message --text="Setting kernel arguments, please wait"
 
-# Apply missing arguments
-if [ ${#MISSING_ARGS[@]} -gt 0 ]; then
-    echo "Adding missing kernel args: ${MISSING_ARGS[*]}"
-    rpm-ostree kargs --append-if-missing "${MISSING_ARGS[@]}"
-fi
-
-# Remove unnecessary arguments
-if [ ${#REMOVE_ARGS[@]} -gt 0 ]; then
-    echo "Removing kernel args: ${REMOVE_ARGS[*]}"
-    rpm-ostree kargs --delete "${REMOVE_ARGS[@]}"
+# Consolidate into one rpm-ostree call
+if [ ${#MISSING_ARGS[@]} -gt 0 ] || [ ${#REMOVE_ARGS[@]} -gt 0 ]; then
+    echo "Modifying kernel args: add [${MISSING_ARGS[*]}], remove [${REMOVE_ARGS[*]}]"
+    RPMFLAGS=()
+    for arg in "${MISSING_ARGS[@]}"; do
+        RPMFLAGS+=(--append="${arg}")
+    done
+    for arg in "${REMOVE_ARGS[@]}"; do
+        RPMFLAGS+=(--delete="${arg}")
+    done
+    echo "Executing: rpm-ostree kargs ${RPMFLAGS[*]}"
+    rpm-ostree kargs "${RPMFLAGS[@]}"
 fi
 
 plymouth display-message --text="Rebooting"
