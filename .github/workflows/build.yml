@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      BUILD_TAGS: ${{ github.ref == 'main' && 'latest' || github.ref == 'stable' && 'stable' }}
+      BUILD_TAGS: ${{ github.ref == 'refs/heads/stable' && 'stable' || 'latest' }}
     permissions:
       contents: read
       packages: write
