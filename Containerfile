@@ -4,8 +4,10 @@ FROM scratch AS ctx
 # Copy all build scripts into /build_scripts
 COPY build_files/scripts /build_scripts/
 
+ARG FEDORA_MAJOR_VERSION=42
+
 # Base image (Borshevik) based on uBlue-Silverblue
-FROM ghcr.io/ublue-os/silverblue-main:42 AS borshevik
+FROM ghcr.io/ublue-os/silverblue-main:${FEDORA_MAJOR_VERSION} AS borshevik
 
 ARG IMAGE_NAME=borshevik
 ARG IMAGE_TAG=latest
