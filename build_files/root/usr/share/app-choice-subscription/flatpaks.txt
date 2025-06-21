@@ -31,4 +31,4 @@ com.github.unrud.VideoDownloader
 com.transmissionbt.Transmission
 org.localsend.localsend_app
 com.valvesoftware.Steam
-flathub com.jeffser.Alpaca
+com.jeffser.Alpaca
