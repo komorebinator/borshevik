@@ -5,10 +5,10 @@ FROM scratch AS ctx
 COPY build_files/scripts /build_scripts/
 
 # Base image (Borshevik) based on uBlue-Silverblue
-FROM ghcr.io/ublue-os/silverblue-main:latest AS borshevik
+FROM ghcr.io/ublue-os/silverblue-main:42 AS borshevik
 
 ARG IMAGE_NAME=borshevik
-ARG IMAGE_TAG=main
+ARG IMAGE_TAG=latest
 LABEL org.opencontainers.image.title=$IMAGE_NAME
 LABEL org.opencontainers.image.version=$IMAGE_TAG
 
@@ -25,7 +25,7 @@ RUN --mount=type=bind,from=ctx,source=/build_scripts,target=/build_scripts \
 FROM borshevik AS borshevik-nvidia
 
 ARG IMAGE_NAME=borshevik-nvidia
-ARG IMAGE_TAG=nvidia
+ARG IMAGE_TAG=latest
 LABEL org.opencontainers.image.title=$IMAGE_NAME
 LABEL org.opencontainers.image.version=$IMAGE_TAG
 

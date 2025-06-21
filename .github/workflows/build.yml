@@ -54,8 +54,9 @@ jobs:
             ./Containerfile
           extra-args: |
             --target ${{ matrix.target }}
+            --build-arg IMAGE_TAG=${{ env.BUILD_TAGS }}
           image: ${{ matrix.variant }}
-          tags: ${{ env.BUILD_TAGS }}
+          tags: ${{ env.BUILD_TAGS }}            
           labels: |
             org.opencontainers.image.title=${{ matrix.variant }}
             org.opencontainers.image.description=${{ env.IMAGE_DESC }}
