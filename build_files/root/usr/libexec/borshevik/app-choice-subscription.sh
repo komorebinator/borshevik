@@ -15,7 +15,7 @@ if ! flatpak remote-list | grep -q flathub; then
 fi
 
 # Read package list and install missing ones not previously installed by this script
-while read -r app; do
+while IFS= read -r app || [[ -n "$app" ]]; do
     [ -z "$app" ] && continue
 
     # Skip if it was installed earlier by this script, then removed manually
@@ -32,7 +32,7 @@ while read -r app; do
     fi
 
     echo "Installing missing flatpak: $app"
-    if flatpak install -y --noninteractive flathub "$app"; then
+    if flatpak install -y flathub "$app"; then
         echo "✅ Installed: $app"
         echo "$app" >>"$STATE_FILE"
     fi

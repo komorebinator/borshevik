@@ -32,3 +32,5 @@ com.transmissionbt.Transmission
 org.localsend.localsend_app
 com.valvesoftware.Steam
 com.jeffser.Alpaca
+io.github.plrigaux.sysd-manager
+io.missioncenter.MissionCenter
