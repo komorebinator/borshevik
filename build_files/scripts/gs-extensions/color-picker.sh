@@ -2,5 +2,5 @@
 
 set -ouex pipefail
 
-meson setup build --prefix=/usr
+meson setup build -Dtarget=system
 meson install -C build
