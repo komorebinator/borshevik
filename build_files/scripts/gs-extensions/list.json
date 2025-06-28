@@ -74,5 +74,10 @@
         "repo": "https://github.com/komorebinator/fullscreen-to-new-workspace",
         "branch": "master",
         "dir": "src"
+    },
+    {
+        "repo": "https://github.com/tuberry/color-picker.git",
+        "branch": "master",
+        "script": "color-picker.sh"
     }
 ]
