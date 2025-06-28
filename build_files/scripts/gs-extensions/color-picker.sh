@@ -2,4 +2,4 @@
 
 set -ouex pipefail
 
-meson setup build -Dtarget=system && meson install -C build
+meson setup build -Ddatadir=/usr/share -Dtarget=system -Dlocaledir=/usr/share/locale  && meson install -C build
