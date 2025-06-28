@@ -128,27 +128,6 @@ jq -c '.[]' "$EXT_JSON" | while read -r ENTRY; do
         echo "   → Running custom script $script_rel"
         (cd "$ext_src" && exec "$script_path")
 
-        # After custom install, extract UUID and validate installation directory
-        uuid=$(jq -r '.uuid' "$ext_src/metadata.json")
-        if [[ -z "$uuid" || "$uuid" == "null" ]]; then
-            echo "Error: cannot determine UUID after custom install" >&2
-            rm -rf "$tmp"
-            exit 1
-        fi
-
-        dest="$DEST/$uuid"
-        if [[ ! -d "$dest" ]]; then
-            echo "Error: custom script did not install to $dest" >&2
-            rm -rf "$tmp"
-            exit 1
-        fi
-
-        # Compile schemas if requested
-        if [[ -n "$schemas" ]]; then
-            echo "   → Compiling schemas in $schemas"
-            glib-compile-schemas "$dest/$schemas"
-        fi
-
         rm -rf "$tmp"
         continue
     fi

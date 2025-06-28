@@ -78,7 +78,6 @@
     {
         "repo": "https://github.com/tuberry/color-picker.git",
         "branch": "master",
-        "dir": "src",
         "script": "color-picker.sh"
     }
 ]
