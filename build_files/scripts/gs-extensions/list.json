@@ -79,5 +79,10 @@
         "repo": "https://github.com/tuberry/color-picker.git",
         "branch": "master",
         "script": "color-picker.sh"
+    },
+    {
+        "repo": "https://github.com/maniacx/Bluetooth-Battery-Meter.git",
+        "branch": "GNOME45",
+        "schemas": "schemas"
     }
 ]
