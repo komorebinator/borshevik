@@ -9,18 +9,7 @@ read -ra CMDLINE_ARGS <<<"$(</proc/cmdline)"
 
 # Check for NVIDIA driver
 if rpm -q akmod-nvidia >/dev/null 2>&1; then
-    NEEDED_ARGS+=("nvidia-drm.modeset=1" "modprobe.blacklist=nouveau")
-else
-    # If NVIDIA is not present, mark those args for removal if found
-    for arg in "nvidia-drm.modeset=1" "modprobe.blacklist=nouveau"; do
-        for existing in "${CMDLINE_ARGS[@]}"; do
-            if [[ "$existing" == "$arg" ]]; then
-                REMOVE_ARGS+=("$arg")
-                break
-            fi
-        done
-    done
-fi
+    NEEDED_ARGS+=("nvidia-drm.modeset=1" "modprobe.blacklist=nouveau" "modprobe.blacklist=nova_core" "rd.driver.blacklist=nova_core")
 
 # Check which required args are missing
 MISSING_ARGS=()
