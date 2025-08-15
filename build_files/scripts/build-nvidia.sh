@@ -11,3 +11,4 @@ dnf5 install -y \
 # Install NVIDIA driver packages
 rpm-ostree install -y akmod-nvidia xorg-x11-drv-nvidia xorg-x11-drv-nvidia-cuda nvidia-settings kernel-devel kernel-headers
 akmods --force --kernels "$KVER"
+/usr/bin/dracut --no-hostonly --kver "$QUALIFIED_KERNEL" --reproducible --zstd -v --add ostree -f "/usr/lib/modules/$QUALIFIED_KERNEL/initramfs.img"
