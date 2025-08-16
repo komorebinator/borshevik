@@ -1,13 +1,13 @@
 [Unit]
-Description=Ensure correct kernel arguments
-After=plymouth-start.service setup-ublue-mok.service
+Description=Entoll uBlue MOK keys required for drivers
+After=plymouth-start.service
 Before=graphical.target display-manager.service plymouth-quit.service
 Conflicts=shutdown.target
 ConditionKernelCommandLine=!recovery
 
 [Service]
 Type=oneshot
-ExecStart=/usr/libexec/borshevik/setup-kargs.sh
+ExecStart=/usr/libexec/borshevik/setup-ublue-mok.sh
 RemainAfterExit=no
 StandardOutput=journal+console
 
