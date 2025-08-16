@@ -8,8 +8,10 @@ if ! grep -qi 'SecureBoot enabled' <<<"$SB_STATE"; then
   exit 0
 fi
 
-[ -r "$DER" ] || { echo "Akmods cert is missing: $DER" >&2; exit 1; }
-mokutil --test-key "$DER" >/dev/null 2>&1 || true
+if mokutil --test-key "$DER" >/dev/null 2>&1; then
+  echo "MOK key already enrolled; nothing to do."
+  exit 0
+fi
 
 PIN="$(systemd-ask-password 'Please choose a temporary PIN for MOK; you will be asked to enter it once on the next reboot. (4-32 alnum):')"
 [[ "$PIN" =~ ^[A-Za-z0-9]{4,32}$ ]] || { echo "bad PIN" >&2; exit 2; }
