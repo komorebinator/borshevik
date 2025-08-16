@@ -44,8 +44,8 @@ RUN find /tmp/akmods-nvidia
 ## optionally install remove old and install new kernel
 # dnf -y remove --no-autoremove kernel kernel-core kernel-modules kernel-modules-core kernel-modules-extra
 ## install ublue support package and desired kmod(s)
-RUN dnf install /tmp/akmods-nvidia/rpms/ublue-os/ublue-os-nvidia*.rpm
-RUN dnf install /tmp/akmods-nvidia/rpms/kmods/kmod-nvidia*.rpm
+RUN dnf -y install /tmp/akmods-nvidia/rpms/ublue-os/ublue-os-nvidia*.rpm
+RUN dnf -y install /tmp/akmods-nvidia/rpms/kmods/kmod-nvidia*.rpm
 
 # Linting stage to validate the container
 FROM borshevik-nvidia AS lint
