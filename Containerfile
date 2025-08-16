@@ -39,7 +39,7 @@ LABEL org.opencontainers.image.version=$IMAGE_TAG
 #    /build_scripts/build-nvidia.sh && \
 #    ostree container commit
 
-COPY --from=ghcr.io/ublue-os/akmods-nvidia:main:${FEDORA_MAJOR_VERSION} / /tmp/akmods-nvidia
+COPY --from=ghcr.io/ublue-os/akmods-nvidia:main-${FEDORA_MAJOR_VERSION} / /tmp/akmods-nvidia
 RUN find /tmp/akmods-nvidia
 ## optionally install remove old and install new kernel
 # dnf -y remove --no-autoremove kernel kernel-core kernel-modules kernel-modules-core kernel-modules-extra
