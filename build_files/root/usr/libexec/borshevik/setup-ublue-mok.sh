@@ -8,7 +8,7 @@ if ! grep -qi 'SecureBoot enabled' <<<"$SB_STATE"; then
   exit 0
 fi
 
-if mokutil --test-key "$DER" >/dev/null 2>&1; then
+if ! mokutil --test-key "$DER" >/dev/null 2>&1; then
   echo "MOK key already enrolled; nothing to do."
   exit 0
 fi
