@@ -13,8 +13,16 @@ if ! mokutil --test-key "$DER" >/dev/null 2>&1; then
   exit 0
 fi
 
-PIN="$(systemd-ask-password 'Please choose a temporary PIN for MOK; you will be asked to enter it once on the next reboot. (4-32 alnum):')"
-[[ "$PIN" =~ ^[A-Za-z0-9]{4,32}$ ]] || { echo "bad PIN" >&2; exit 2; }
+while :; do
+  if PIN="$(systemd-ask-password 'Please choose a temporary PIN for MOK; you will be asked to enter it once on the next reboot:')"; then
+    if [ -n "$PIN" ]; then 
+      break
+    fi
+  else
+    echo "cancelled" >&2
+    exit 130
+  fi  
+done
 
 HASH=/run/mok.pin.hash
 mokutil --generate-hash="$PIN" > "$HASH"
