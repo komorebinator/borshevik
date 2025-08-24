@@ -12,4 +12,5 @@ dnf -y install \
   https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
   https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
 
+rpm-ostree install -y libva.i686 mesa-dri-drivers.i686 mesa-vulkan-drivers.i686 vulkan-loader.i686
 rpm-ostree install -y steam steam-devices
