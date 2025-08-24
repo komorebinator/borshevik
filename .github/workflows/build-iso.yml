@@ -72,6 +72,15 @@ jobs:
           REFS="$(grep -Ev '^\s*(#|$)' installer/flatpaks/default | tr -d '\r' | paste -sd' ' -)"
           echo "refs=$REFS" >> "$GITHUB_OUTPUT"
 
+      - name: Disable OSTree 3% guard inside action
+        run: |
+          A=$(echo /home/runner/work/_actions/jasonn3/build-container-installer/*/flatpaks/Makefile)
+          sed -i 's|ostree init --repo=/flatpak_dir/repo --mode=archive-z2|&\
+          ostree config --repo=/flatpak_dir/repo set core.min-free-space-percent 0\
+          \
+          ostree config --repo=/flatpak_dir/repo set core.min-free-space-size 0|' "$A"
+
+
       - name: Build ISO
         id: build
         uses: jasonn3/build-container-installer@d77e9563739921c2f93de778d4fbad854f52d389 # v1.3.0
