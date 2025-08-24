@@ -83,7 +83,7 @@ jobs:
             ${{ env.SWITCH_TPL }}
           flatpak_remote_name: flathub
           flatpak_remote_url: https://flathub.org/repo/flathub.flatpakrepo
-          flatpak_remote_refs_dir: /github/workspace/installer/flatpaks
+          flatpak_remote_refs: app/org.telegram.desktop/x86_64/stable app/org.gnome.Weather/x86_64/stable app/org.gnome.clocks/x86_64/stable
 
       - name: Move ISOs to Upload Directory
         id: upload-directory
