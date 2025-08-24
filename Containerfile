@@ -47,7 +47,7 @@ RUN find /tmp/akmods-nvidia
 RUN dnf -y install /tmp/akmods-nvidia/rpms/ublue-os/ublue-os-nvidia*.rpm
 RUN dnf -y install /tmp/akmods-nvidia/rpms/kmods/kmod-nvidia*.rpm
 RUN dnf -y install nvidia-driver nvidia-settings
-
+RUN systemctl enable setup-ublue-mok.service
 # Linting stage to validate the container
 FROM borshevik-nvidia AS lint
 RUN bootc container lint
