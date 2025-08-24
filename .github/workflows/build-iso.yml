@@ -83,43 +83,7 @@ jobs:
             ${{ env.SWITCH_TPL }}
           flatpak_remote_name: flathub
           flatpak_remote_url: https://flathub.org/repo/flathub.flatpakrepo
-          flatpak_remote_refs: >
-            app/org.telegram.desktop/x86_64/stable
-            app/org.gnome.Weather/x86_64/stable
-            app/org.gnome.clocks/x86_64/stable
-            app/org.gnome.Calculator/x86_64/stable
-            app/org.gnome.Contacts/x86_64/stable
-            app/org.gnome.Calendar/x86_64/stable
-            app/org.libreoffice.LibreOffice/x86_64/stable
-            app/com.usebottles.bottles/x86_64/stable
-            app/io.github.dvlv.boxbuddyrs/x86_64/stable
-            app/org.gnome.baobab/x86_64/stable
-            app/org.gnome.Evince/x86_64/stable
-            app/org.gnome.Loupe/x86_64/stable
-            app/org.fedoraproject.MediaWriter/x86_64/stable
-            app/org.gnome.TextEditor/x86_64/stable
-            app/org.gnome.Characters/x86_64/stable
-            app/org.gnome.font-viewer/x86_64/stable
-            app/org.gnome.Logs/x86_64/stable
-            app/org.videolan.VLC/x86_64/stable
-            app/org.tenacityaudio.Tenacity/x86_64/stable
-            app/com.mattjakeman.ExtensionManager/x86_64/stable
-            app/it.mijorus.gearlever/x86_64/stable
-            app/com.github.tchx84.Flatseal/x86_64/stable
-            app/org.gimp.GIMP/x86_64/stable
-            app/io.gitlab.adhami3310.Footag/x86_64/stable
-            app/org.shotcut.Shotcut/x86_64/stable
-            app/com.obsproject.Studio/x86_64/stable
-            app/org.gnome.Snapshot/x86_64/stable
-            app/io.gitlab.theevilskeleton.Upscal/x86_64/stable
-            app/org.gnome.World.Secrets/x86_64/stable
-            app/com.github.unrud.VideoDownloader/x86_64/stable
-            app/com.transmissionbt.Transmission/x86_64/stable
-            app/org.localsend.localsend_app/x86_64/stable
-            app/com.valvesoftware.Steam/x86_64/stable
-            app/com.jeffser.Alpaca/x86_64/stable
-            app/io.github.plrigaux.sysd-manager/x86_64/stable
-            app/io.missioncenter.MissionCenter/x86_64/stable
+          flatpak_remote_refs_dir: /github/workspace/installer/flatpaks
 
       - name: Move ISOs to Upload Directory
         id: upload-directory
