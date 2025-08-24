@@ -65,6 +65,13 @@ jobs:
             fi
           fi
 
+      - name: Build flatpak refs string
+        id: refs
+        shell: bash
+        run: |
+          REFS="$(grep -Ev '^\s*(#|$)' installer/flatpaks/default | tr -d '\r' | paste -sd' ' -)"
+          echo "refs=$REFS" >> "$GITHUB_OUTPUT"
+
       - name: Build ISO
         id: build
         uses: jasonn3/build-container-installer@d77e9563739921c2f93de778d4fbad854f52d389 # v1.3.0
@@ -83,7 +90,7 @@ jobs:
             ${{ env.SWITCH_TPL }}
           flatpak_remote_name: flathub
           flatpak_remote_url: https://flathub.org/repo/flathub.flatpakrepo
-          flatpak_remote_refs_dir: /github/workspace/installer/flatpaks
+          flatpak_remote_refs: ${{ steps.refs.outputs.refs }}
 
       - name: Move ISOs to Upload Directory
         id: upload-directory
