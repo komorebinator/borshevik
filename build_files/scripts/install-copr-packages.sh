@@ -8,5 +8,6 @@ if [[ "$(rpm -q --qf '%{EPOCH}' gnome-control-center)" != "1" ]]; then
     exit 1
 fi
 
+rpm-ostree upgrade -y
 dnf config-manager addrepo --from-repofile=https://negativo17.org/repos/fedora-steam.repo
 rpm-ostree install -y steam kernel-modules-extra
