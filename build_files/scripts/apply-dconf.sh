@@ -3,7 +3,7 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 dconf compile /usr/share/gdm/greeter-dconf-defaults "$SCRIPT_DIR/dconf/gdm.d"
-dconf compile /etc/dconf/db/local "$SCRIPT_DIR/dconf/local.d"
+cp -a "$SCRIPT_DIR/dconf/local.d/." /etc/dconf/db/local.d/
 
 echo "→ Enable extensions by default"
 EXT_DIRS=(/usr/share/gnome-shell/extensions/*)
