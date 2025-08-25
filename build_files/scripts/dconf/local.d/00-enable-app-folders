@@ -1,15 +1,10 @@
 [org/gnome/desktop/app-folders]
-folder-children=['office','utility','audiovideo','system','graphics','network']
+folder-children=['office','audiovideo','system','graphics','network']
 
 [org/gnome/desktop/app-folders/folders/office]
 name='Office.directory'
 translate=true
 categories=['Office']
-
-[org/gnome/desktop/app-folders/folders/utility]
-name='Utility.directory'
-translate=true
-categories=['Utility']
 
 [org/gnome/desktop/app-folders/folders/audiovideo]
 name='AudioVideo.directory'
