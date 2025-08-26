@@ -8,12 +8,10 @@ org.libreoffice.LibreOffice
 com.usebottles.bottles
 io.github.dvlv.boxbuddyrs
 org.gnome.baobab
-org.gnome.Evince
+org.gnome.Papers
 org.gnome.Loupe
 org.fedoraproject.MediaWriter
 org.gnome.TextEditor
-org.gnome.Characters
-org.gnome.font-viewer
 org.gnome.Logs
 org.videolan.VLC
 org.tenacityaudio.Tenacity
@@ -34,3 +32,6 @@ com.valvesoftware.Steam
 com.jeffser.Alpaca
 io.github.plrigaux.sysd-manager
 io.missioncenter.MissionCenter
+com.github.wwmm.easyeffects
+com.saivert.pwvucontrol
+xyz.ketok.Speedtest
