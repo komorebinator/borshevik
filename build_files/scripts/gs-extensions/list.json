@@ -84,5 +84,11 @@
         "repo": "https://github.com/maniacx/Bluetooth-Battery-Meter.git",
         "branch": "GNOME45",
         "schemas": "schemas"
+    },
+    {
+        "repo": "https://gitlab.com/p91paul/status-area-horizontal-spacing-gnome-shell-extension.git",
+        "branch": "master",
+        "dir": "status-area-horizontal-spacing@mathematical.coffee.gmail.com",
+        "schemas": "schemas"
     }
 ]
