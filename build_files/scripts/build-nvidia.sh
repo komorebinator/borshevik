@@ -15,3 +15,6 @@ set -oue pipefail
 curl -o /etc/yum.repos.d/fedora-nvidia.repo https://negativo17.org/repos/fedora-nvidia.repo
 
 rpm-ostree install nvidia-driver nvidia-settings
+
+KVER="$(rpm -q --qf '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-core | head -n1)"
+akmods --akmod nvidia --kernels "$KVER" --force
