@@ -14,4 +14,4 @@ set -oue pipefail
 
 curl -o /etc/yum.repos.d/fedora-nvidia.repo https://negativo17.org/repos/fedora-nvidia.repo
 
-rpm-ostree install nvidia-driver kmod-nvidia nvidia-settings
+rpm-ostree install nvidia-driver nvidia-settings
