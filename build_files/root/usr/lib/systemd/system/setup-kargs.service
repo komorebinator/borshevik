@@ -1,6 +1,6 @@
 [Unit]
 Description=Ensure correct kernel arguments
-After=plymouth-start.service setup-ublue-mok.service
+After=plymouth-start.service setup-borshevik-mok.service
 Before=graphical.target display-manager.service plymouth-quit.service
 Conflicts=shutdown.target
 ConditionKernelCommandLine=!recovery

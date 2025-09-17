@@ -36,3 +36,5 @@ done
 
 # sign check
 modinfo -F signer /usr/lib/modules/$KVER/extra/nvidia/nvidia.ko* || true
+
+systemctl enable setup-borshevik-mok.service
