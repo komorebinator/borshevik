@@ -17,3 +17,22 @@ curl -o /etc/yum.repos.d/fedora-nvidia.repo https://negativo17.org/repos/fedora-
 rpm-ostree install nvidia-driver nvidia-settings
 
 KVER="$(rpm -q --qf '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-core | head -n1)"
+PRIV="/etc/pki/akmods/private/akmods-borshevik.priv"
+CERT="/etc/pki/akmods/certs/akmods-borshevik.der"
+akmods --akmod nvidia --kernels "$KVER" --force
+
+
+# sign nvidia modules (.ko and .ko.xz)
+for m in /usr/lib/modules/$KVER/extra/nvidia/*.ko*; do
+  [[ -e "$m" ]] || continue
+  if [[ "$m" == *.xz ]]; then
+    unxz -k "$m"; KO="${m%.xz}"
+  else
+    KO="$m"
+  fi
+  /usr/src/kernels/$KVER/scripts/sign-file sha256 "$PRIV" "$CERT" "$KO"
+  [[ "$m" == *.xz ]] && xz -f "$KO"
+done
+
+# sign check
+modinfo -F signer /usr/lib/modules/$KVER/extra/nvidia/nvidia.ko* || true
