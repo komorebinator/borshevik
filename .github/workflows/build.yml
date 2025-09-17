@@ -46,6 +46,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v4
 
+      - name: Import MOK private MOK key
+        run: |
+          printf '%s' "${BORSHEVIK_MOK}" > "${RUNNER_TEMP}/akmods-borshevik.priv"
+          chmod 600 "${RUNNER_TEMP}/akmods-borshevik.priv"
+        env:
+          BORSHEVIK_MOK: ${{ secrets.BORSHEVIK_MOK }}
+
       - name: Build ${{ matrix.variant }} image
         id: build
         uses: redhat-actions/buildah-build@7a95fa7ee0f02d552a32753e7414641a04307056 # v2
@@ -55,6 +62,7 @@ jobs:
           extra-args: |
             --target ${{ matrix.target }}
             --build-arg IMAGE_TAG=${{ env.BUILD_TAGS }}
+            --secret id=b_mok,src=${{ runner.temp }}/akmods-borshevik.priv
           image: ${{ matrix.variant }}
           tags: ${{ env.BUILD_TAGS }}            
           labels: |

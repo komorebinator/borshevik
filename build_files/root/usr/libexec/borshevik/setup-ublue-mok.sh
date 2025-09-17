@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-DER="/etc/pki/akmods/certs/akmods-ublue.der"
+DER="/etc/pki/akmods/certs/akmods-borshevik.der"
 
 SB_STATE="$(mokutil --sb-state 2>/dev/null || true)"
 if ! grep -qi 'SecureBoot enabled' <<<"$SB_STATE"; then

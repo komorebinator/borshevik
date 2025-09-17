@@ -35,7 +35,9 @@ ARG FEDORA_MAJOR_VERSION
 LABEL org.opencontainers.image.title=$IMAGE_NAME
 LABEL org.opencontainers.image.version=$IMAGE_TAG
 
+RUN install -d -m0700 /etc/pki/akmods/private
 RUN --mount=type=bind,from=ctx,source=/build_scripts,target=/build_scripts \
+    --mount=type=secret,id=b_mok,target=/etc/pki/akmods/private/akmods-borshevik.priv \
     /build_scripts/build-nvidia.sh && \
     ostree container commit
 
