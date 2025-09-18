@@ -27,6 +27,7 @@ for m in /usr/lib/modules/$KVER/extra/nvidia/*.ko.xz; do
   KO="${m%.xz}"
   echo "Signing: $KO"
   /usr/src/kernels/$KVER/scripts/sign-file sha256 "$PRIV" "$CERT" "$KO"
+  xz -z -C crc32 -6 "$KO"
 done
 
 # sign check
