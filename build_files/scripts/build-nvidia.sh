@@ -31,6 +31,6 @@ for m in /usr/lib/modules/$KVER/extra/nvidia/*.ko.xz; do
 done
 
 # sign check
-modinfo -F signer /usr/lib/modules/$KVER/extra/nvidia/nvidia.ko* || true
+modinfo -F signer /usr/lib/modules/$KVER/extra/nvidia/nvidia.ko.xz* || true
 
 systemctl enable setup-borshevik-mok.service
