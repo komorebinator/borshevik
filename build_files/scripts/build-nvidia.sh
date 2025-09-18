@@ -16,7 +16,7 @@ CERT="/etc/pki/akmods/certs/akmods-borshevik.der"
 
 # install nvidia-driver from negativo repo
 curl -o /etc/yum.repos.d/fedora-nvidia.repo https://negativo17.org/repos/fedora-nvidia.repo
-rpm-ostree install nvidia-driver nvidia-settings
+rpm-ostree install nvidia-driver nvidia-settings nvidia-driver-cuda nvidia-persistenced nvidia-driver-libs.i686 nvidia-driver-cuda-libs.i686 libnvidia-ml.i686 libnvidia-fbc.i686 libnvidia-gpucomp.i686
 akmods --akmod nvidia --kernels "$KVER" --force
 
 # unpack and sign modules
