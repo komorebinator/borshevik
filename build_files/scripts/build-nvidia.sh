@@ -1,17 +1,34 @@
 #!/usr/bin/env bash
-set -oue pipefail
+set -euo pipefail
 
-#KVER="$(rpm -q --qf '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-core)"
+# ЖЁСТКИЙ путь к nvidia-vars из слоёв akmods:
+# (у тебя kmods и ublue-os лежат под /tmp/akmods-nvidia/rpms/)
+NVVARS="/tmp/akmods-nvidia/rpms/kmods/nvidia-vars"
+source "$NVVARS"  # даёт NVIDIA_AKMOD_VERSION (и др.)
+ver="${NVIDIA_AKMOD_VERSION}"
 
-# Add RPM Fusion repositories
-#dnf5 install -y \
-  #https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
-  #https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
+# enable negativo and container toolkit repo
+sed -i 's/^\s*enabled\s*=\s*0/enabled=1/' /etc/yum.repos.d/negativo17-fedora-nvidia.repo
+sed -i 's/^\s*enabled\s*=\s*0/enabled=1/' /etc/yum.repos.d/nvidia-container-toolkit.repo
 
-# Install NVIDIA driver packages
-#rpm-ostree install -y akmod-nvidia xorg-x11-drv-nvidia xorg-x11-drv-nvidia-cuda nvidia-settings kernel-devel kernel-headers
-#akmods --force --kernels "$KVER"
+#curl -fsSL --retry 5 -o /etc/yum.repos.d/negativo17-fedora-nvidia.repo https://negativo17.org/repos/fedora-nvidia.repo
+#curl -fsSL --retry 5 -o /etc/yum.repos.d/nvidia-container-toolkit.repo https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo
 
-curl -o /etc/yum.repos.d/fedora-nvidia.repo https://negativo17.org/repos/fedora-nvidia.repo
+# Install drivers
+dnf -y install \
+  "nvidia-driver-${ver}*" \
+  "nvidia-driver-libs-${ver}*" \
+  "nvidia-settings-${ver}*" \
+  "nvidia-driver-cuda-${ver}*" \
+  nvidia-container-toolkit \
+  libva-nvidia-driver
 
-rpm-ostree install nvidia-driver kmod-nvidia nvidia-settings
+# Отключаем репы обратно
+sed -i 's/enabled=1/enabled=0/g' /etc/yum.repos.d/negativo17-fedora-nvidia.repo || true
+sed -i 's/enabled=1/enabled=0/g' /etc/yum.repos.d/nvidia-container-toolkit.repo || true
+
+# Санити-проверка версии
+inst_ver="$(rpm -q --qf '%{VERSION}\n' nvidia-driver | head -n1 || true)"
+[[ "$inst_ver" == "$ver" ]] || { echo "nvidia-driver ${inst_ver} != ${ver}"; exit 3; }
+
+echo "NVIDIA userspace ${ver} installed."
