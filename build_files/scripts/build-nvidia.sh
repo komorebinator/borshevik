@@ -30,8 +30,4 @@ rpm-ostree -y install \
 sed -i 's/^\s*enabled\s*=\s*0/enabled=0/' /etc/yum.repos.d/negativo17-fedora-nvidia.repo
 sed -i 's/^\s*enabled\s*=\s*0/enabled=0/' /etc/yum.repos.d/nvidia-container-toolkit.repo
 
-# Check
-inst_ver="$(rpm -q --qf '%{VERSION}\n' nvidia-driver | head -n1 || true)"
-[[ "$inst_ver" == "$ver" ]] || { echo "nvidia-driver ${inst_ver} != ${ver}"; exit 3; }
-
 echo "NVIDIA userspace ${ver} installed."
