@@ -14,7 +14,11 @@ curl -fsSL --retry 5 -o /etc/yum.repos.d/negativo17-fedora-nvidia.repo https://n
 curl -fsSL --retry 5 -o /etc/yum.repos.d/nvidia-container-toolkit.repo https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo
 
 # Install drivers
-dnf -y install \
+rpm-ostree -y install /tmp/akmods-nvidia/rpms/ublue-os/ublue-os-nvidia*.rpm
+rpm-ostree -y install /tmp/akmods-nvidia/rpms/kmods/kmod-nvidia*.rpm
+
+# install userspace
+rpm-ostree -y install \
   "nvidia-driver-${ver}*" \
   "nvidia-driver-libs-${ver}*" \
   "nvidia-settings-${ver}*" \

@@ -38,10 +38,6 @@ LABEL org.opencontainers.image.version=$IMAGE_TAG
 COPY --from=ghcr.io/ublue-os/akmods-nvidia:main-${FEDORA_MAJOR_VERSION} / /tmp/akmods-nvidia
 RUN find /tmp/akmods-nvidia
 
-## install ublue support package and desired kmod(s)
-RUN rpm-ostree -y install /tmp/akmods-nvidia/rpms/ublue-os/ublue-os-nvidia*.rpm
-RUN rpm-ostree -y install /tmp/akmods-nvidia/rpms/kmods/kmod-nvidia*.rpm
-
 RUN --mount=type=bind,from=ctx,source=/build_scripts,target=/build_scripts \
     /build_scripts/build-nvidia.sh && \
     ostree container commit
