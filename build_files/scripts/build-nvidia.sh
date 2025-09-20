@@ -1,17 +1,33 @@
 #!/usr/bin/env bash
-set -oue pipefail
+set -euo pipefail
 
-#KVER="$(rpm -q --qf '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-core)"
+NVVARS="/tmp/akmods-nvidia/rpms/kmods/nvidia-vars"
+source "$NVVARS"
+ver="${NVIDIA_AKMOD_VERSION}"
+echo "Nvidia akmod version ${ver}"
 
-# Add RPM Fusion repositories
-#dnf5 install -y \
-  #https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
-  #https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
+#curl -fsSL --retry 5 -o /etc/yum.repos.d/negativo17-fedora-nvidia.repo https://negativo17.org/repos/fedora-nvidia.repo
+#curl -fsSL --retry 5 -o /etc/yum.repos.d/nvidia-container-toolkit.repo https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo
 
-# Install NVIDIA driver packages
-#rpm-ostree install -y akmod-nvidia xorg-x11-drv-nvidia xorg-x11-drv-nvidia-cuda nvidia-settings kernel-devel kernel-headers
-#akmods --force --kernels "$KVER"
+# Install drivers
+rpm-ostree -y install /tmp/akmods-nvidia/rpms/ublue-os/ublue-os-nvidia*.rpm
+# enable negativo and container toolkit repo
+sed -i 's/^\s*enabled\s*=\s*0/enabled=1/' /etc/yum.repos.d/negativo17-fedora-nvidia.repo
+sed -i 's/^\s*enabled\s*=\s*0/enabled=1/' /etc/yum.repos.d/nvidia-container-toolkit.repo
+# install kmods
+rpm-ostree -y install /tmp/akmods-nvidia/rpms/kmods/kmod-nvidia*.rpm
 
-curl -o /etc/yum.repos.d/fedora-nvidia.repo https://negativo17.org/repos/fedora-nvidia.repo
+# install userspace
+rpm-ostree -y install \
+  "nvidia-driver-${ver}*" \
+  "nvidia-driver-libs-${ver}*" \
+  "nvidia-settings-${ver}*" \
+  "nvidia-driver-cuda-${ver}*" \
+  nvidia-container-toolkit \
+  libva-nvidia-driver
 
-rpm-ostree install nvidia-driver kmod-nvidia nvidia-settings
+# disable negativo and container toolkit repo
+sed -i 's/^\s*enabled\s*=\s*0/enabled=0/' /etc/yum.repos.d/negativo17-fedora-nvidia.repo
+sed -i 's/^\s*enabled\s*=\s*0/enabled=0/' /etc/yum.repos.d/nvidia-container-toolkit.repo
+
+echo "NVIDIA userspace ${ver} installed."

@@ -35,18 +35,13 @@ ARG FEDORA_MAJOR_VERSION
 LABEL org.opencontainers.image.title=$IMAGE_NAME
 LABEL org.opencontainers.image.version=$IMAGE_TAG
 
-#RUN --mount=type=bind,from=ctx,source=/build_scripts,target=/build_scripts \
-#    /build_scripts/build-nvidia.sh && \
-#    ostree container commit
-
 COPY --from=ghcr.io/ublue-os/akmods-nvidia:main-${FEDORA_MAJOR_VERSION} / /tmp/akmods-nvidia
 RUN find /tmp/akmods-nvidia
-## optionally install remove old and install new kernel
-# dnf -y remove --no-autoremove kernel kernel-core kernel-modules kernel-modules-core kernel-modules-extra
-## install ublue support package and desired kmod(s)
-RUN dnf -y install /tmp/akmods-nvidia/rpms/ublue-os/ublue-os-nvidia*.rpm
-RUN dnf -y install /tmp/akmods-nvidia/rpms/kmods/kmod-nvidia*.rpm
-RUN dnf -y install nvidia-driver nvidia-settings
+
+RUN --mount=type=bind,from=ctx,source=/build_scripts,target=/build_scripts \
+    /build_scripts/build-nvidia.sh && \
+    ostree container commit
+
 RUN systemctl enable setup-ublue-mok.service
 # Linting stage to validate the container
 FROM borshevik-nvidia AS lint
