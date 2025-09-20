@@ -7,7 +7,7 @@ ConditionKernelCommandLine=!recovery
 
 [Service]
 Type=oneshot
-ExecStart=/usr/libexec/borshevik/setup-borshevik-mok.sh
+ExecStart=/usr/libexec/borshevik/setup-ublue-mok.sh
 RemainAfterExit=no
 StandardOutput=journal+console
 
