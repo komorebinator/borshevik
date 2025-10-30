@@ -13,23 +13,18 @@
         }
     },
     {
-        "repo": "https://github.com/maniacx/Battery-Health-Charging",
-        "branch": "v074-GNOME45",
-        "schemas": "schemas"
-    },
-    {
         "repo": "https://github.com/pomoke/battery_time",
         "branch": "main"
     },
     {
         "repo": "https://github.com/eonpatapon/gnome-shell-extension-caffeine",
-        "branch": "v57",
+        "branch": "v58",
         "dir": "caffeine@patapon.info",
         "schemas": "schemas"
     },
     {
         "repo": "https://github.com/vchlum/notification-timeout",
-        "branch": "13",
+        "branch": "14",
         "dir": "extension",
         "schemas": "schemas"
     },
