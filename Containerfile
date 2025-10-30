@@ -1,4 +1,4 @@
-ARG FEDORA_MAJOR_VERSION=42
+ARG FEDORA_MAJOR_VERSION=43
 
 # Stage for build scripts (these will be mounted, not persisted)
 FROM scratch AS ctx

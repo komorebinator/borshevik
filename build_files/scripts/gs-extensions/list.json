@@ -7,6 +7,7 @@
         "repo": "https://github.com/aunetx/blur-my-shell",
         "asset": "blur-my-shell@aunetx.shell-extension.zip",
         "schemas": "schemas",
+        "forceGnomeVersion": true,
         "patches": {
             "blur-my-shell-defaults.patch": "schemas/org.gnome.shell.extensions.blur-my-shell.gschema.xml"
         }
@@ -77,7 +78,7 @@
     },
     {
         "repo": "https://github.com/tuberry/color-picker.git",
-        "branch": "48.0",
+        "branch": "49.0",
         "script": "color-picker.sh"
     },
     {
