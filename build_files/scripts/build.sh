@@ -10,7 +10,6 @@ set -ouex pipefail
 /build_scripts/apply-schemas.sh
 /build_scripts/apply-dconf.sh
 /build_scripts/enable-services.sh
-/build_scripts/temporary-fixes.sh
 /build_scripts/rebuild-initramfs.sh
 
 systemctl enable podman.socket
