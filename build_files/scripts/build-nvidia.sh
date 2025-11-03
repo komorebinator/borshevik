@@ -15,7 +15,7 @@ sed -i 's/^\s*enabled\s*=\s*0/enabled=1/' /etc/yum.repos.d/negativo17-fedora-nvi
 #sed -i 's/^\s*enabled\s*=\s*0/enabled=1/' /etc/yum.repos.d/nvidia-container-toolkit.repo
 # install kmods
 rpm-ostree -y install /tmp/akmods-nvidia/rpms/kmods/kmod-nvidia*.rpm
-прининяли
+
 # install userspace
 rpm-ostree -y install \
   "nvidia-driver-${ver}*" \
