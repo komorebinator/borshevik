@@ -86,5 +86,11 @@
         "branch": "master",
         "dir": "status-area-horizontal-spacing@mathematical.coffee.gmail.com",
         "schemas": "schemas"
+    },
+    {
+        "repo": "https://github.com/andyholmes/gnome-shell-extension-gsconnect.git",
+        "branch": "v67",
+        "dir": "gnome-shell-extension-gsconnect",
+        "script": "gsconnect.sh"
     }
 ]
