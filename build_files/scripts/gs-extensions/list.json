@@ -90,7 +90,6 @@
     {
         "repo": "https://github.com/andyholmes/gnome-shell-extension-gsconnect.git",
         "branch": "v67",
-        "dir": "gnome-shell-extension-gsconnect",
         "script": "gsconnect.sh"
     }
 ]
