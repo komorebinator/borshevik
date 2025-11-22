@@ -24,7 +24,6 @@ org.gnome.Snapshot
 io.gitlab.theevilskeleton.Upscaler
 org.gnome.World.Secrets
 com.github.unrud.VideoDownloader
-com.transmissionbt.Transmission
 org.localsend.localsend_app
 com.valvesoftware.Steam
 com.jeffser.Alpaca
