@@ -94,5 +94,10 @@
         "repo": "https://github.com/andyholmes/gnome-shell-extension-gsconnect.git",
         "branch": "v67",
         "script": "gsconnect.sh"
+    },
+    {
+        "repo": "https://github.com/komorebinator/gnome-start-in-app-grid.git",
+        "branch": "main",
+        "dir": "gnome-start-in-app-grid@borshevik"
     }
 ]
