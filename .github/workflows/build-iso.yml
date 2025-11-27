@@ -29,7 +29,7 @@ jobs:
           - 43
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v4
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v4
 
       - name: Set Image Tag
         id: generate-tag
@@ -74,7 +74,7 @@ jobs:
 
       - name: Build ISO
         id: build
-        uses: jasonn3/build-container-installer@d77e9563739921c2f93de778d4fbad854f52d389 # v1.3.0
+        uses: jasonn3/build-container-installer@c9ef3de33236e66781ec37bd0485e8009eaefe24 # v1.4.0
         with:
           enable_cache_dnf: "false"
           enable_cache_skopeo: "false"
