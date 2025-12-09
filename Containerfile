@@ -12,6 +12,7 @@ FROM ghcr.io/ublue-os/silverblue-main:${FEDORA_MAJOR_VERSION} AS borshevik
 ARG IMAGE_NAME=borshevik
 ARG IMAGE_TAG=latest
 ARG FEDORA_MAJOR_VERSION
+ARG BUILD_DATE
 
 LABEL org.opencontainers.image.title=$IMAGE_NAME
 LABEL org.opencontainers.image.version=$IMAGE_TAG
@@ -31,6 +32,7 @@ FROM borshevik AS borshevik-nvidia
 ARG IMAGE_NAME=borshevik-nvidia
 ARG IMAGE_TAG=latest
 ARG FEDORA_MAJOR_VERSION
+ARG BUILD_DATE
 
 LABEL org.opencontainers.image.title=$IMAGE_NAME
 LABEL org.opencontainers.image.version=$IMAGE_TAG
