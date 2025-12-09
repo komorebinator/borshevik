@@ -16,7 +16,9 @@ echo "Enable negativo17 repo"
 curl -fsSL "https://negativo17.org/repos/fedora-nvidia.repo" -o "/etc/yum.repos.d/negativo17-fedora-nvidia.repo"
 
 echo "Install kmod ${ver}"
-rpm-ostree -y install /tmp/akmods-nvidia/rpms/kmods/kmod-nvidia*.rpm
+rpm-ostree -y install /tmp/akmods-nvidia/rpms/kmods/kmod-nvidia*.rpm \
+  "nvidia-kmod-common-${ver}"* \
+  "nvidia-modprobe-${ver}"*
 
 echo "Install userspace ${ver}"
 rpm-ostree -y install \
@@ -26,10 +28,3 @@ rpm-ostree -y install \
   "nvidia-driver-cuda-${ver}*" \
   libva-nvidia-driver
 #  nvidia-container-toolkit
-
-
-# disable negativo and container toolkit repo
-sed -i 's/^\s*enabled\s*=\s*0/enabled=0/' /etc/yum.repos.d/negativo17-fedora-nvidia.repo
-#sed -i 's/^\s*enabled\s*=\s*0/enabled=0/' /etc/yum.repos.d/nvidia-container-toolkit.repo
-
-echo "NVIDIA userspace ${ver} installed."
