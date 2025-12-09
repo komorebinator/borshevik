@@ -9,7 +9,7 @@ ver="${NVIDIA_AKMOD_VERSION}"
 echo "Nvidia akmod version ${ver}"
 
 # Install drivers
-rpm-ostree -y install /tmp/akmods-nvidia/rpms/ublue-os/ublue-os-nvidia*.rpm
+#rpm-ostree -y install /tmp/akmods-nvidia/rpms/ublue-os/ublue-os-nvidia*.rpm
 # enable negativo and container toolkit repo
 sed -i 's/^\s*enabled\s*=\s*0/enabled=1/' /etc/yum.repos.d/negativo17-fedora-nvidia.repo
 #sed -i 's/^\s*enabled\s*=\s*0/enabled=1/' /etc/yum.repos.d/nvidia-container-toolkit.repo
