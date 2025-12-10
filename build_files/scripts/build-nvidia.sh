@@ -15,6 +15,9 @@ ver="${NVIDIA_AKMOD_VERSION}"
 echo "Enable negativo17 repo"
 curl -fsSL "https://negativo17.org/repos/fedora-nvidia.repo" -o "/etc/yum.repos.d/negativo17-fedora-nvidia.repo"
 
+echo "Replace kernel"
+rpm-ostree -y install /tmp/akmods-nvidia/kernel-rpms/kernel-*.rpm
+
 echo "Install kmod ${ver}"
 rpm-ostree -y install /tmp/akmods-nvidia/rpms/kmods/kmod-nvidia*.rpm \
   "nvidia-kmod-common-${ver}"* \
