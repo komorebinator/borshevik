@@ -51,13 +51,6 @@ jobs:
             echo "SWITCH_TPL=/github/workspace/installer/lorax_templates/bootc-switch-stable.tmpl" >> "$GITHUB_ENV"
           fi
 
-      - name: Build flatpak refs string
-        id: refs
-        shell: bash
-        run: |
-          REFS="$(grep -Ev '^\s*(#|$)' installer/flatpaks/default | tr -d '\r' | paste -sd' ' -)"
-          echo "refs=$REFS" >> "$GITHUB_OUTPUT"
-
       - name: Build ISO
         id: build
         uses: jasonn3/build-container-installer@c9ef3de33236e66781ec37bd0485e8009eaefe24 # v1.4.0
