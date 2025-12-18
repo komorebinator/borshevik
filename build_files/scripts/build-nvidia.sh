@@ -5,7 +5,8 @@ set -euo pipefail
 
 NVVARS="/tmp/akmods-nvidia/rpms/kmods/nvidia-vars"
 source "$NVVARS"
-ver="${NVIDIA_AKMOD_VERSION}"
+full_ver="${NVIDIA_AKMOD_VERSION}"
+ver="${full_ver%%-*}"  
 
 # Install drivers
 #rpm-ostree -y install /tmp/akmods-nvidia/rpms/ublue-os/ublue-os-nvidia*.rpm
