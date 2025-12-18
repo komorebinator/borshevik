@@ -37,7 +37,7 @@ ARG BUILD_DATE
 LABEL org.opencontainers.image.title=$IMAGE_NAME
 LABEL org.opencontainers.image.version="nvidia"
 
-COPY --from=ghcr.io/ublue-os/akmods-nvidia:main-${FEDORA_MAJOR_VERSION} / /tmp/akmods-nvidia
+COPY --from=ghcr.io/ublue-os/akmods-nvidia-open:main-${FEDORA_MAJOR_VERSION} / /tmp/akmods-nvidia
 RUN find /tmp/akmods-nvidia
 
 RUN --mount=type=bind,from=ctx,source=/build_scripts,target=/build_scripts \
