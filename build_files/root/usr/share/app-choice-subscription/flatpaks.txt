@@ -6,8 +6,6 @@ org.gnome.Contacts
 org.gnome.Calendar
 org.libreoffice.LibreOffice
 com.usebottles.bottles
-io.github.dvlv.boxbuddyrs
-org.gnome.baobab
 org.gnome.Papers
 org.gnome.Loupe
 org.fedoraproject.MediaWriter
@@ -25,7 +23,6 @@ org.gnome.Snapshot
 io.gitlab.theevilskeleton.Upscaler
 org.gnome.World.Secrets
 com.github.unrud.VideoDownloader
-com.transmissionbt.Transmission
 org.localsend.localsend_app
 com.valvesoftware.Steam
 com.jeffser.Alpaca

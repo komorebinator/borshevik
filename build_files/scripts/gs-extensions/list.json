@@ -7,14 +7,10 @@
         "repo": "https://github.com/aunetx/blur-my-shell",
         "asset": "blur-my-shell@aunetx.shell-extension.zip",
         "schemas": "schemas",
+        "forceGnomeVersion": true,
         "patches": {
             "blur-my-shell-defaults.patch": "schemas/org.gnome.shell.extensions.blur-my-shell.gschema.xml"
         }
-    },
-    {
-        "repo": "https://github.com/maniacx/Battery-Health-Charging",
-        "branch": "v074-GNOME45",
-        "schemas": "schemas"
     },
     {
         "repo": "https://github.com/pomoke/battery_time",
@@ -22,13 +18,13 @@
     },
     {
         "repo": "https://github.com/eonpatapon/gnome-shell-extension-caffeine",
-        "branch": "v57",
+        "branch": "v58",
         "dir": "caffeine@patapon.info",
         "schemas": "schemas"
     },
     {
         "repo": "https://github.com/vchlum/notification-timeout",
-        "branch": "13",
+        "branch": "14",
         "dir": "extension",
         "schemas": "schemas"
     },
@@ -77,18 +73,31 @@
     },
     {
         "repo": "https://github.com/tuberry/color-picker.git",
-        "branch": "48.0",
+        "branch": "49.0",
         "script": "color-picker.sh"
     },
     {
         "repo": "https://github.com/maniacx/Bluetooth-Battery-Meter.git",
         "branch": "GNOME45",
-        "schemas": "schemas"
+        "schemas": "schemas",
+        "patches": {
+            "bluetooth-battery-meter-defaults.patch": "schemas/org.gnome.shell.extensions.Bluetooth-Battery-Meter.gschema.xml"
+        }
     },
     {
         "repo": "https://gitlab.com/p91paul/status-area-horizontal-spacing-gnome-shell-extension.git",
         "branch": "master",
         "dir": "status-area-horizontal-spacing@mathematical.coffee.gmail.com",
         "schemas": "schemas"
+    },
+    {
+        "repo": "https://github.com/andyholmes/gnome-shell-extension-gsconnect.git",
+        "branch": "v67",
+        "script": "gsconnect.sh"
+    },
+    {
+        "repo": "https://github.com/komorebinator/gnome-start-in-app-grid.git",
+        "branch": "main",
+        "dir": "gnome-start-in-app-grid@borshevik"
     }
 ]

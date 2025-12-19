@@ -26,19 +26,15 @@ jobs:
           - borshevik
           - borshevik-nvidia
         major_version:
-          - 42
+          - 43
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v4
 
       - name: Set Image Tag
         id: generate-tag
         run: |
-          TAG="latest"
-          if [[ "${{ github.ref }}" == "refs/heads/stable" ]]; then
-            TAG="stable"
-          fi
-          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "tag=stable" >> $GITHUB_OUTPUT
 
       - name: Lowercase Registry
         id: registry_case
@@ -49,32 +45,15 @@ jobs:
       - name: Pick bootc-switch template
         id: pick-templates
         run: |
-          BRANCH_NAME="${GITHUB_REF##*/}"
-
-          if [[ "$BRANCH_NAME" == "stable" ]]; then
-            if [[ "${{ matrix.image_name }}" == *-nvidia ]]; then
-              echo "SWITCH_TPL=/github/workspace/installer/lorax_templates/bootc-switch-nvidia-stable.tmpl" >> "$GITHUB_ENV"
-            else
-              echo "SWITCH_TPL=/github/workspace/installer/lorax_templates/bootc-switch-stable.tmpl" >> "$GITHUB_ENV"
-            fi
+          if [[ "${{ matrix.image_name }}" == *-nvidia ]]; then
+            echo "SWITCH_TPL=/github/workspace/installer/lorax_templates/bootc-switch-nvidia-stable.tmpl" >> "$GITHUB_ENV"
           else
-            if [[ "${{ matrix.image_name }}" == *-nvidia ]]; then
-              echo "SWITCH_TPL=/github/workspace/installer/lorax_templates/bootc-switch-nvidia.tmpl" >> "$GITHUB_ENV"
-            else
-              echo "SWITCH_TPL=/github/workspace/installer/lorax_templates/bootc-switch.tmpl" >> "$GITHUB_ENV"
-            fi
+            echo "SWITCH_TPL=/github/workspace/installer/lorax_templates/bootc-switch-stable.tmpl" >> "$GITHUB_ENV"
           fi
-
-      - name: Build flatpak refs string
-        id: refs
-        shell: bash
-        run: |
-          REFS="$(grep -Ev '^\s*(#|$)' installer/flatpaks/default | tr -d '\r' | paste -sd' ' -)"
-          echo "refs=$REFS" >> "$GITHUB_OUTPUT"
 
       - name: Build ISO
         id: build
-        uses: jasonn3/build-container-installer@d77e9563739921c2f93de778d4fbad854f52d389 # v1.3.0
+        uses: jasonn3/build-container-installer@c9ef3de33236e66781ec37bd0485e8009eaefe24 # v1.4.0
         with:
           enable_cache_dnf: "false"
           enable_cache_skopeo: "false"
@@ -84,7 +63,7 @@ jobs:
           image_tag: ${{ steps.generate-tag.outputs.tag }}
           version: ${{ matrix.major_version }}
           variant: ${{ matrix.image_name }}
-          iso_name: ${{ matrix.image_name }}-${{ steps.generate-tag.outputs.tag }}-${{ matrix.major_version }}.iso
+          iso_name: ${{ matrix.image_name }}-${{ steps.generate-tag.outputs.tag }}.iso
           additional_templates: |
             /github/workspace/installer/lorax_templates/partitioning.tmpl
             ${{ env.SWITCH_TPL }}
@@ -99,7 +78,7 @@ jobs:
           echo "iso-upload-dir=${ISO_UPLOAD_DIR}" >> $GITHUB_OUTPUT
 
       - name: Upload ISOs and Checksum to Job Artifacts
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4
         with:
           name: ${{ matrix.image_name }}-${{ steps.generate-tag.outputs.tag }}-${{ matrix.major_version }}
           path: ${{ steps.upload-directory.outputs.iso-upload-dir }}
@@ -107,3 +86,81 @@ jobs:
           retention-days: 0
           compression-level: 0
           overwrite: true
+  
+  publish-release:
+    name: Publish ISOs to GitHub Release
+    runs-on: ubuntu-latest
+    needs: build-iso
+    permissions:
+      contents: write
+    steps:
+      - name: Download ISO artifacts
+        uses: actions/download-artifact@v7
+        with:
+          path: isos
+
+      - name: Set ISO file paths
+        id: files
+        run: |
+          echo "borshevik_iso=isos/borshevik-stable-43/borshevik-stable.iso" >> $GITHUB_OUTPUT
+          echo "borshevik_checksum=isos/borshevik-stable-43/borshevik-stable.iso-CHECKSUM" >> $GITHUB_OUTPUT
+          echo "borshevik_nvidia_iso=isos/borshevik-nvidia-stable-43/borshevik-nvidia-stable.iso" >> $GITHUB_OUTPUT
+          echo "borshevik_nvidia_checksum=isos/borshevik-nvidia-stable-43/borshevik-nvidia-stable.iso-CHECKSUM" >> $GITHUB_OUTPUT
+
+      - name: Generate tag and release name
+        id: tag
+        run: |
+          TS=$(date -u +'%Y%m%d-%H%M%S')
+          echo "tag=iso-${TS}" >> $GITHUB_OUTPUT
+          echo "name=Borshevik ISO ${TS}" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          release_name: ${{ steps.tag.outputs.name }}
+          draft: false
+          prerelease: false
+
+      - name: Upload borshevik ISO
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ steps.files.outputs.borshevik_iso }}
+          asset_name: borshevik.iso
+          asset_content_type: application/octet-stream
+
+      - name: Upload borshevik checksum
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ steps.files.outputs.borshevik_checksum }}
+          asset_name: borshevik.iso-CHECKSUM
+          asset_content_type: text/plain
+
+      - name: Upload borshevik-nvidia ISO
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ steps.files.outputs.borshevik_nvidia_iso }}
+          asset_name: borshevik-nvidia.iso
+          asset_content_type: application/octet-stream
+
+      - name: Upload borshevik-nvidia checksum
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ steps.files.outputs.borshevik_nvidia_checksum }}
+          asset_name: borshevik-nvidia.iso-CHECKSUM
+          asset_content_type: text/plain

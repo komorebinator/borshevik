@@ -1,4 +1,4 @@
-ARG FEDORA_MAJOR_VERSION=42
+ARG FEDORA_MAJOR_VERSION=43
 
 # Stage for build scripts (these will be mounted, not persisted)
 FROM scratch AS ctx
@@ -12,9 +12,10 @@ FROM ghcr.io/ublue-os/silverblue-main:${FEDORA_MAJOR_VERSION} AS borshevik
 ARG IMAGE_NAME=borshevik
 ARG IMAGE_TAG=latest
 ARG FEDORA_MAJOR_VERSION
+ARG BUILD_DATE
 
 LABEL org.opencontainers.image.title=$IMAGE_NAME
-LABEL org.opencontainers.image.version=$IMAGE_TAG
+LABEL org.opencontainers.image.version="core"
 
 # Apply the overlay (etc/, usr/, etc.) from build_files/root
 COPY build_files/root/ /
@@ -31,11 +32,12 @@ FROM borshevik AS borshevik-nvidia
 ARG IMAGE_NAME=borshevik-nvidia
 ARG IMAGE_TAG=latest
 ARG FEDORA_MAJOR_VERSION
+ARG BUILD_DATE
 
 LABEL org.opencontainers.image.title=$IMAGE_NAME
-LABEL org.opencontainers.image.version=$IMAGE_TAG
+LABEL org.opencontainers.image.version="nvidia"
 
-COPY --from=ghcr.io/ublue-os/akmods-nvidia:main-${FEDORA_MAJOR_VERSION} / /tmp/akmods-nvidia
+COPY --from=ghcr.io/ublue-os/akmods-nvidia-open:main-${FEDORA_MAJOR_VERSION} / /tmp/akmods-nvidia
 RUN find /tmp/akmods-nvidia
 
 RUN --mount=type=bind,from=ctx,source=/build_scripts,target=/build_scripts \

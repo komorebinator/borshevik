@@ -1,0 +1,31 @@
+diff --git a/schemas/org.gnome.shell.extensions.Bluetooth-Battery-Meter.gschema.xml b/schemas/org.gnome.shell.extensions.Bluetooth-Battery-Meter.gschema.xml
+index 87c0a95..9b74bf8 100644
+--- a/schemas/org.gnome.shell.extensions.Bluetooth-Battery-Meter.gschema.xml
++++ b/schemas/org.gnome.shell.extensions.Bluetooth-Battery-Meter.gschema.xml
+@@ -2,7 +2,7 @@
+ <schemalist gettext-domain="gnome-shell-extensions">
+     <schema path="/org/gnome/shell/extensions/Bluetooth-Battery-Meter/" id="org.gnome.shell.extensions.Bluetooth-Battery-Meter">
+         <key name="popup-in-quick-settings" type="b">
+-            <default>true</default>
++            <default>false</default>
+             <summary>Displays an icon  showing bluetooth device battery level in bluetooth quickmenu</summary>
+         </key>
+         <key name="enable-battery-level-icon" type="b">
+@@ -58,7 +58,7 @@
+             <summary>Removes level indicator from icon </summary>
+         </key>
+         <key name="enable-battery-indicator-text" type="b">
+-            <default>false</default>
++            <default>true</default>
+             <summary>Show text next to icon in system tray with device battery level</summary>
+         </key>
+         <key name="indicator-size" type="i">
+@@ -66,7 +66,7 @@
+             <summary>Change size of icon widget</summary>
+         </key>
+         <key name="level-indicator-type" type="i">
+-            <default>0</default>
++            <default>1</default>
+             <summary>"Level type"</summary>
+         </key>
+         <key name="level-bar-position" type="i">

@@ -3,10 +3,6 @@ name: Build OCI Images
 on:
   pull_request:
     branches: [main]
-  push:
-    branches:
-      - main
-      - stable
     paths-ignore:
       - '**/README.md'
   schedule:
@@ -14,7 +10,7 @@ on:
   workflow_dispatch:
 
 env:
-  IMAGE_DESC: "My Customized Universal Blue Image"
+  IMAGE_DESC: "Borshevik is a custom Universal Blue image"
   IMAGE_REGISTRY: "ghcr.io/${{ github.repository_owner }}"
   ARTIFACTHUB_LOGO_URL: "https://avatars.githubusercontent.com/u/120078124?s=200&v=4"
 
@@ -24,7 +20,7 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      BUILD_TAGS: ${{ github.ref == 'refs/heads/stable' && 'stable' || 'latest' }}
+      BUILD_TAGS: latest
     permissions:
       contents: read
       packages: write
@@ -44,7 +40,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v4
+
+      - name: Set build date
+        run: echo "BUILD_DATE=$(date -u +%d.%m.%Y)" >> "$GITHUB_ENV"
 
       - name: Build ${{ matrix.variant }} image
         id: build
@@ -55,8 +54,11 @@ jobs:
           extra-args: |
             --target ${{ matrix.target }}
             --build-arg IMAGE_TAG=${{ env.BUILD_TAGS }}
+            --build-arg BUILD_DATE=${{ env.BUILD_DATE }}
           image: ${{ matrix.variant }}
-          tags: ${{ env.BUILD_TAGS }}            
+          tags: |
+            ${{ env.BUILD_TAGS }}
+            ${{ env.BUILD_DATE }}
           labels: |
             org.opencontainers.image.title=${{ matrix.variant }}
             org.opencontainers.image.description=${{ env.IMAGE_DESC }}
@@ -70,7 +72,7 @@ jobs:
             containers.bootc=1
 
       - name: Login to GHCR
-        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable')
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
         with:
           registry: ghcr.io
@@ -90,29 +92,33 @@ jobs:
           string: ${{ matrix.variant }}
 
       - name: Push image
-        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable')
+        if: github.event_name != 'pull_request'
         uses: redhat-actions/push-to-registry@5ed88d269cf581ea9ef6dd6806d01562096bee9c # v2
         with:
           registry: ${{ steps.registry_case.outputs.lowercase }}
           image: ${{ steps.build.outputs.image }}
-          tags: ${{ env.BUILD_TAGS }}
+          tags: |
+            ${{ env.BUILD_TAGS }}
+            ${{ env.BUILD_DATE }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Cosign
         if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable')
         uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
+        with:
+          cosign-release: v2.6.1
 
       - name: Get image digest
         id: digest
-        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable')
+        if: github.event_name != 'pull_request'
         run: |
           IMAGE_FULL="${{ steps.registry_case.outputs.lowercase }}/${{ steps.image_case.outputs.lowercase }}"
-          DIGEST=$(skopeo inspect docker://$IMAGE_FULL:$BUILD_TAGS | jq -r '.Digest')
-          echo "digest=$DIGEST" >> $GITHUB_OUTPUT
+          DIGEST=$(skopeo inspect "docker://$IMAGE_FULL:$BUILD_TAGS" | jq -r '.Digest')
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
 
       - name: Sign image by digest
-        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable')
+        if: github.event_name != 'pull_request'
         run: |
           IMAGE_FULL="${{ steps.registry_case.outputs.lowercase }}/${{ steps.image_case.outputs.lowercase }}"
           echo "Signing $IMAGE_FULL@${{ steps.digest.outputs.digest }}"
