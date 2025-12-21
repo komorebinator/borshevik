@@ -36,6 +36,10 @@ Borshevik ships with a set of GNOME Shell extensions preinstalled during the ima
 
 These extensions add small quality-of-life improvements like clipboard history, a color picker, picture-in-picture, workspace tweaks, and a few visual enhancements.
 
+## 🛡️ Privacy & Telemetry
+
+Borshevik does not add extra telemetry or tracking on top of what Fedora already ships. There are no required online accounts, and the system image is fully documented and reproducible via the public build files in this repository.
+
 ## 👷 Rebasing from another uBlue
 
 If you’re already on another Fedora Atomic or uBlue image, you can switch to Borshevik with a single rebase command:
@@ -52,8 +56,10 @@ sudo rpm-ostree rebase ostree-image-signed:docker://ghcr.io/komorebinator/borshe
 
 After the rebase, reboot into the new image and you’re done.
 
-## 🛡️ Privacy & Telemetry
-
-Borshevik does not add extra telemetry or tracking on top of what Fedora already ships. There are no required online accounts, and the system image is fully documented and reproducible via the public build files in this repository.
+## 💿 New installation
 
 [![Download](assets/download.svg)](https://borshevik.org/iso/borshevik-stable.iso)    [![Download](assets/download-nvidia.svg)](https://borshevik.org/iso/borshevik-nvidia-stable.iso)
+
+You may also need **Fedora Media Writer** to write the ISO to a USB drive:
+- [macOS / Windows](https://github.com/FedoraQt/MediaWriter/releases/latest)
+- [Linux (Flathub)](https://flathub.org/apps/org.fedoraproject.MediaWriter)
