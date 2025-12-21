@@ -20,6 +20,10 @@ Borshevik is built as a single, read-only system image on top of Fedora Atomic w
 
 Chrome comes preinstalled using the official RPM from Google. It runs natively on Wayland and supports smooth touchpad gestures out of the box, with no extra setup required.
 
+## 🎮 Steam
+
+Steam comes preinstalled, so you can play right away without extra setup. Many games work out of the box, and other game stores are also available to install.
+
 ## 📦 Application Set
 
 A small background service automatically installs a curated set of apps from Flathub after the first boot. The full list lives in [flatpaks.txt](build_files/root/usr/share/app-choice-subscription/flatpaks.txt). Apps you remove stay removed, but new additions from that list are pulled in for you.
