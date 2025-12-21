@@ -56,4 +56,4 @@ After the rebase, reboot into the new image and you’re done.
 
 Borshevik does not add extra telemetry or tracking on top of what Fedora already ships. There are no required online accounts, and the system image is fully documented and reproducible via the public build files in this repository.
 
-[![Download](assets/download.svg)](https://borshevik.org/iso/borshevik-stable.iso)[![Download](assets/download-nvidia.svg)](https://borshevik.org/iso/borshevik-nvidia-stable.iso)
+[![Download](assets/download.svg)](https://borshevik.org/iso/borshevik-stable.iso)    [![Download](assets/download-nvidia.svg)](https://borshevik.org/iso/borshevik-nvidia-stable.iso)
