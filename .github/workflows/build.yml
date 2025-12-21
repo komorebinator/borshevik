@@ -81,12 +81,14 @@ jobs:
 
       - name: Normalize registry name
         id: registry_case
+        if: github.event_name != 'pull_request'
         uses: ASzc/change-string-case-action@d0603cd0a7dd490be678164909f65c7737470a7f # v6
         with:
           string: ${{ env.IMAGE_REGISTRY }}
 
       - name: Normalize image name
         id: image_case
+        if: github.event_name != 'pull_request'
         uses: ASzc/change-string-case-action@d0603cd0a7dd490be678164909f65c7737470a7f # v6
         with:
           string: ${{ matrix.variant }}
