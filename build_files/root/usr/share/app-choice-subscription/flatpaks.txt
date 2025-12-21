@@ -24,7 +24,6 @@ io.gitlab.theevilskeleton.Upscaler
 org.gnome.World.Secrets
 com.github.unrud.VideoDownloader
 org.localsend.localsend_app
-com.valvesoftware.Steam
 com.jeffser.Alpaca
 io.github.plrigaux.sysd-manager
 io.missioncenter.MissionCenter
