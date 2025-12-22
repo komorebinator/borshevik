@@ -2,6 +2,6 @@
 Name=Steam
 Comment=Steam Gamescope session
 Type=Application
-Exec=/usr/libexec/gamescope-session.sh
+Exec=/usr/libexec/borshevik/amescope-session.sh
 TryExec=gamescope
 DesktopNames=gamescope
