@@ -28,7 +28,9 @@ echo "Install userspace ${ver}"
 rpm-ostree -y install \
   "nvidia-driver-${ver}*" \
   "nvidia-driver-libs-${ver}*" \
+  "nvidia-driver-libs-${ver}*.i686" \
   "nvidia-settings-${ver}*" \
   "nvidia-driver-cuda-${ver}*" \
+  "nvidia-driver-cuda-libs-${ver}*.i686" \
   libva-nvidia-driver
 #  nvidia-container-toolkit
