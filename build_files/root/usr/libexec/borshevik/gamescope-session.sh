@@ -2,5 +2,5 @@
 
 STEAM_CMD=(steam -gamepadui)
 
-exec gamescope -e -- "${STEAM_CMD[@]}"
+exec gamescope -e --expose-wayland --adaptive-sync -- "${STEAM_CMD[@]}"
 
