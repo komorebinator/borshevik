@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -oue pipefail
 
 STEAM_CMD=(steam -gamepadui)
 
