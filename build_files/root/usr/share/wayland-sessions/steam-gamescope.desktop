@@ -1,7 +1,0 @@
-[Desktop Entry]
-Name=Steam
-Comment=Steam Gamescope session
-Type=Application
-Exec=/usr/libexec/borshevik/gamescope-session.sh
-TryExec=gamescope
-DesktopNames=gamescope
