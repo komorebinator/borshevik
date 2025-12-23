@@ -8,7 +8,6 @@ mapfile -t EXT_PKGS < <(rpm -qa --qf '%{NAME}\n' 'gnome-shell-extension-*' | sor
 
 if ((${#EXT_PKGS[@]})); then
   echo "Removing GNOME Shell extension RPMs:"
-  printf '  %s\n' "${EXT_PKGS[@]}"
   rpm-ostree override remove "${EXT_PKGS[@]}"
 else
   echo "No gnome-shell-extension-* RPMs installed, skipping."
