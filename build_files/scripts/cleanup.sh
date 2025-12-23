@@ -4,7 +4,6 @@ set -ouex pipefail
 
 rpm-ostree override remove firefox firefox-langpacks toolbox gnome-classic-session nvtop
 
-echo "Removing Gnome Shell extension rpms";
 mapfile -t EXT_PKGS < <(rpm -qa --qf '%{NAME}\n' 'gnome-shell-extension-*' | sort -u)
 
 if ((${#EXT_PKGS[@]})); then
