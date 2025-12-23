@@ -99,5 +99,10 @@
         "repo": "https://github.com/komorebinator/gnome-start-in-app-grid.git",
         "branch": "main",
         "dir": "gnome-start-in-app-grid@borshevik"
+    },
+    {
+        "repo": "https://github.com/ubuntu/gnome-shell-extension-appindicator.git",
+        "branch": "61",
+        "script": "appindicator.sh"
     }
 ]
