@@ -102,7 +102,7 @@
     },
     {
         "repo": "https://github.com/ubuntu/gnome-shell-extension-appindicator.git",
-        "branch": "61",
+        "branch": "v61",
         "script": "appindicator.sh"
     }
 ]
