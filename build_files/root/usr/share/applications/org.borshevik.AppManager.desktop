@@ -1,0 +1,18 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+
+Name=Borshevik App Manager
+Name[ru]=Менеджер приложений Borshevik
+
+Comment=Install Flatpak apps from curated categories or your own list
+Comment[ru]=Установка Flatpak-приложений из категорий или своего списка
+
+Exec=borshevik-app-manager
+Icon=org.borshevik.AppManager
+Terminal=false
+StartupNotify=true
+
+Categories=System;Utility;
+Keywords=flatpak;flathub;install;apps;
+Keywords[ru]=flatpak;flathub;установка;приложения;

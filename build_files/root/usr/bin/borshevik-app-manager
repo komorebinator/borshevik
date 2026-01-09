@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+exec gjs -m /usr/share/borshevik-app-manager/main.js "$@"
