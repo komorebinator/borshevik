@@ -84,6 +84,7 @@ class AppWindow extends Adw.ApplicationWindow {
           return {
             name: localized || fallback,
             applications: Array.isArray(x.applications) ? x.applications.map(String) : [],
+            default: Boolean(x.default),
           };
         })
         .filter((x) => x.name && x.applications.length);
@@ -432,7 +433,7 @@ class AppWindow extends Adw.ApplicationWindow {
     }
 
     for (const cat of this._categories) {
-      const row = new Adw.SwitchRow({ title: cat.name, active: false });
+      const row = new Adw.SwitchRow({ title: cat.name, active: Boolean(cat.default) });
       this._catGroup.add(row);
       this._categoryRows.push({ row, cat });
     }
