@@ -26,9 +26,9 @@ Steam comes preinstalled, so you can play right away without extra setup. Many g
 
 ## 📦 Application Set
 
-A small background service automatically installs a curated set of apps from Flathub after the first boot. The full list lives in [flatpaks.txt](build_files/root/usr/share/app-choice-subscription/flatpaks.txt). Apps you remove stay removed, but new additions from that list are pulled in for you.
+Borshevik includes Borshevik App Manager — a simple tool that helps you quickly install a recommended set of Flatpak apps for different use cases (work, media, development, communication, and more). It’s especially useful if you’re new to Linux and want a solid “starter pack” without hunting for apps one by one.
 
-This set covers everyday work, media, gaming, and communication, so most people can just sign in and start using the system right away.
+It also supports bulk installation from a custom list: you can paste (or generate on another machine) a list of Flathub app IDs, and the manager will install them all in one go — an easy way to replicate your setup across devices.
 
 ## 🧩 GNOME Extensions
 
