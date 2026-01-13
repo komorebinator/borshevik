@@ -45,22 +45,9 @@ jobs:
       - name: Set build date
         run: echo "BUILD_DATE=$(date -u +%d.%m.%Y)" >> "$GITHUB_ENV"
 
-      - name: Prepare tmp
-        run: |
-          sudo mkdir -p /mnt/tmp
-          sudo chown runner:runner /mnt/tmp
-          echo "TMPDIR=/mnt/tmp" >> $GITHUB_ENV
-          echo "BUILDAH_TMPDIR=/mnt/tmp" >> $GITHUB_ENV
-          echo "== before build =="
-          df -h / /mnt || true
-          sudo du -sh /var/lib/containers/storage 2>/dev/null || true
-
       - name: Build ${{ matrix.variant }} image
         id: build
         uses: redhat-actions/buildah-build@7a95fa7ee0f02d552a32753e7414641a04307056 # v2
-        env: 
-          TMPDIR: /mnt/tmp
-          UILDAH_TMPDIR: /mnt/tmp
         with:
           containerfiles: |
             ./Containerfile
@@ -83,15 +70,6 @@ jobs:
             io.artifacthub.package.logo-url=${{ env.ARTIFACTHUB_LOGO_URL }}
             io.artifacthub.package.keywords=bootc,ublue,universal-blue
             containers.bootc=1
-
-
-      - name: Disk debug
-        run: |
-          echo "== after build =="
-          df -h / /mnt || true
-          sudo du -sh /mnt/tmp 2>/dev/null || true
-          sudo du -sh /var/lib/containers/storage 2>/dev/null || true
-          podman system df -v || true
 
       - name: Login to GHCR
         if: github.event_name != 'pull_request'
