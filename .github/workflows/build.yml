@@ -45,9 +45,20 @@ jobs:
       - name: Set build date
         run: echo "BUILD_DATE=$(date -u +%d.%m.%Y)" >> "$GITHUB_ENV"
 
+      - name: Use /mnt for rootless containers storage
+        run: |
+          mkdir -p /mnt/xdg-data
+          echo "XDG_DATA_HOME=/mnt/xdg-data" >> $GITHUB_ENV
+          echo "== before build =="
+          df -h / /mnt || true
+          du -sh /home/runner/.local/share/containers/storage 2>/dev/null || true
+          du -sh /mnt/xdg-data 2>/dev/null || true
+
       - name: Build ${{ matrix.variant }} image
         id: build
         uses: redhat-actions/buildah-build@7a95fa7ee0f02d552a32753e7414641a04307056 # v2
+        env:
+          XDG_DATA_HOME: /mnt/xdg-data
         with:
           containerfiles: |
             ./Containerfile
@@ -70,7 +81,16 @@ jobs:
             io.artifacthub.package.logo-url=${{ env.ARTIFACTHUB_LOGO_URL }}
             io.artifacthub.package.keywords=bootc,ublue,universal-blue
             containers.bootc=1
-
+      
+      - name: Disk debug
+        if: always()
+        run: |
+          echo "== after build =="
+          df -h / /mnt || true
+          du -sh /mnt/xdg-data/containers/storage 2>/dev/null || true
+          du -sh /home/runner/.local/share/containers/storage 2>/dev/null || true
+          podman system df -v || true
+          
       - name: Login to GHCR
         if: github.event_name != 'pull_request'
         uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
