@@ -21,3 +21,6 @@ rm /usr/share/polkit-1/actions/org.gnome.software.dkms-helper.policy
 
 echo "Disable Fedora flapak service"
 systemctl disable flatpak-add-fedora-repos.service
+
+echo "Cleaned up"
+df -h

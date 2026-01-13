@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+STAMP="$HOME/.local/state/borshevik/app-manager-first-run.done"
+mkdir -p "$(dirname "$STAMP")"
+
+if [[ -f "$STAMP" ]]; then
+  exit 0
+fi
+
+if /usr/bin/borshevik-app-manager; then
+  touch "$STAMP"
+fi
+
+exit 0

@@ -1,0 +1,12 @@
+[Unit]
+Description=Borshevik App Manager (first run)
+Wants=graphical-session.target
+After=graphical-session.target
+ConditionPathExists=!%h/.local/state/borshevik/app-manager-first-run.done
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/borshevik-app-manager-first-run
+
+[Install]
+WantedBy=graphical-session.target

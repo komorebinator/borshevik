@@ -1,0 +1,69 @@
+<!--?xml version="1.0" encoding="UTF-8"?-->
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="ring" x1="18" y1="18" x2="110" y2="110" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#BC80BD"></stop>
+      <stop offset="0.52" stop-color="#8DD3C7"></stop>
+      <stop offset="1" stop-color="#E2B8CE"></stop>
+    </linearGradient>
+
+    <linearGradient id="rocket" x1="44" y1="24" x2="92" y2="112" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#C9A8FF"></stop>
+      <stop offset="0.55" stop-color="#7DE0C9"></stop>
+      <stop offset="1" stop-color="#FF9AD5"></stop>
+    </linearGradient>
+
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="2.2" result="b"></feGaussianBlur>
+      <feOffset in="b" dx="0" dy="1.5" result="o"></feOffset>
+      <feColorMatrix in="o" type="matrix" values="0 0 0 0 0
+                0 0 0 0 0
+                0 0 0 0 0
+                0 0 0 0.35 0" result="s"></feColorMatrix>
+      <feMerge>
+        <feMergeNode in="s"></feMergeNode>
+        <feMergeNode in="SourceGraphic"></feMergeNode>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- base -->
+  <circle cx="64" cy="64" r="58" fill="#222"></circle>
+  <circle cx="64" cy="64" r="54" fill="none" stroke="url(#ring)" stroke-width="6" opacity="0.95"></circle>
+
+  <!-- rocket -->
+  <g filter="url(#softShadow)">
+    <!-- body (capsule) -->
+    <path fill="url(#rocket)" d="
+      M64 20
+      C56 28, 50 40, 50 56
+      L50 78
+      C50 92, 56 104, 64 112
+      C72 104, 78 92, 78 78
+      L78 56
+      C78 40, 72 28, 64 20
+      Z
+    "></path>
+
+    <!-- window -->
+    <circle cx="64" cy="52" r="8" fill="#222" opacity="0.85"></circle>
+    <circle cx="64" cy="52" r="5" fill="url(#ring)" opacity="0.9"></circle>
+
+    <!-- fins -->
+    <path fill="url(#rocket)" d="M50 76 C40 78, 34 86, 34 96 C42 92, 48 88, 52 84 Z" opacity="0.95"></path>
+    <path fill="url(#rocket)" d="M78 76 C88 78, 94 86, 94 96 C86 92, 80 88, 76 84 Z" opacity="0.95"></path>
+
+    <!-- flame -->
+    <path fill="url(#ring)" d="
+      M64 112
+      C58 106, 54 114, 54 120
+      C54 126, 59 128, 64 128
+      C69 128, 74 126, 74 120
+      C74 114, 70 106, 64 112
+      Z
+    " opacity="0.9"></path>
+  </g>
+
+  <!-- little star accent -->
+  <path d="M96 26 L98 31 L103 33 L98 35 L96 40 L94 35 L89 33 L94 31 Z" fill="url(#ring)" opacity="0.95"></path>
+</svg>

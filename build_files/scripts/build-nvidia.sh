@@ -3,6 +3,9 @@ set -euo pipefail
 
 #dnf -y remove --no-autoremove kernel kernel-core kernel-modules kernel-modules-core kernel-modules-extra
 
+echo "Akmods image"
+find /tmp/akmods-nvidia
+
 NVVARS="/tmp/akmods-nvidia/rpms/kmods/nvidia-vars"
 source "$NVVARS"
 full_ver="${NVIDIA_AKMOD_VERSION}"

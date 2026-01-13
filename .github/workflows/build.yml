@@ -45,9 +45,16 @@ jobs:
       - name: Set build date
         run: echo "BUILD_DATE=$(date -u +%d.%m.%Y)" >> "$GITHUB_ENV"
 
+      - name: Create /mnt/xdg-data for container storage
+        run: |
+          sudo mkdir -p /mnt/xdg-data
+          sudo chown -R runner:runner /mnt/xdg-data
+
       - name: Build ${{ matrix.variant }} image
         id: build
         uses: redhat-actions/buildah-build@7a95fa7ee0f02d552a32753e7414641a04307056 # v2
+        env:
+          XDG_DATA_HOME: /mnt/xdg-data
         with:
           containerfiles: |
             ./Containerfile
@@ -70,7 +77,15 @@ jobs:
             io.artifacthub.package.logo-url=${{ env.ARTIFACTHUB_LOGO_URL }}
             io.artifacthub.package.keywords=bootc,ublue,universal-blue
             containers.bootc=1
-
+      
+      - name: Disk debug (on failure)
+        if: failure()
+        run: |
+          df -h / /mnt || true
+          du -sh /mnt/xdg-data/containers/storage 2>/dev/null || true
+          du -sh /home/runner/.local/share/containers/storage 2>/dev/null || true
+          podman system df -v || true
+          
       - name: Login to GHCR
         if: github.event_name != 'pull_request'
         uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
