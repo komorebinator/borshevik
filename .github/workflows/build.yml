@@ -48,6 +48,7 @@ jobs:
       - name: Prepare tmp
         run: |
           sudo mkdir -p /mnt/tmp
+          sudo chown runner:runner /mnt/tmp
           echo "TMPDIR=/mnt/tmp" >> $GITHUB_ENV
           echo "BUILDAH_TMPDIR=/mnt/tmp" >> $GITHUB_ENV
           echo "== before build =="
