@@ -49,12 +49,11 @@ jobs:
         run: |
           sudo mkdir -p /mnt/xdg-data
           sudo chown -R runner:runner /mnt/xdg-data
+          echo "XDG_DATA_HOME=/mnt/xdg-data" >> $GITHUB_ENV
 
       - name: Build ${{ matrix.variant }} image
         id: build
         uses: redhat-actions/buildah-build@7a95fa7ee0f02d552a32753e7414641a04307056 # v2
-        env:
-          XDG_DATA_HOME: /mnt/xdg-data
         with:
           containerfiles: |
             ./Containerfile
