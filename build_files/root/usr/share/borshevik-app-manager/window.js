@@ -380,6 +380,8 @@ class AppWindow extends Adw.ApplicationWindow {
       vscrollbar_policy: Gtk.PolicyType.AUTOMATIC,
     });
     scroller.set_child(this._resultsText);
+    scroller.set_vexpand(true);
+    scroller.set_hexpand(true);
     box.append(scroller);
 
     const actions = new Gtk.Box({ orientation: Gtk.Orientation.HORIZONTAL, spacing: 12, halign: Gtk.Align.END });
