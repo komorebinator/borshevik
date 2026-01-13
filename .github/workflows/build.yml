@@ -45,15 +45,10 @@ jobs:
       - name: Set build date
         run: echo "BUILD_DATE=$(date -u +%d.%m.%Y)" >> "$GITHUB_ENV"
 
-      - name: Use /mnt for rootless containers storage
+      - name: Create /mnt/xdg-data for container storage
         run: |
           sudo mkdir -p /mnt/xdg-data
           sudo chown -R runner:runner /mnt/xdg-data
-          echo "XDG_DATA_HOME=/mnt/xdg-data" >> $GITHUB_ENV
-          echo "== before build =="
-          df -h / /mnt || true
-          du -sh /home/runner/.local/share/containers/storage 2>/dev/null || true
-          du -sh /mnt/xdg-data 2>/dev/null || true
 
       - name: Build ${{ matrix.variant }} image
         id: build
@@ -83,10 +78,9 @@ jobs:
             io.artifacthub.package.keywords=bootc,ublue,universal-blue
             containers.bootc=1
       
-      - name: Disk debug
-        if: always()
+      - name: Disk debug (on failure)
+        if: failure()
         run: |
-          echo "== after build =="
           df -h / /mnt || true
           du -sh /mnt/xdg-data/containers/storage 2>/dev/null || true
           du -sh /home/runner/.local/share/containers/storage 2>/dev/null || true
