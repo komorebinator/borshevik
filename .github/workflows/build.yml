@@ -47,7 +47,8 @@ jobs:
 
       - name: Use /mnt for rootless containers storage
         run: |
-          mkdir -p /mnt/xdg-data
+          sudo mkdir -p /mnt/xdg-data
+          sudo chown -R runner:runner /mnt/xdg-data
           echo "XDG_DATA_HOME=/mnt/xdg-data" >> $GITHUB_ENV
           echo "== before build =="
           df -h / /mnt || true
