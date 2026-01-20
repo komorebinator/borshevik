@@ -43,10 +43,10 @@ mkdir -p /etc/xdg
 
 cat << EOF > /etc/xdg/mimeapps.list
 [Default Applications]
-x-scheme-handler/http=google-chrome.desktop
-x-scheme-handler/https=google-chrome.desktop
-text/html=google-chrome.desktop
+x-scheme-handler/http=com.google.Chrome.desktop
+x-scheme-handler/https=com.google.Chrome.desktop
+text/html=com.google.Chrome.desktop
 EOF
 
-sed -i 's|^Exec=/usr/bin/google-chrome-stable %U$|Exec=/usr/bin/google-chrome-stable --enable-features=TouchpadOverscrollHistoryNavigation --ozone-platform=wayland %U|' \
-  /usr/share/applications/google-chrome.desktop
+sed -i 's|^Exec=/usr/bin/google-chrome-stable %U$|Exec=/usr/bin/google-chrome-stable --enable-features=TouchpadOverscrollHistoryNavigation --ozone-platform=wayland %U|' /usr/share/applications/com.google.Chrome.desktop
+rm /usr/share/applications/google-chrome.desktop
