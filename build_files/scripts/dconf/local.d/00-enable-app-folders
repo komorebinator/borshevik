@@ -27,7 +27,7 @@ translate=true
 categories=['Network']
 
 [org/gnome/desktop/app-folders/folders/games]
-name='Games.directory'
+name='Game.directory'
 translate=true
 categories=['Game','Games']
 
