@@ -1,5 +1,5 @@
 [org/gnome/desktop/app-folders]
-folder-children=['office','audiovideo','system','graphics','network']
+folder-children=['office','audiovideo','system','graphics','network', 'games', 'utilities', 'development', 'borshevik']
 
 [org/gnome/desktop/app-folders/folders/office]
 name='Office.directory'
@@ -25,3 +25,23 @@ categories=['Graphics']
 name='Network.directory'
 translate=true
 categories=['Network']
+
+[org/gnome/desktop/app-folders/folders/games]
+name='Games.directory'
+translate=true
+categories=['Game','Games']
+
+[org/gnome/desktop/app-folders/folders/utilities]
+name='Utilities.directory'
+translate=true
+categories=['Utility','Utilities']
+
+[org/gnome/desktop/app-folders/folders/development]
+name='Development.directory'
+translate=true
+categories=['Development','IDE']
+
+[org/gnome/desktop/app-folders/folders/borshevik]
+name='Borshevik'
+translate=false
+apps=['org.borshevik.ImageManager.desktop','org.borshevik.AppManager.desktop']

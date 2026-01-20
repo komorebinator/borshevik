@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Borshevik Image Manager
+Name[ru]=Borshevik Image Manager
+Comment=Manage updates
+Comment[ru]=Управление образами системы
+Categories=System;Settings;
+Exec=borshevik-image-manager
+Icon=org.borshevik.ImageManager
+Terminal=false
+StartupNotify=true
+DBusActivatable=false
