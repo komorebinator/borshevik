@@ -48,7 +48,8 @@ x-scheme-handler/https=google-chrome.desktop
 text/html=google-chrome.desktop
 EOF
 
-sudo sed -i 's|^Exec=/usr/bin/google-chrome-stable %U$|Exec=/usr/bin/google-chrome-stable --enable-features=TouchpadOverscrollHistoryNavigation --ozone-platform=wayland %U|' \
-  /usr/share/applications/google-chrome.desktop
+#sudo sed -i 's|^Exec=/usr/bin/google-chrome-stable %U$|Exec=/usr/bin/google-chrome-stable --enable-features=TouchpadOverscrollHistoryNavigation --ozone-platform=wayland %U|' \
+#  /usr/share/applications/google-chrome.desktop
+sudo sed -i 's|^exec -a "\$0" "\$HERE/chrome" "\$@"$|exec -a "\$0" "\$HERE/chrome" --enable-features=TouchpadOverscrollHistoryNavigation "\$@"|' /usr/bin/google-chrome-stable
 
 rm /usr/share/applications/com.google.Chrome.desktop
