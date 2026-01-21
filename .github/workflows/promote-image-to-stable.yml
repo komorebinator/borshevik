@@ -16,7 +16,7 @@ permissions:
   packages: write
 
 jobs:
-  promote:
+  promote-to-stable:
     runs-on: ubuntu-24.04
     steps:
       - name: Validate digest
@@ -36,15 +36,16 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Retag digest to stable
+      - name: Promote digest to stable
         shell: bash
         env:
           OWNER: ${{ github.repository_owner }}
           VARIANT: ${{ inputs.variant }}
-          DIGEST: ${{ inputs.digest }}
+          SRC_DIGEST: ${{ inputs.digest }}
         run: |
           set -euo pipefail
-          src="ghcr.io/${OWNER}/${VARIANT}@${DIGEST}"
+
+          src="ghcr.io/${OWNER}/${VARIANT}@${SRC_DIGEST}"
           dst="ghcr.io/${OWNER}/${VARIANT}:stable"
 
           echo "Promote:"
@@ -52,3 +53,39 @@ jobs:
           echo "   -> $dst"
 
           docker buildx imagetools create --tag "$dst" "$src"
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad
+        with:
+          cosign-release: v2.6.1
+
+      - name: Get stable digest
+        id: stable_digest
+        shell: bash
+        env:
+          OWNER: ${{ github.repository_owner }}
+          VARIANT: ${{ inputs.variant }}
+        run: |
+          set -euo pipefail
+          ref="ghcr.io/${OWNER}/${VARIANT}:stable"
+
+          # This is the digest GHCR shows for the tag (manifest/manifest-list digest)
+          digest="$(docker buildx imagetools inspect "$ref" --format '{{json .Manifest.Digest}}' | tr -d '"')"
+
+          echo "stable points to: $digest"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Sign stable by digest
+        if: github.event_name != 'pull_request'
+        shell: bash
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
+          COSIGN_EXPERIMENTAL: "false"
+          OWNER: ${{ github.repository_owner }}
+          VARIANT: ${{ inputs.variant }}
+        run: |
+          set -euo pipefail
+          IMAGE_FULL="ghcr.io/${OWNER}/${VARIANT}"
+          echo "Signing $IMAGE_FULL@${{ steps.stable_digest.outputs.digest }}"
+          cosign sign -y --key env://COSIGN_PRIVATE_KEY "$IMAGE_FULL@${{ steps.stable_digest.outputs.digest }}"
+
