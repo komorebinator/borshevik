@@ -49,5 +49,6 @@ text/html=google-chrome.desktop
 EOF
 
 sudo sed -i 's|^Exec=/usr/bin/google-chrome-stable %U$|Exec=/usr/bin/google-chrome-stable --enable-features=TouchpadOverscrollHistoryNavigation --ozone-platform=wayland %U|' \
-  /usr/share/applications/google-chrome.desktop \
-  /usr/share/applications/com.google.Chrome.desktop
+  /usr/share/applications/google-chrome.desktop
+
+rm /usr/share/applications/com.google.Chrome.desktop
