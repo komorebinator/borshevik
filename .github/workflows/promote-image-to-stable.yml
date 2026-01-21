@@ -17,6 +17,7 @@ permissions:
 
 jobs:
   promote-to-stable:
+    name: Promote image to stable
     runs-on: ubuntu-24.04
     steps:
       - name: Validate digest
