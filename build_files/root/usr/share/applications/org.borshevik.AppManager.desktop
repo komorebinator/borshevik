@@ -13,6 +13,5 @@ Icon=org.borshevik.AppManager
 Terminal=false
 StartupNotify=true
 
-Categories=System;Utility;
 Keywords=flatpak;flathub;install;apps;
 Keywords[ru]=flatpak;flathub;установка;приложения;
