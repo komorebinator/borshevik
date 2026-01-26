@@ -15,7 +15,7 @@ ARG FEDORA_MAJOR_VERSION
 ARG BUILD_DATE
 
 LABEL org.opencontainers.image.title=$IMAGE_NAME
-LABEL org.opencontainers.image.version="core"
+LABEL org.opencontainers.image.version=$IMAGE_NAME
 
 # Apply the overlay (etc/, usr/, etc.) from build_files/root
 COPY build_files/root/ /
@@ -35,7 +35,7 @@ ARG FEDORA_MAJOR_VERSION
 ARG BUILD_DATE
 
 LABEL org.opencontainers.image.title=$IMAGE_NAME
-LABEL org.opencontainers.image.version="nvidia"
+LABEL org.opencontainers.image.version=$IMAGE_NAME
 
 COPY --from=ghcr.io/ublue-os/akmods-nvidia-open:main-${FEDORA_MAJOR_VERSION} / /tmp/akmods-nvidia
 
