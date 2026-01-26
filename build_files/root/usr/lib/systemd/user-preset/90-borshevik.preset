@@ -1,0 +1,2 @@
+enable borshevik-app-manager-first-run.service
+enable borshevik-kill-gnome-if-hung.timer

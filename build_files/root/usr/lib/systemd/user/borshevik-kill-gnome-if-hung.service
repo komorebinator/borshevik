@@ -1,0 +1,9 @@
+[Unit]
+Description=Kill GNOME Shell if it stops responding (D-Bus timeout)
+After=graphical-session.target
+Wants=graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/borshevik/borshevik-kill-gnome-if-hung.sh
+TimeoutStartSec=60

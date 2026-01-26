@@ -1,0 +1,11 @@
+[Unit]
+Description=Kill GNOME if hung
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+AccuracySec=5s
+Unit=borshevik-kill-gnome-if-hung.service
+
+[Install]
+WantedBy=timers.target
