@@ -10,3 +10,6 @@ Icon=org.borshevik.ImageManager
 Terminal=false
 StartupNotify=true
 DBusActivatable=false
+
+Keywords=update;system;upgrade;
+Keywords[ru]=обновление;систем;
