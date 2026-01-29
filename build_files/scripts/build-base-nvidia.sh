@@ -26,5 +26,3 @@ rpm-ostree -y install \
   "nvidia-driver-cuda-${ver}*" \
   "nvidia-driver-cuda-libs-${ver}*.i686" \
   libva-nvidia-driver
-
-systemctl enable setup-ublue-mok.service

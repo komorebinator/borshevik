@@ -6,7 +6,7 @@ COPY build_files/scripts /build_scripts/
 
 FROM ghcr.io/ublue-os/silverblue-main:${FEDORA_MAJOR_VERSION} AS borshevik-base
 
-ARG IMAGE_NAME=borshevik-base
+ARG IMAGE_NAME
 ARG IMAGE_TAG=latest
 ARG FEDORA_MAJOR_VERSION
 ARG BUILD_DATE
@@ -22,7 +22,7 @@ RUN --mount=type=bind,from=ctx,source=/build_scripts,target=/build_scripts \
 
 FROM borshevik-base AS borshevik-base-nvidia
 
-ARG IMAGE_NAME=borshevik-base-nvidia
+ARG IMAGE_NAME
 ARG IMAGE_TAG=latest
 ARG FEDORA_MAJOR_VERSION
 ARG BUILD_DATE
@@ -38,7 +38,7 @@ RUN --mount=type=bind,from=ctx,source=/build_scripts,target=/build_scripts \
 
 FROM ghcr.io/komorebinator/borshevik-base:latest AS borshevik
 
-ARG IMAGE_NAME=borshevik
+ARG IMAGE_NAME
 ARG IMAGE_TAG=latest
 ARG FEDORA_MAJOR_VERSION
 ARG BUILD_DATE
@@ -54,7 +54,7 @@ RUN --mount=type=bind,from=ctx,source=/build_scripts,target=/build_scripts \
 
 FROM ghcr.io/komorebinator/borshevik-base-nvidia:latest AS borshevik-nvidia
 
-ARG IMAGE_NAME=borshevik-nvidia
+ARG IMAGE_NAME
 ARG IMAGE_TAG=latest
 ARG FEDORA_MAJOR_VERSION
 ARG BUILD_DATE
