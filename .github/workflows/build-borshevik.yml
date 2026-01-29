@@ -59,7 +59,7 @@ jobs:
             --target ${{ matrix.target }}
             --build-arg IMAGE_TAG=${{ env.BUILD_TAGS }}
             --build-arg BUILD_DATE=${{ env.BUILD_DATE }}
-            --build-arg TARGET=${{ matrix.target }}
+            --build-arg IMAGE_NAME=${{ matrix.target }}
           image: ${{ matrix.variant }}
           tags: |
             ${{ env.BUILD_TAGS }}
