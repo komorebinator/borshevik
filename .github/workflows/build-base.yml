@@ -1,0 +1,133 @@
+name: Build OCI Base Images
+
+on:
+  schedule:
+    - cron: '05 10 * * *'
+  workflow_dispatch:
+
+env:
+  IMAGE_DESC: "Borshevik is a custom Universal Blue image"
+  IMAGE_REGISTRY: "ghcr.io/${{ github.repository_owner }}"
+  ARTIFACTHUB_LOGO_URL: "https://avatars.githubusercontent.com/u/120078124?s=200&v=4"
+
+jobs:
+  build_and_push:
+    name: Build and push both base images
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      BUILD_TAGS: latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.variant }}
+      cancel-in-progress: true
+
+    strategy:
+      matrix:
+        include:
+          - variant: borshevik-base
+            target: borshevik-base
+          - variant: borshevik-base-nvidia
+            target: borshevik-base-nvidia
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4
+
+      - name: Set build date
+        run: echo "BUILD_DATE=$(date -u +%d.%m.%Y)" >> "$GITHUB_ENV"
+
+      - name: Create /mnt/xdg-data for container storage
+        run: |
+          sudo mkdir -p /mnt/xdg-data
+          sudo chown -R runner:runner /mnt/xdg-data
+          echo "XDG_DATA_HOME=/mnt/xdg-data" >> $GITHUB_ENV
+
+      - name: Build ${{ matrix.variant }} image
+        id: build
+        uses: redhat-actions/buildah-build@7a95fa7ee0f02d552a32753e7414641a04307056 # v2
+        with:
+          containerfiles: |
+            ./Containerfile
+          extra-args: |
+            --target ${{ matrix.target }}
+            --build-arg IMAGE_TAG=${{ env.BUILD_TAGS }}
+            --build-arg BUILD_DATE=${{ env.BUILD_DATE }}
+          image: ${{ matrix.variant }}
+          tags: |
+            ${{ env.BUILD_TAGS }}
+            ${{ env.BUILD_DATE }}
+          labels: |
+            org.opencontainers.image.title=${{ matrix.variant }}
+            org.opencontainers.image.description=${{ env.IMAGE_DESC }}
+            org.opencontainers.image.licenses=Apache-2.0
+            org.opencontainers.image.vendor=${{ github.repository_owner }}
+            org.opencontainers.image.url=https://github.com/${{ github.repository }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}/blob/main/Containerfile
+            org.opencontainers.image.documentation=https://github.com/${{ github.repository }}/blob/main/README.md
+            io.artifacthub.package.logo-url=${{ env.ARTIFACTHUB_LOGO_URL }}
+            io.artifacthub.package.keywords=bootc,ublue,universal-blue
+            containers.bootc=1
+
+      - name: Disk debug (on failure)
+        if: failure()
+        run: |
+          df -h / /mnt || true
+          du -sh /mnt/xdg-data/containers/storage 2>/dev/null || true
+          du -sh /home/runner/.local/share/containers/storage 2>/dev/null || true
+          podman system df -v || true
+
+      - name: Login to GHCR
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Normalize registry name
+        id: registry_case
+        uses: ASzc/change-string-case-action@d0603cd0a7dd490be678164909f65c7737470a7f # v6
+        with:
+          string: ${{ env.IMAGE_REGISTRY }}
+
+      - name: Normalize image name
+        id: image_case
+        uses: ASzc/change-string-case-action@d0603cd0a7dd490be678164909f65c7737470a7f # v6
+        with:
+          string: ${{ matrix.variant }}
+
+      - name: Push image
+        uses: redhat-actions/push-to-registry@5ed88d269cf581ea9ef6dd6806d01562096bee9c # v2
+        with:
+          registry: ${{ steps.registry_case.outputs.lowercase }}
+          image: ${{ steps.build.outputs.image }}
+          tags: |
+            ${{ env.BUILD_TAGS }}
+            ${{ env.BUILD_DATE }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
+        with:
+          cosign-release: v2.6.1
+
+      - name: Get image digest
+        id: digest
+        run: |
+          IMAGE_FULL="${{ steps.registry_case.outputs.lowercase }}/${{ steps.image_case.outputs.lowercase }}"
+          DIGEST=$(skopeo inspect "docker://$IMAGE_FULL:$BUILD_TAGS" | jq -r '.Digest')
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+
+      - name: Sign image by digest
+        run: |
+          IMAGE_FULL="${{ steps.registry_case.outputs.lowercase }}/${{ steps.image_case.outputs.lowercase }}"
+          echo "Signing $IMAGE_FULL@${{ steps.digest.outputs.digest }}"
+          cosign sign -y --key env://COSIGN_PRIVATE_KEY "$IMAGE_FULL@${{ steps.digest.outputs.digest }}"
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
+          COSIGN_EXPERIMENTAL: false

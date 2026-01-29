@@ -1,4 +1,4 @@
-name: Promote image to stable
+name: Promote Image to Stable
 
 on:
   workflow_dispatch:
