@@ -19,6 +19,7 @@ jobs:
   build_and_push:
     name: Build and push both final images
     runs-on: ubuntu-24.04
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       BUILD_TAGS: latest
