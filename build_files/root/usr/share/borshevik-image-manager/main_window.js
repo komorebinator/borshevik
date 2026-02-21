@@ -11,6 +11,7 @@ import {
 import { buildFacts, computeUiState } from './app_state.js';
 import { CommandRunner } from './command_runner.js';
 import { SettingsWindow } from './settings_window.js';
+import { ProgressWindow } from './progress_window.js';
 import { readOsRelease, pickLogoCandidates, firstExistingPath, requestRebootInteractive, isAuthorizationError, runCommandCapture } from './util.js';
 
 export const MainWindow = GObject.registerClass(
@@ -58,14 +59,14 @@ class MainWindow extends Adw.ApplicationWindow {
 
     const header = new Adw.HeaderBar();
 
-    // Menu
-    const menu = new Gio.Menu();
-    menu.append(i18n.t('menu_settings'), 'app.open-settings');
-    menu.append(i18n.t('menu_about'), 'app.about');
+    // Menu — пересобирается при каждом обновлении фактов через _updatePromoteMenuItem
+    this._menu = new Gio.Menu();
+    this._menuShowPromote = false; // текущее состояние, чтобы не пересобирать без нужды
+    this._rebuildMenu(false);
 
     const menuButton = new Gtk.MenuButton({
       icon_name: 'open-menu-symbolic',
-      menu_model: menu
+      menu_model: this._menu
     });
     header.pack_end(menuButton);
 
@@ -74,17 +75,21 @@ class MainWindow extends Adw.ApplicationWindow {
     actionSettings.connect('activate', () => this._openSettings());
     this._app.add_action(actionSettings);
 
+    const actionPromote = new Gio.SimpleAction({ name: 'promote-to-stable' });
+    actionPromote.connect('activate', () => this._promoteToStable());
+    this._app.add_action(actionPromote);
+    this._promoteAction = actionPromote;
+
     const actionAbout = new Gio.SimpleAction({ name: 'about' });
     actionAbout.connect('activate', () => this._showAbout());
     this._app.add_action(actionAbout);
 
-    // Main content stack: normal view vs busy view.
+    // Main content stack: normal view only (busy operations now use separate window)
     this._stack = new Gtk.Stack({
       transition_type: Gtk.StackTransitionType.CROSSFADE
     });
 
     this._stack.add_named(this._buildMainView(), 'main');
-    this._stack.add_named(this._buildBusyView(), 'busy');
 
     const toolbarView = new Adw.ToolbarView();
     toolbarView.add_top_bar(header);
@@ -143,6 +148,15 @@ class MainWindow extends Adw.ApplicationWindow {
       css_classes: ['caption', 'dim-label']
     });
     headerBox.append(this._metaLabel);
+
+    this._digestLabel = new Gtk.Label({
+      halign: Gtk.Align.CENTER,
+      margin_top: 2,
+      wrap: true,
+      selectable: true,
+      css_classes: ['caption', 'dim-label']
+    });
+    headerBox.append(this._digestLabel);
 
     box.append(headerBox);
 
@@ -232,59 +246,6 @@ class MainWindow extends Adw.ApplicationWindow {
     return clamp;
   }
 
-  _buildBusyView() {
-    const i18n = this._app.i18n;
-    const clamp = new Adw.Clamp({ maximum_size: 720, tightening_threshold: 560 });
-
-    const box = new Gtk.Box({
-      orientation: Gtk.Orientation.VERTICAL,
-      spacing: 12,
-      margin_top: 16,
-      margin_bottom: 16,
-      margin_start: 16,
-      margin_end: 16
-    });
-
-    this._busyTitle = new Gtk.Label({
-      xalign: 0,
-      label: i18n.t('running'),
-      css_classes: ['title-3']
-    });
-    box.append(this._busyTitle);
-
-    this._progress = new Gtk.ProgressBar({ show_text: false });
-    this._progress.set_pulse_step(0.05);
-    box.append(this._progress);
-
-    const frame = new Gtk.Frame();
-    frame.set_margin_top(8);
-
-    const scroller = new Gtk.ScrolledWindow({
-      hexpand: true,
-      vexpand: true
-    });
-    this._textBuffer = new Gtk.TextBuffer();
-    const textView = new Gtk.TextView({
-      buffer: this._textBuffer,
-      editable: false,
-      monospace: true,
-      wrap_mode: Gtk.WrapMode.WORD_CHAR
-    });
-    scroller.set_child(textView);
-    frame.set_child(scroller);
-    box.append(frame);
-
-    // Close button (enabled once the command completes)
-    this._busyClose = new Gtk.Button({ label: i18n.t('close'), sensitive: false });
-    this._busyClose.connect('clicked', () => {
-      this._stack.set_visible_child_name('main');
-    });
-    box.append(this._busyClose);
-
-    clamp.set_child(box);
-    return clamp;
-  }
-
   async _refreshStatus() {
     const i18n = this._app.i18n;
     const osr = readOsRelease();
@@ -304,6 +265,7 @@ class MainWindow extends Adw.ApplicationWindow {
     // Header
     this._distroNameLabel.set_label(this._facts.distroName);
     this._metaLabel.set_label(`${this._facts.channel}, ${this._facts.buildTime}`);
+    this._digestLabel.set_label(this._facts.digest);
 
     // Update-ready row (staged/pending)
     if (this._facts.needsReboot) {
@@ -317,6 +279,9 @@ class MainWindow extends Adw.ApplicationWindow {
     // Rollback info
     this._rollbackRow.set_subtitle(this._facts.rollbackTime);
     this._rollbackButton.set_sensitive(this._facts.hasRollback);
+
+    // Update promote to stable menu item
+    this._updatePromoteMenuItem();
 
     this._applyUiState();
 
@@ -512,8 +477,9 @@ class MainWindow extends Adw.ApplicationWindow {
     }
 
     if (!success) {
-      // Some rpm-ostree versions can exit non-zero while still printing a definitive result.
-      if (hasNoUpdates) {
+      // Some rpm-ostree versions exit non-zero when a deployment is already staged
+      // (e.g. "Staged deployment exists") — that's not an error from the user's perspective.
+      if (hasNoUpdates || hasStaged) {
         this._check = { phase: 'no_updates', downloadSize: null, message: '' };
       } else {
         this._check = {
@@ -526,10 +492,9 @@ class MainWindow extends Adw.ApplicationWindow {
       return;
     }
 
-    if (hasStaged) {
-      // Staged/pending deployment is the source of truth; download size is irrelevant now.
-      this._check = { phase: 'idle', downloadSize: null, message: '' };
-    } else if (hasAvailableUpdate) {
+    // If there's a new update available, show it regardless of staged status —
+    // it means there's a version newer than what's already staged.
+    if (hasAvailableUpdate) {
       this._check = { phase: 'available', downloadSize: size, message: '' };
     } else {
       this._check = { phase: 'no_updates', downloadSize: null, message: '' };
@@ -540,96 +505,99 @@ class MainWindow extends Adw.ApplicationWindow {
     await this._refreshStatus();
   }
 
-  _enterBusy(title) {
+  // ---------------------------------------------------------------------------
+  // Shared helpers
+  // ---------------------------------------------------------------------------
+
+  // Runs `command` inside a ProgressWindow.
+  // `onSuccess(progressWin)` is called (and awaited) when the command exits 0.
+  // Set `withAuthRetry: false` to skip the pkexec re-run on auth failures.
+  async _runWithProgress(command, title, { onSuccess, withAuthRetry = true } = {}) {
     const i18n = this._app.i18n;
-    this._busyTitle.set_label(title || i18n.t('running'));
-    this._busyClose.set_sensitive(false);
-    this._textBuffer.set_text('', -1);
-    this._stack.set_visible_child_name('busy');
 
-    // Pulse animation.
-    this._progress.set_fraction(0);
-    if (this._pulseId) {
-      GLib.source_remove(this._pulseId);
-      this._pulseId = null;
-    }
-    this._pulseId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 80, () => {
-      this._progress.pulse();
-      return GLib.SOURCE_CONTINUE;
+    const progressWin = new ProgressWindow({
+      application: this._app,
+      transient_for: this,
+      title
     });
-  }
 
-  _leaveBusy() {
-    if (this._pulseId) {
-      GLib.source_remove(this._pulseId);
-      this._pulseId = null;
+    progressWin.setCommand(command);
+    progressWin.startProgress();
+    progressWin.present();
+
+    let collected = '';
+    const runner = new CommandRunner({
+      onStdout: (t) => { collected += t; progressWin.appendOutput(t); },
+      onStderr: (t) => { collected += t; progressWin.appendOutput(t); },
+      onExit:   () => progressWin.stopProgress()
+    });
+    progressWin.setRunner(runner);
+
+    let result = await runner.run(command, { root: false });
+
+    if (withAuthRetry && !result.success && isAuthorizationError(collected)) {
+      progressWin.appendOutput('\nAuthorization required; retrying with elevated privileges…\n');
+      progressWin.setCommand(['pkexec', ...command]);
+      result = await runner.run(command, { root: true });
     }
-    this._progress.set_fraction(1.0);
-    this._busyClose.set_sensitive(true);
+
+    if (result.success && onSuccess)
+      await onSuccess(progressWin);
+
+    return result;
   }
 
-  _appendOutput(text) {
-    const iter = this._textBuffer.get_end_iter();
-    this._textBuffer.insert(iter, text, -1);
+  // Shows an Adw.MessageDialog with two buttons: cancel and a confirm button.
+  // Returns a Promise<boolean> that resolves to true when the confirm button is pressed.
+  _confirm({ heading, body, confirmId, confirmLabel, appearance = Adw.ResponseAppearance.SUGGESTED }) {
+    const i18n = this._app.i18n;
+    return new Promise((resolve) => {
+      const dlg = new Adw.MessageDialog({
+        transient_for: this,
+        modal: true,
+        heading,
+        body
+      });
+      dlg.add_response('cancel', i18n.t('cancel'));
+      dlg.add_response(confirmId, confirmLabel);
+      dlg.set_default_response('cancel');
+      dlg.set_close_response('cancel');
+      dlg.set_response_appearance(confirmId, appearance);
+      dlg.connect('response', (_d, resp) => {
+        dlg.destroy();
+        resolve(resp === confirmId);
+      });
+      dlg.present();
+    });
   }
 
   async _doUpgrade() {
     const i18n = this._app.i18n;
-    this._enterBusy(i18n.t('primary_update'));
+    const command = ['rpm-ostree', 'update'];
 
-    let collected = '';
-
-    const runner = new CommandRunner({
-      onStdout: (t) => { collected += t; this._appendOutput(t); },
-      onStderr: (t) => { collected += t; this._appendOutput(t); },
-      onExit: () => this._leaveBusy()
+    await this._runWithProgress(command, i18n.t('applying_update'), {
+      onSuccess: async () => {
+        this._check = { phase: 'idle', downloadSize: null, message: '' };
+      }
     });
-
-    // Use `rpm-ostree update` for consistency with `update --check`.
-    let result = await runner.run(['rpm-ostree', 'update'], { root: false });
-    if (!result.success && isAuthorizationError(collected)) {
-      this._appendOutput('\nAuthorization required; retrying with elevated privileges…\n');
-      result = await runner.run(['rpm-ostree', 'update'], { root: true });
-    }
-
-    if (result.success) {
-      // After applying an update, the next boot deployment is typically staged.
-      // Do not auto-reboot; just refresh facts and UI.
-      this._check = { phase: 'idle', downloadSize: null, message: '' };
-      // Do not trigger a reboot prompt automatically after an update.
-      // The main UI will indicate that a reboot is required.
-    }
 
     await this._refreshStatus();
   }
 
   async _doRollback() {
     const i18n = this._app.i18n;
-    this._enterBusy(i18n.t('rollback'));
+    const command = ['rpm-ostree', 'rollback'];
 
-    let collected = '';
-
-    const runner = new CommandRunner({
-      onStdout: (t) => { collected += t; this._appendOutput(t); },
-      onStderr: (t) => { collected += t; this._appendOutput(t); },
-      onExit: () => this._leaveBusy()
-    });
-
-    let result = await runner.run(['rpm-ostree', 'rollback'], { root: false });
-    if (!result.success && isAuthorizationError(collected)) {
-      this._appendOutput('\nAuthorization required; retrying with elevated privileges…\n');
-      result = await runner.run(['rpm-ostree', 'rollback'], { root: true });
-    }
-
-    if (result.success) {
-      // A rollback creates a new deployment; the UI will indicate reboot is required.
-      this._check = { phase: 'idle', downloadSize: null, message: '' };
-      try {
-        await requestRebootInteractive();
-      } catch (e) {
-        logError(e, 'Reboot prompt failed after rollback');
+    await this._runWithProgress(command, i18n.t('rollback'), {
+      onSuccess: async () => {
+        this._check = { phase: 'idle', downloadSize: null, message: '' };
+        try {
+          await requestRebootInteractive();
+        } catch (e) {
+          logError(e, 'Reboot prompt failed after rollback');
+        }
       }
-    }
+    });
 
     await this._refreshStatus();
   }
@@ -667,6 +635,56 @@ class MainWindow extends Adw.ApplicationWindow {
     win.present();
   }
 
+  _rebuildMenu(showPromote) {
+    const i18n = this._app.i18n;
+    this._menu.remove_all();
+    this._menu.append(i18n.t('menu_settings'), 'app.open-settings');
+    if (showPromote)
+      this._menu.append(i18n.t('promote_to_stable'), 'app.promote-to-stable');
+    this._menu.append(i18n.t('menu_about'), 'app.about');
+    this._menuShowPromote = showPromote;
+  }
+
+  _updatePromoteMenuItem() {
+    const shouldShow = Boolean(
+      this._facts &&
+      this._facts.channel === 'latest' &&
+      (this._facts.variant === 'borshevik' || this._facts.variant === 'borshevik-nvidia')
+    );
+    if (shouldShow !== this._menuShowPromote)
+      this._rebuildMenu(shouldShow);
+  }
+
+  async _promoteToStable() {
+    const i18n = this._app.i18n;
+
+    const confirmed = await this._confirm({
+      heading: i18n.t('promote_to_stable_confirm_title'),
+      body: i18n.t('promote_to_stable_confirm_body'),
+      confirmId: 'promote',
+      confirmLabel: i18n.t('apply'),
+      appearance: Adw.ResponseAppearance.SUGGESTED
+    });
+    if (!confirmed) return;
+
+    if (!this._facts || !this._facts.digest || this._facts.digest === i18n.t('unknown')) {
+      this._showInfo('Cannot promote: digest not available');
+      return;
+    }
+
+    const argv = [
+      'gh', 'workflow', 'run', 'promote-image-to-stable.yml',
+      '--ref', 'main',
+      '-f', `digest=sha256:${this._facts.digest}`,
+      '-f', `variant=${this._facts.variant}`
+    ];
+
+    await this._runWithProgress(argv, i18n.t('promoting_to_stable'), {
+      withAuthRetry: false,
+      onSuccess: async () => this._showInfo(i18n.t('promote_complete'))
+    });
+  }
+
   _showAbout() {
     const i18n = this._app.i18n;
     const about = new Adw.AboutWindow({
@@ -681,26 +699,12 @@ class MainWindow extends Adw.ApplicationWindow {
 
   async _confirmRollback() {
     const i18n = this._app.i18n;
-    return await new Promise((resolve) => {
-      const dlg = new Adw.MessageDialog({
-        transient_for: this,
-        modal: true,
-        heading: i18n.t('confirm_rollback_title'),
-        body: i18n.t('confirm_rollback_body')
-      });
-
-      dlg.add_response('cancel', i18n.t('cancel'));
-      dlg.add_response('rollback', i18n.t('rollback'));
-      dlg.set_default_response('cancel');
-      dlg.set_close_response('cancel');
-      dlg.set_response_appearance('rollback', Adw.ResponseAppearance.DESTRUCTIVE);
-
-      dlg.connect('response', (_d, resp) => {
-        dlg.destroy();
-        resolve(resp === 'rollback');
-      });
-
-      dlg.present();
+    return this._confirm({
+      heading: i18n.t('confirm_rollback_title'),
+      body: i18n.t('confirm_rollback_body'),
+      confirmId: 'rollback',
+      confirmLabel: i18n.t('rollback'),
+      appearance: Adw.ResponseAppearance.DESTRUCTIVE
     });
   }
 

@@ -38,7 +38,6 @@
   "channel_stable": "stable",
   "channel_custom": "custom",
   "custom_tag": "Custom tag",
-  "target_ref": "Target ref",
   "apply": "Apply",
   "reset": "Reset",
   "back": "Back",
@@ -55,5 +54,13 @@
   "error": "Error",
   "ok": "OK",
   "close": "Close",
-  "about_details": "A simple GUI wrapper around rpm-ostree for checking updates, upgrading, rebooting to apply, rolling back, and rebasing images."
+  "about_details": "A simple GUI wrapper around rpm-ostree for checking updates, upgrading, rebooting to apply, rolling back, and rebasing images.",
+  "digest": "Digest",
+  "applying_update": "Applying update",
+  "applying_rebase": "Applying rebase",
+  "promote_to_stable": "Promote this image to stable",
+  "promote_to_stable_confirm_title": "Promote to stable?",
+  "promote_to_stable_confirm_body": "This will promote the current image to the stable channel. Continue?",
+  "promoting_to_stable": "Promoting to stable",
+  "promote_complete": "Promotion complete"
 }

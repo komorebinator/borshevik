@@ -17,9 +17,15 @@ function _readJson(path) {
 }
 
 function _getLocale() {
-  const env = GLib.getenv('LC_MESSAGES') || GLib.getenv('LANG') || 'en';
-  // Examples: en_US.UTF-8, ru_RU.UTF-8
-  const m = env.match(/^([a-zA-Z]{2})/);
+  // Стандартная иерархия Linux: LANGUAGE > LC_ALL > LC_MESSAGES > LANG
+  const env = GLib.getenv('LANGUAGE') ||
+              GLib.getenv('LC_ALL') ||
+              GLib.getenv('LC_MESSAGES') ||
+              GLib.getenv('LANG') ||
+              'en';
+  // LANGUAGE может быть списком через двоеточие: "ru:en_US" — берём первый
+  const first = env.split(':')[0];
+  const m = first.match(/^([a-zA-Z]{2})/);
   return (m ? m[1] : 'en').toLowerCase();
 }
 

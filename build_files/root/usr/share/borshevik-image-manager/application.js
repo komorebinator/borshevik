@@ -16,7 +16,9 @@ class Application extends Adw.Application {
       flags: Gio.ApplicationFlags.FLAGS_NONE
     });
 
-    const baseDir = GLib.path_get_dirname(import.meta.url.replace('file://', ''));
+    // Use Gio.File to properly convert file:// URI to path
+    const scriptFile = Gio.File.new_for_uri(import.meta.url);
+    const baseDir = scriptFile.get_parent().get_path();
     this.i18n = new I18n(GLib.build_filenamev([baseDir, 'i18n']));
 
     this.connect('activate', () => this._onActivate());

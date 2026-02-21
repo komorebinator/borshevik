@@ -22,11 +22,6 @@ function _communicateUtf8(proc, stdin = null, cancellable = null) {
   });
 }
 
-function _decodeStdout(bytes) {
-  if (!bytes) return '';
-  return new TextDecoder('utf-8').decode(bytes);
-}
-
 export function stripDockerTagIfPresent(ref) {
   // Handles refs like:
   // ostree-image-signed:docker://ghcr.io/user/image:stable
@@ -203,6 +198,18 @@ export function extractOrigin(deployment) {
     deployment?.container_image_reference ??
     ''
   );
+}
+
+export function extractDigest(deployment) {
+  // Extract the digest from container-image-reference-digest field.
+  // This is typically a sha256 hash.
+  const digest = deployment?.['container-image-reference-digest'] ?? 
+                deployment?.container_image_reference_digest ?? 
+                '';
+  if (digest && digest.startsWith('sha256:')) {
+    return digest.substring(7); // Remove 'sha256:' prefix for display
+  }
+  return digest;
 }
 
 export function needsReboot(parsed) {

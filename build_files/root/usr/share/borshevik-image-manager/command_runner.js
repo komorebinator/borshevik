@@ -12,16 +12,32 @@ export class CommandRunner {
     this._onStdout = onStdout || (() => {});
     this._onStderr = onStderr || (() => {});
     this._onExit = onExit || (() => {});
+    this._proc = null;
+  }
+
+  cancel() {
+    if (this._proc) {
+      try {
+        this._proc.force_exit();
+      } catch (e) {
+        console.error('Failed to cancel process:', e);
+      }
+    }
   }
 
   async run(argv, { root = false } = {}) {
     const finalArgv = root ? _prependPkexec(argv) : argv;
 
-    const proc = new Gio.Subprocess({
-      argv: finalArgv,
+    // Create subprocess launcher with TERM=xterm
+    const launcher = new Gio.SubprocessLauncher({
       flags: Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
     });
-    proc.init(null);
+    
+    // Set environment variable
+    launcher.setenv('TERM', 'xterm', true);
+    
+    const proc = launcher.spawnv(finalArgv);
+    this._proc = proc;
 
     const stdout = proc.get_stdout_pipe();
     const stderr = proc.get_stderr_pipe();
