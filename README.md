@@ -1,7 +1,7 @@
 # <img src="assets/borshevik_logo.svg" alt="Logo" width="26"> Borshevik
 
 
-Borshevik is an immutable, laptop-first desktop image built on top of Fedora Atomic and the uBlue ecosystemaiming to be a more capable alternative to ChromeOS. It ships as a single read-only system image with atomic updates and simple rollbacks, the stock Fedora GNOME desktop tuned with a small set of preinstalled GNOME Shell extensions, multimedia support, Chrome, Steam, and a curated Flatpak set — so you can install it and start using it right away, even if you’re new to Linux.
+Borshevik is an immutable, laptop-first desktop image built on Fedora Atomic and the uBlue ecosystem, designed to be welcoming to beginners. It’s delivered as a single, read-only system image with atomic updates and easy rollbacks. It includes stock Fedora GNOME tuned with a small set of GNOME Shell extensions, plus multimedia support, Chrome, Steam, and a curated Flatpak set — so you can install it and start using it right away, even if you’re new to Linux.
 
 ## 🎯 Who is this image for?
 
@@ -10,7 +10,7 @@ Borshevik is built as a practical daily driver with a clear target audience:
 - **Laptop-first (but desktops are supported too):** defaults and UX are tuned primarily for modern laptops, while still working great on desktop machines.
 - **Built for daily work:** tuned for everyday productivity and daily use.
 - **Also good for gaming:** Steam is included and works out of the box.
-- **A “ChromeOS, but more capable” alternative:** the same “turn it on and start working” mindset, but with a full Linux desktop that runs native apps out of the box.
+- **Predictable and low-maintenance:** the “turn it on and start working” mindset, with consistent behavior and easy recovery.
 
 ## 🌸 Core Image
 
