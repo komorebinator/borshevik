@@ -58,9 +58,9 @@
   "digest": "Дайджест",
   "applying_update": "Применение обновления",
   "applying_rebase": "Применение rebase",
-  "promote_to_stable": "Промотировать образ в stable",
-  "promote_to_stable_confirm_title": "Промотировать в stable?",
-  "promote_to_stable_confirm_body": "Это промотирует текущий образ в stable канал. Продолжить?",
-  "promoting_to_stable": "Промоция в stable",
-  "promote_complete": "Промоция завершена"
+  "promote_to_stable": "Сделать образ stable",
+  "promote_to_stable_confirm_title": "Сделать образ stable?",
+  "promote_to_stable_confirm_body": "Это двигает текущий образ в stable канал. Продолжить?",
+  "promoting_to_stable": "Обновление stable ветки",
+  "promote_complete": "Образ помечен как stable"
 }
