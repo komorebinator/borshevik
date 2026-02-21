@@ -674,6 +674,7 @@ class MainWindow extends Adw.ApplicationWindow {
 
     const argv = [
       'gh', 'workflow', 'run', 'promote-image-to-stable.yml',
+      '--repo', 'komorebinator/borshevik',
       '--ref', 'main',
       '-f', `digest=sha256:${this._facts.digest}`,
       '-f', `variant=${this._facts.variant}`
