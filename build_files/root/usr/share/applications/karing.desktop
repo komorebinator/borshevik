@@ -1,0 +1,18 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+
+Name=Karing
+Name[ru]=Karing
+
+Comment=Proxy and VPN client
+Comment[ru]=Прокси и VPN клиент
+
+Exec=/usr/lib/karing/karing
+Icon=/usr/lib/karing/karing.png
+Terminal=false
+StartupNotify=true
+
+Categories=Network;
+Keywords=vpn;proxy;vpn;tun;clash;
+Keywords[ru]=впн;прокси;
