@@ -3,6 +3,7 @@
 set -ouex pipefail
 
 /build_scripts/os-info.sh
+/build_scripts/install-goxray.sh
 /build_scripts/install-gs-extensions.sh
 /build_scripts/apply-schemas.sh
 /build_scripts/apply-dconf.sh

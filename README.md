@@ -30,6 +30,20 @@ Borshevik includes Borshevik App Manager — a simple tool that helps you quickl
 
 It also supports bulk installation from a custom list: you can paste (or generate on another machine) a list of Flathub app IDs, and the manager will install them all in one go — an easy way to replicate your setup across devices.
 
+## 🔒 VPN
+
+[GoXRay](https://github.com/goxray/desktop) comes preinstalled — a native desktop VPN client powered by [xray-core](https://github.com/XTLS/Xray-core). It runs as a tray application and supports all major modern proxy protocols:
+
+| Protocol | Notes |
+|----------|-------|
+| VLESS + Reality | Recommended — censorship-resistant, mimics HTTPS |
+| VLESS + TLS | Standard VLESS over TLS |
+| VMess | Classic xray/v2ray protocol |
+| Shadowsocks 2022 | Modern Shadowsocks |
+| Trojan | TLS-based protocol |
+
+Import your connection via a share link (VLESS URI, VMess URI, etc.) directly in the app.
+
 ## 🧩 GNOME Extensions
 
 Borshevik ships with a set of GNOME Shell extensions preinstalled during the image build. The full list and any patches are documented in [list.json](build_files/scripts/gs-extensions/list.json), so you can always see what’s included.
