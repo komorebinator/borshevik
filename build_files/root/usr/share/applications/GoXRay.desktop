@@ -2,17 +2,17 @@
 Type=Application
 Version=1.0
 
-Name=v2rayA
-Name[ru]=v2rayA
+Name=GoXRay
+Name[ru]=GoXRay
 
 Comment=Proxy and VPN client
 Comment[ru]=Прокси и VPN клиент
 
-Exec=google-chrome-stable --app=http://localhost:2017
-Icon=v2raya
+Exec=/usr/bin/desktop
+Icon=GoXRay
 Terminal=false
 StartupNotify=true
 
 Categories=Network;
-Keywords=vpn;proxy;v2ray;tun;
+Keywords=vpn;proxy;xray;vless;tun;
 Keywords[ru]=впн;прокси;
