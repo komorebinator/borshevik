@@ -19,7 +19,7 @@ set -euo pipefail
 
 GOXRAY_REPO="goxray/desktop"
 XRAY_REPO="XTLS/Xray-core"
-DEST_BIN="/usr/bin/goxray"
+DEST_BIN="/usr/lib/goxray/desktop"
 DEST_ICON="/usr/share/pixmaps/GoXRay.png"
 DEST_GEODIR="/usr/share/xray"
 
@@ -65,6 +65,7 @@ curl -fL --retry 3 --retry-delay 2 "${CURL_AUTH[@]}" \
 
 tar xf "${WORKDIR}/${ASSET_NAME}" -C "$WORKDIR"
 
+mkdir -p "$(dirname "$DEST_BIN")"
 install -m 0755 "${WORKDIR}/usr/local/bin/desktop" "$DEST_BIN"
 install -m 0644 "${WORKDIR}/usr/local/share/pixmaps/GoXRay.png" "$DEST_ICON"
 
