@@ -19,7 +19,7 @@ set -euo pipefail
 
 GOXRAY_REPO="goxray/desktop"
 XRAY_REPO="XTLS/Xray-core"
-DEST_BIN="/usr/bin/desktop"
+DEST_BIN="/usr/bin/goxray"
 DEST_ICON="/usr/share/pixmaps/GoXRay.png"
 DEST_GEODIR="/usr/share/xray"
 

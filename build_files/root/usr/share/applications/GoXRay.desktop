@@ -8,7 +8,7 @@ Name[ru]=GoXRay
 Comment=Proxy and VPN client
 Comment[ru]=Прокси и VPN клиент
 
-Exec=/usr/bin/desktop
+Exec=/usr/bin/goxray
 Icon=GoXRay
 Terminal=false
 StartupNotify=true
