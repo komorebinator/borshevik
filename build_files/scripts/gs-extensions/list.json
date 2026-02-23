@@ -94,5 +94,10 @@
         "repo": "https://github.com/andyholmes/gnome-shell-extension-gsconnect.git",
         "branch": "v67",
         "script": "gsconnect.sh"
+    },
+    {
+        "repo": "https://github.com/ubuntu/gnome-shell-extension-appindicator",
+        "branch": "v63",
+        "script": "appindicator.sh"
     }
 ]
