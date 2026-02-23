@@ -2,16 +2,17 @@
 Type=Application
 Version=1.0
 
-Name=GoXRay
-Name[ru]=GoXRay
+Name=GoXRay (VPN)
+Name[ru]=GoXRay (VPN)
 
 Comment=Proxy and VPN client
 Comment[ru]=Прокси и VPN клиент
 
-Exec=/usr/lib/goxray/desktop
+Exec=/usr/bin/goxray
 Icon=GoXRay
 Terminal=false
 StartupNotify=true
+StartupWMClass=GoXRay
 
 Categories=Network;
 Keywords=vpn;proxy;xray;vless;tun;

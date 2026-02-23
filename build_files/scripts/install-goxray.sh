@@ -2,8 +2,9 @@
 set -euo pipefail
 
 # Downloads GoXRay (native Linux GUI for xray-core) from goxray/desktop GitHub
-# releases and installs it to /usr/bin/desktop with the required network
-# capabilities set via setcap.
+# releases and installs it to /usr/lib/goxray/goxray with the required network
+# capabilities set via setcap. A thin wrapper at /usr/bin/goxray prevents
+# launching a second instance if the app is already running.
 #
 # Also downloads geoip.dat and geosite.dat from XTLS/Xray-core releases and
 # installs them to /usr/share/xray/ (one of xray's default lookup paths).
@@ -19,7 +20,7 @@ set -euo pipefail
 
 GOXRAY_REPO="goxray/desktop"
 XRAY_REPO="XTLS/Xray-core"
-DEST_BIN="/usr/lib/goxray/desktop"
+DEST_BIN="/usr/lib/goxray/goxray"
 DEST_ICON="/usr/share/pixmaps/GoXRay.png"
 DEST_GEODIR="/usr/share/xray"
 

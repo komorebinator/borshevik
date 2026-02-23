@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+pgrep -x goxray >/dev/null || exec /usr/lib/goxray/goxray "$@"
