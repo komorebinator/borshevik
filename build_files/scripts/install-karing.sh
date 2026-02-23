@@ -39,15 +39,6 @@ for cmd in curl jq setcap; do
     }
 done
 
-# --- Architecture ------------------------------------------------------------
-
-ARCH="$(uname -m)"
-case "$ARCH" in
-    x86_64|amd64)  WANT_ARCH="x64"   ;;
-    aarch64|arm64) WANT_ARCH="arm64" ;;
-    *) echo "Unsupported arch: $ARCH" >&2; exit 1 ;;
-esac
-
 # --- Release API URL ---------------------------------------------------------
 # Treat missing or literal "latest" identically.
 
@@ -75,14 +66,14 @@ RELEASE_JSON="$(curl -fsSL --retry 3 "${CURL_AUTH[@]}" "$API_URL")"
 ASSET_LINE="$(
     printf '%s' "$RELEASE_JSON" \
     | jq -r '.assets[] | .name + "\t" + .browser_download_url' \
-    | awk -F'\t' -v arch="${WANT_ARCH}" '
+    | awk -F'\t' '
         BEGIN { IGNORECASE = 1 }
-        ($1 ~ /linux/ && $1 ~ /appimage/ && $1 ~ arch) { print; exit }
+        ($1 ~ /linux/ && $1 ~ /appimage/ && $1 ~ /amd64/) { print; exit }
       '
 )"
 
 if [[ -z "$ASSET_LINE" ]]; then
-    echo "No Linux AppImage asset found for arch=${WANT_ARCH} in ${REPO}." >&2
+    echo "No Linux amd64 AppImage asset found in ${REPO}." >&2
     echo "Available assets:" >&2
     printf '%s' "$RELEASE_JSON" | jq -r '.assets[].name' | sed 's/^/  /' >&2
     exit 1
