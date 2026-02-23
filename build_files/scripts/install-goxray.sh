@@ -6,9 +6,6 @@ set -euo pipefail
 # capabilities set via setcap. A thin wrapper at /usr/bin/goxray prevents
 # launching a second instance if the app is already running.
 #
-# Also downloads geoip.dat and geosite.dat from XTLS/Xray-core releases and
-# installs them to /usr/share/xray/ (one of xray's default lookup paths).
-#
 # setcap on ELF binaries survives OCI layer packaging in rootful Podman builds.
 #
 # Optional env:
@@ -16,13 +13,11 @@ set -euo pipefail
 #   GITHUB_TOKEN     – GitHub PAT; set in CI to avoid rate-limiting
 #
 # Prerequisites (present in the uBlue build container):
-#   curl, jq, unzip, tar
+#   curl, jq, tar
 
 GOXRAY_REPO="goxray/desktop"
-XRAY_REPO="XTLS/Xray-core"
 DEST_BIN="/usr/lib/goxray/goxray"
 DEST_ICON="/usr/share/pixmaps/GoXRay.png"
-DEST_GEODIR="/usr/share/xray"
 
 WORKDIR="$(mktemp -d)"
 cleanup() { rm -rf "$WORKDIR"; }
@@ -74,27 +69,5 @@ setcap cap_net_raw,cap_net_admin,cap_net_bind_service+eip "$DEST_BIN"
 
 TAG_NAME="$(printf '%s' "$RELEASE_JSON" | jq -r '.tag_name')"
 echo "GoXRay ${TAG_NAME} → ${DEST_BIN} (capabilities set)"
-
-# --- Geo data from XTLS/Xray-core --------------------------------------------
-
-echo "Fetching xray geo data from ${XRAY_REPO}"
-XRAY_JSON="$(curl -fsSL --retry 3 "${CURL_AUTH[@]}" \
-    "https://api.github.com/repos/${XRAY_REPO}/releases/latest")"
-
-XRAY_ZIP_URL="$(
-    printf '%s' "$XRAY_JSON" \
-    | jq -r '.assets[] | select(.name == "Xray-linux-64.zip") | .browser_download_url'
-)"
-
-if [[ -z "$XRAY_ZIP_URL" ]]; then
-    echo "WARNING: Xray-linux-64.zip not found, skipping geo data." >&2
-else
-    curl -fL --retry 3 --retry-delay 2 "${CURL_AUTH[@]}" \
-        -o "${WORKDIR}/xray.zip" "$XRAY_ZIP_URL"
-
-    mkdir -p "$DEST_GEODIR"
-    unzip -q "${WORKDIR}/xray.zip" geoip.dat geosite.dat -d "$DEST_GEODIR"
-    echo "Geo data → ${DEST_GEODIR}"
-fi
 
 echo "Done."

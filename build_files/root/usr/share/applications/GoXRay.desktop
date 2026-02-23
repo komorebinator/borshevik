@@ -12,8 +12,6 @@ Exec=/usr/bin/goxray
 Icon=GoXRay
 Terminal=false
 StartupNotify=true
-StartupWMClass=GoXRay
-
 Categories=Network;
 Keywords=vpn;proxy;xray;vless;tun;
 Keywords[ru]=впн;прокси;
