@@ -2,17 +2,17 @@
 Type=Application
 Version=1.0
 
-Name=Karing
-Name[ru]=Karing
+Name=v2rayA
+Name[ru]=v2rayA
 
 Comment=Proxy and VPN client
 Comment[ru]=Прокси и VPN клиент
 
-Exec=/usr/lib/karing/karing
-Icon=/usr/lib/karing/karing.png
+Exec=google-chrome-stable --app=http://localhost:2017
+Icon=v2raya
 Terminal=false
 StartupNotify=true
 
 Categories=Network;
-Keywords=vpn;proxy;vpn;tun;clash;
+Keywords=vpn;proxy;v2ray;tun;
 Keywords[ru]=впн;прокси;

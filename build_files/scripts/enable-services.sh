@@ -2,6 +2,7 @@
 set -euo pipefail
 
 systemctl enable setup-kargs.service
+systemctl enable v2raya
 systemctl --global preset borshevik-app-manager-first-run.service
 systemctl --global preset borshevik-kill-gnome-if-hung.timer
 
