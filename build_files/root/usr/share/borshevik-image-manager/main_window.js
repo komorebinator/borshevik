@@ -593,6 +593,11 @@ class MainWindow extends Adw.ApplicationWindow {
     await this._runWithProgress(command, i18n.t('applying_update'), {
       onSuccess: async () => {
         this._check = { phase: 'idle', downloadSize: null, message: '' };
+        try {
+          await requestRebootInteractive();
+        } catch (e) {
+          logError(e, 'Reboot prompt failed after update');
+        }
       }
     });
 
