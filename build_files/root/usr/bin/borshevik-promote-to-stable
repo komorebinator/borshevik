@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Trigger the promote-image-to-stable GitHub Actions workflow and stream its
+# live progress to stdout via gh run watch.
+#
+# Usage: promote-to-stable.sh <digest> <variant>
+#   digest   — full image digest, e.g. sha256:abcdef...
+#   variant  — borshevik | borshevik-nvidia
+set -euo pipefail
+
+DIGEST="${1:?Usage: promote-to-stable.sh <digest> <variant>}"
+VARIANT="${2:?Usage: promote-to-stable.sh <digest> <variant>}"
+
+REPO="komorebinator/borshevik"
+WORKFLOW="promote-image-to-stable.yml"
+
+echo "Triggering promote workflow for ${VARIANT} @ ${DIGEST}..."
+
+gh workflow run "$WORKFLOW" \
+  --repo "$REPO" \
+  --ref main \
+  -f "digest=${DIGEST}" \
+  -f "variant=${VARIANT}"
+
+echo "Workflow queued. Waiting for run to appear on GitHub..."
+sleep 5
+
+RUN_ID=$(gh run list \
+  --workflow "$WORKFLOW" \
+  --repo "$REPO" \
+  --limit 1 \
+  --json databaseId \
+  -q '.[0].databaseId')
+
+if [ -z "$RUN_ID" ]; then
+  echo "Error: could not find workflow run ID. Check GitHub Actions manually."
+  exit 1
+fi
+
+echo "Watching run #${RUN_ID} (this may take several minutes)..."
+gh run watch "$RUN_ID" \
+  --repo "$REPO" \
+  --exit-status

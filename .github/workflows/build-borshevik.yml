@@ -1,7 +1,7 @@
 name: Build Borshevik Images
 
 on:
-  pull_request:
+  push:
     branches: [main]
     paths-ignore:
       - '**/README.md'
