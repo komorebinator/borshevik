@@ -30,7 +30,8 @@ export function buildFacts({ i18n, osRelease, parsed }) {
   const tag = extractTag(currentOrigin);
   const channel = tag || i18n.t('unknown');
 
-  const digest = extractDigest(booted) || i18n.t('unknown');
+  const rawDigest = extractDigest(booted);
+  const digest = rawDigest ? `sha256:${rawDigest}` : i18n.t('unknown');
   
   const variantInfo = inferVariantAndChannelFromOrigin(currentOrigin);
   let variantName = 'custom';
@@ -41,6 +42,7 @@ export function buildFacts({ i18n, osRelease, parsed }) {
   }
 
   const nextDeployment = staged || pending;
+  const stagedDigest = extractDigest(staged) || null;
   const nextTs = extractBuildTime(nextDeployment);
   const nextTime = nextDeployment ? (nextTs ? formatTimestamp(nextTs) : i18n.t('unknown')) : '';
 
@@ -56,6 +58,7 @@ export function buildFacts({ i18n, osRelease, parsed }) {
     variant: variantName,
     currentOrigin,
     needsReboot: Boolean(nextDeployment),
+    stagedDigest,
     nextTime,
     hasRollback,
     rollbackTime

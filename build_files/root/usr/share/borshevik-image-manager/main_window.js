@@ -6,7 +6,8 @@ import GLib from 'gi://GLib';
 
 import {
   runStatusJson,
-  parseStatusJson
+  parseStatusJson,
+  getRegistryDigest
 } from './rpm_ostree.js';
 import { buildFacts, computeUiState } from './app_state.js';
 import { CommandRunner } from './command_runner.js';
@@ -492,9 +493,23 @@ class MainWindow extends Adw.ApplicationWindow {
       return;
     }
 
-    // If there's a new update available, show it regardless of staged status —
-    // it means there's a version newer than what's already staged.
     if (hasAvailableUpdate) {
+      // If a deployment is already staged, verify the registry hasn't moved
+      // past it before offering to download again.  skopeo inspect is fast
+      // (manifest-only, no layer data) so the extra round-trip is acceptable.
+      if (hasStaged && this._facts?.stagedDigest) {
+        const dockerRef = this._facts.currentOrigin?.replace(/^ostree-image-signed:docker:\/\//, '');
+        if (dockerRef && !dockerRef.includes('@sha256:')) {
+          const registryDigest = await getRegistryDigest(dockerRef);
+          if (registryDigest && registryDigest === this._facts.stagedDigest) {
+            // Staged IS the registry-latest — nothing new to download.
+            this._check = { phase: 'no_updates', downloadSize: null, message: '' };
+            this._applyUiState();
+            await this._refreshStatus();
+            return;
+          }
+        }
+      }
       this._check = { phase: 'available', downloadSize: size, message: '' };
     } else {
       this._check = { phase: 'no_updates', downloadSize: null, message: '' };
