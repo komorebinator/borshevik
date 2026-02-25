@@ -216,3 +216,27 @@ export function needsReboot(parsed) {
   // If there is a staged or pending deployment, reboot is needed.
   return Boolean(parsed?.staged || parsed?.pending);
 }
+
+// Returns the digest (hex only, no 'sha256:' prefix) of the current image in
+// the registry, or null on failure.  Uses skopeo inspect which is always
+// available on Fedora-based immutable systems.
+export async function getRegistryDigest(dockerRef) {
+  const proc = Gio.Subprocess.new(
+    ['skopeo', 'inspect', '--format', '{{.Digest}}', `docker://${dockerRef}`],
+    Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
+  );
+
+  try {
+    const { stdout } = await _communicateUtf8(proc);
+    if (!proc.get_successful())
+      return null;
+
+    const digest = stdout.trim();
+    if (digest.startsWith('sha256:'))
+      return digest.slice('sha256:'.length);
+    return digest || null;
+  } catch (e) {
+    logError(e, 'skopeo inspect failed');
+    return null;
+  }
+}
