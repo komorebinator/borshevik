@@ -693,11 +693,9 @@ class MainWindow extends Adw.ApplicationWindow {
     }
 
     const argv = [
-      'gh', 'workflow', 'run', 'promote-image-to-stable.yml',
-      '--repo', 'komorebinator/borshevik',
-      '--ref', 'main',
-      '-f', `digest=sha256:${this._facts.digest}`,
-      '-f', `variant=${this._facts.variant}`
+      '/usr/bin/borshevik-promote-to-stable',
+      this._facts.digest,   // already has sha256: prefix
+      this._facts.variant
     ];
 
     await this._runWithProgress(argv, i18n.t('promoting_to_stable'), {
