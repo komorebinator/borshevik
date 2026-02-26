@@ -1,7 +1,7 @@
 # <img src="assets/borshevik_logo.svg" alt="Logo" width="26"> Borshevik
 
 
-Borshevik is an immutable, laptop-first desktop image built on Fedora Atomic and the uBlue ecosystem, designed to be simple to use and ready to go right after installation. It’s delivered as a single, read-only system image with atomic updates and easy rollbacks. It includes stock Fedora GNOME tuned with a small set of GNOME Shell extensions, plus multimedia support, Chrome, Steam, and a curated Flatpak set — so you can install it and get straight to work, even if you’re new to Linux.
+Borshevik is an immutable, laptop-first desktop image built on Fedora Atomic and the uBlue ecosystem, designed to be simple to use and ready to go right after installation. It’s delivered as a single, read-only system image with atomic updates and easy rollbacks. It includes stock Fedora GNOME tuned with a small set of GNOME Shell extensions, plus multimedia support, Chrome, Steam, a built-in VPN client with VLESS and other censorship-resistant protocols, and a curated Flatpak set — so you can install it and get straight to work, even if you’re new to Linux.
 
 ## 🎯 Who is this image for?
 
