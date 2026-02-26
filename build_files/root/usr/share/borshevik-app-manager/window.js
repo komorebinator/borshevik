@@ -4,7 +4,9 @@ import GLib from "gi://GLib";
 import GObject from "gi://GObject";
 import Gdk from "gi://Gdk?version=4.0";
 
-import { fetchJson } from "./net.js";
+import Gio from "gi://Gio";
+
+import { fetchJson, fetchBytes } from "./net.js";
 import { listInstalledFlathubApps, listInstalledApps, parseCustomList, installApps } from "./flatpak.js";
 
 const BUILD = "20";
@@ -38,6 +40,7 @@ class AppWindow extends Adw.ApplicationWindow {
     this.set_content(this._toolbarView);
 
     this._cancelCtl = { cancelled: false, currentProc: null };
+    this._cacheDir = this._initIconCache();
 
     this._buildLoadingPage();
     this._buildErrorPage();
@@ -173,13 +176,9 @@ class AppWindow extends Adw.ApplicationWindow {
   _buildMainPage() {
     const page = new Adw.PreferencesPage();
 
-    const introGroup = new Adw.PreferencesGroup({
-      title: this._i18n.t("welcomeTitle"),
+    this._catGroup = new Adw.PreferencesGroup({
       description: this._i18n.t("welcomeBody"),
     });
-    page.add(introGroup);
-
-    this._catGroup = new Adw.PreferencesGroup({ title: this._i18n.t("categoriesHeader") });
     page.add(this._catGroup);
 
     // --- Custom (as part of categories list) ---
@@ -414,6 +413,101 @@ class AppWindow extends Adw.ApplicationWindow {
     this._stack.add_named(box, "results");
   }
 
+  _initIconCache() {
+    const dir = GLib.build_filenamev([GLib.get_user_cache_dir(), "borshevik-app-manager", "icons"]);
+    try { Gio.File.new_for_path(dir).make_directory_with_parents(null); } catch {}
+    return dir;
+  }
+
+  async _fetchAppIcon(appId) {
+    const cachePath = GLib.build_filenamev([this._cacheDir, `${appId}.png`]);
+    const cacheFile = Gio.File.new_for_path(cachePath);
+
+    if (cacheFile.query_exists(null)) return cachePath;
+
+    const data = await fetchJson(`https://flathub.org/api/v2/appstream/${appId}`, 10000);
+    const iconUrl = typeof data?.icon === "string" ? data.icon : null;
+    if (!iconUrl) return null;
+
+    const bytes = await fetchBytes(iconUrl, 10000);
+
+    await new Promise((resolve, reject) => {
+      cacheFile.replace_contents_bytes_async(
+        bytes, null, false, Gio.FileCreateFlags.REPLACE_DESTINATION, null,
+        (f, res) => { try { f.replace_contents_finish(res); resolve(); } catch (e) { reject(e); } }
+      );
+    });
+    return cachePath;
+  }
+
+  _buildCategoryRow(cat) {
+    // Left: title + icon strip stacked vertically
+    const leftBox = new Gtk.Box({
+      orientation: Gtk.Orientation.VERTICAL,
+      hexpand: true,
+      margin_top: 10,
+      margin_bottom: 8,
+      margin_start: 12,
+    });
+
+    const title = new Gtk.Label({
+      label: cat.name,
+      xalign: 0,
+      valign: Gtk.Align.CENTER,
+    });
+    leftBox.append(title);
+
+    // Icon strip (hidden until first icon loads)
+    const scrolled = new Gtk.ScrolledWindow({
+      hscrollbar_policy: Gtk.PolicyType.AUTOMATIC,
+      vscrollbar_policy: Gtk.PolicyType.NEVER,
+      min_content_height: 16,
+      margin_top: 8,
+    });
+
+    const iconBox = new Gtk.Box({
+      orientation: Gtk.Orientation.HORIZONTAL,
+      spacing: 4,
+    });
+    scrolled.set_child(iconBox);
+    leftBox.append(scrolled);
+
+    // Switch on the right, centered vertically across full row height
+    const sw = new Gtk.Switch({
+      active: Boolean(cat.default),
+      valign: Gtk.Align.CENTER,
+      margin_end: 12,
+    });
+
+    const hbox = new Gtk.Box({ orientation: Gtk.Orientation.HORIZONTAL });
+    hbox.append(leftBox);
+    hbox.append(sw);
+
+    const row = new Adw.PreferencesRow({ activatable: false });
+    row.set_child(hbox);
+
+    return { row, sw, iconBox, scrolled };
+  }
+
+  async _loadIconsForCategory(appIds, iconBox) {
+    await Promise.allSettled(appIds.map(async (appId) => {
+      try {
+        const path = await this._fetchAppIcon(appId);
+        if (!path) return;
+        const texture = Gdk.Texture.new_from_filename(path);
+        const picture = new Gtk.Picture({
+          paintable: texture,
+          content_fit: Gtk.ContentFit.SCALE_DOWN,
+          halign: Gtk.Align.START,
+          valign: Gtk.Align.CENTER,
+        });
+        picture.set_size_request(16, 16);
+        picture.set_tooltip_text(appId);
+        iconBox.append(picture);
+      } catch {}
+    }));
+  }
+
   _clearCategoryRows() {
     for (const item of this._categoryRows ?? []) {
       try { this._catGroup.remove(item.row); } catch {}
@@ -435,9 +529,10 @@ class AppWindow extends Adw.ApplicationWindow {
     }
 
     for (const cat of this._categories) {
-      const row = new Adw.SwitchRow({ title: cat.name, active: Boolean(cat.default) });
+      const { row, sw, iconBox } = this._buildCategoryRow(cat);
       this._catGroup.add(row);
-      this._categoryRows.push({ row, cat });
+      this._categoryRows.push({ row, sw, cat });
+      this._loadIconsForCategory(cat.applications, iconBox).catch(() => {});
     }
 
     // Append Custom at the end of the same list
@@ -455,8 +550,8 @@ class AppWindow extends Adw.ApplicationWindow {
   _collectSelectedApps() {
     const apps = [];
 
-    for (const { row, cat } of this._categoryRows) {
-      if (row.get_active()) apps.push(...cat.applications.map(String));
+    for (const { sw, cat } of this._categoryRows) {
+      if (sw.get_active()) apps.push(...cat.applications.map(String));
     }
 
     if (this._customSwitchRow.get_active()) {
