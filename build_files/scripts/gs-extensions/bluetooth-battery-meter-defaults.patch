@@ -1,16 +1,16 @@
 diff --git a/schemas/org.gnome.shell.extensions.Bluetooth-Battery-Meter.gschema.xml b/schemas/org.gnome.shell.extensions.Bluetooth-Battery-Meter.gschema.xml
-index 7dbde43..eec0855 100644
+index 387bfed..4294b34 100644
 --- a/schemas/org.gnome.shell.extensions.Bluetooth-Battery-Meter.gschema.xml
 +++ b/schemas/org.gnome.shell.extensions.Bluetooth-Battery-Meter.gschema.xml
-@@ -6,7 +6,7 @@
-             <summary>Modify bluetooth quickmenu</summary>
+@@ -14,7 +14,7 @@
+             <summary>Displays an icon  showing bluetooth device battery level in bluetooth quickmenu</summary>
          </key>
-         <key name="popup-in-quick-settings" type="b">
--            <default>true</default>
-+            <default>false</default>
-             <summary>Adds Submenu to popupmenu</summary>
+         <key name="enable-battery-level-text" type="b">
+-            <default>false</default>
++            <default>true</default>
+             <summary>Displays a text the percentage of bluetooth device battery level in bluetooth quickmenu</summary>
          </key>
-         <key name="enable-battery-level-icon" type="b">
+         <key name="swap-icon-text" type="b">
 @@ -70,7 +70,7 @@
              <summary>Change size of icon widget</summary>
          </key>
