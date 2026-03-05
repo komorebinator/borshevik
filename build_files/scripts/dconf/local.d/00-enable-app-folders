@@ -1,45 +1,15 @@
 [org/gnome/desktop/app-folders]
-folder-children=['office','audiovideo','system','graphics','network', 'games', 'utilities', 'development', 'borshevik']
-
-[org/gnome/desktop/app-folders/folders/office]
-name='Office.directory'
-translate=true
-categories=['Office']
-
-[org/gnome/desktop/app-folders/folders/audiovideo]
-name='AudioVideo.directory'
-translate=true
-categories=['AudioVideo', 'Audio', 'Video']
+folder-children=['system', 'utilities', 'borshevik']
 
 [org/gnome/desktop/app-folders/folders/system]
 name='System-Tools.directory'
 translate=true
 categories=['System','Settings']
 
-[org/gnome/desktop/app-folders/folders/graphics]
-name='Graphics.directory'
-translate=true
-categories=['Graphics']
-
-[org/gnome/desktop/app-folders/folders/network]
-name='Network.directory'
-translate=true
-categories=['Network']
-
-[org/gnome/desktop/app-folders/folders/games]
-name='Game.directory'
-translate=true
-categories=['Game','Games']
-
 [org/gnome/desktop/app-folders/folders/utilities]
 name='Utilities.directory'
 translate=true
 categories=['Utility','Utilities']
-
-[org/gnome/desktop/app-folders/folders/development]
-name='Development.directory'
-translate=true
-categories=['Development','IDE']
 
 [org/gnome/desktop/app-folders/folders/borshevik]
 name='Borshevik'
