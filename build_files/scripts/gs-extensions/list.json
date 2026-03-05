@@ -18,7 +18,7 @@
     },
     {
         "repo": "https://github.com/eonpatapon/gnome-shell-extension-caffeine",
-        "branch": "v58",
+        "branch": "v59",
         "dir": "caffeine@patapon.info",
         "schemas": "schemas"
     },
@@ -92,7 +92,7 @@
     },
     {
         "repo": "https://github.com/andyholmes/gnome-shell-extension-gsconnect.git",
-        "branch": "v67",
+        "branch": "v71",
         "script": "gsconnect.sh"
     },
     {
