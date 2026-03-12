@@ -89,7 +89,10 @@
         "repo": "https://gitlab.com/p91paul/status-area-horizontal-spacing-gnome-shell-extension.git",
         "branch": "master",
         "dir": "status-area-horizontal-spacing@mathematical.coffee.gmail.com",
-        "schemas": "schemas"
+        "schemas": "schemas",
+        "patches": {
+            "status-area-spacer-defaults.patch": "schemas/org.gnome.shell.extensions.status-area-horizontal-spacing.gschema.xml"
+        }
     },
     {
         "repo": "https://github.com/andyholmes/gnome-shell-extension-gsconnect.git",
@@ -99,9 +102,6 @@
     {
         "repo": "https://github.com/ubuntu/gnome-shell-extension-appindicator",
         "branch": "v63",
-        "script": "appindicator.sh",
-        "patches": {
-            "status-area-spacer-defaults.patch": "schemas/org.gnome.shell.extensions.status-area-horizontal-spacing.gschema.xml"
-        }
+        "script": "appindicator.sh"
     }
 ]
