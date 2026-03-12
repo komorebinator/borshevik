@@ -41,6 +41,7 @@ jq -e 'type=="array"' "$EXT_JSON" >/dev/null || {
 jq -c '.[]' "$EXT_JSON" | while read -r ENTRY; do
     repo_url=$(jq -r '.repo' <<<"$ENTRY")
     branch=$(jq -r '.branch  // empty' <<<"$ENTRY")
+    commit=$(jq -r '.commit  // empty' <<<"$ENTRY")
     asset=$(jq -r '.asset   // empty' <<<"$ENTRY")
     archive=$(jq -r '.archive // "zip"' <<<"$ENTRY")
     dir=$(jq -r '.dir     // empty' <<<"$ENTRY")
@@ -88,14 +89,25 @@ jq -c '.[]' "$EXT_JSON" | while read -r ENTRY; do
             # strip first-level wrapper
             ext_src=$(find "$tmp/unpacked" -mindepth 1 -maxdepth 1 -type d | head -n1)
 
+        elif [[ -n "$commit" ]]; then
+            echo " • Cloning $repo_path at commit $commit"
+            git clone ${branch:+--branch "$branch"} "$repo_url" "$tmp/repo"
+            git -C "$tmp/repo" checkout "$commit"
+            ext_src="$tmp/repo"
         else
             echo " • Cloning $repo_path (branch/tag: $branch)"
             git clone --depth 1 --branch "$branch" "$repo_url" "$tmp/repo"
             ext_src="$tmp/repo"
         fi
     else
-        echo " • Cloning $repo_path${branch:+ (branch/tag: $branch)}"
-        git clone --depth 1 ${branch:+--branch "$branch"} "$repo_url" "$tmp/repo"
+        if [[ -n "$commit" ]]; then
+            echo " • Cloning $repo_path${branch:+ (branch: $branch)} at commit $commit"
+            git clone ${branch:+--branch "$branch"} "$repo_url" "$tmp/repo"
+            git -C "$tmp/repo" checkout "$commit"
+        else
+            echo " • Cloning $repo_path${branch:+ (branch/tag: $branch)}"
+            git clone --depth 1 ${branch:+--branch "$branch"} "$repo_url" "$tmp/repo"
+        fi
         ext_src="$tmp/repo"
     fi
 
