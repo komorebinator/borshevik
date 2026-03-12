@@ -41,6 +41,7 @@
     {
         "repo": "https://github.com/statyan/gnome-extension-transcode-searchapp",
         "branch": "master",
+        "commit": "3a2ff60",
         "dir": "src"
     },
     {
