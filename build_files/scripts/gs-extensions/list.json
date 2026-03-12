@@ -78,7 +78,7 @@
     },
     {
         "repo": "https://github.com/maniacx/Bluetooth-Battery-Meter.git",
-        "branch": "GNOME45",
+        "branch": "GNOME46",
         "schemas": "schemas",
         "patches": {
             "bluetooth-battery-meter-defaults.patch": "schemas/org.gnome.shell.extensions.Bluetooth-Battery-Meter.gschema.xml"
