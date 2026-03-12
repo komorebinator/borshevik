@@ -98,6 +98,9 @@
     {
         "repo": "https://github.com/ubuntu/gnome-shell-extension-appindicator",
         "branch": "v63",
-        "script": "appindicator.sh"
+        "script": "appindicator.sh",
+        "patches": {
+            "status-area-spacer-defaults.patch": "schemas/org.gnome.shell.extensions.status-area-horizontal-spacing.gschema.xml"
+        }
     }
 ]

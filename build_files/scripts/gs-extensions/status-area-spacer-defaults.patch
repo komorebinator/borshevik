@@ -1,0 +1,13 @@
+diff --git a/status-area-horizontal-spacing@mathematical.coffee.gmail.com/schemas/org.gnome.shell.extensions.status-area-horizontal-spacing.gschema.xml b/status-area-horizontal-spacing@mathematical.coffee.gmail.com/schemas/org.gnome.shell.extensions.status-area-horizontal-spacing.gschema.xml
+index c7ee1f0..d106ffb 100644
+--- a/status-area-horizontal-spacing@mathematical.coffee.gmail.com/schemas/org.gnome.shell.extensions.status-area-horizontal-spacing.gschema.xml
++++ b/status-area-horizontal-spacing@mathematical.coffee.gmail.com/schemas/org.gnome.shell.extensions.status-area-horizontal-spacing.gschema.xml
+@@ -2,7 +2,7 @@
+ <schemalist gettext-domain="gnome-shell-extensions">
+   <schema path="/org/gnome/shell/extensions/status-area-horizontal-spacing/" id="org.gnome.shell.extensions.status-area-horizontal-spacing">
+     <key type="i" name="hpadding">
+-      <default>6</default>
++      <default>4</default>
+       <summary>Hpadding between icons (pixels)</summary>
+       <description>This hpadding will be applied to the icons in the status area. Default is 12 pixels, we recommend at least 6.</description>
+     </key>
