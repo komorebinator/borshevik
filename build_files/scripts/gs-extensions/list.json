@@ -41,6 +41,7 @@
     {
         "repo": "https://github.com/statyan/gnome-extension-transcode-searchapp",
         "branch": "master",
+        "commit": "3a2ff60",
         "dir": "src"
     },
     {
@@ -78,7 +79,7 @@
     },
     {
         "repo": "https://github.com/maniacx/Bluetooth-Battery-Meter.git",
-        "branch": "GNOME45",
+        "branch": "GNOME46",
         "schemas": "schemas",
         "patches": {
             "bluetooth-battery-meter-defaults.patch": "schemas/org.gnome.shell.extensions.Bluetooth-Battery-Meter.gschema.xml"
@@ -88,7 +89,10 @@
         "repo": "https://gitlab.com/p91paul/status-area-horizontal-spacing-gnome-shell-extension.git",
         "branch": "master",
         "dir": "status-area-horizontal-spacing@mathematical.coffee.gmail.com",
-        "schemas": "schemas"
+        "schemas": "schemas",
+        "patches": {
+            "status-area-spacer-defaults.patch": "schemas/org.gnome.shell.extensions.status-area-horizontal-spacing.gschema.xml"
+        }
     },
     {
         "repo": "https://github.com/andyholmes/gnome-shell-extension-gsconnect.git",
