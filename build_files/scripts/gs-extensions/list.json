@@ -71,6 +71,7 @@
     {
         "repo": "https://github.com/komorebinator/borshevik-workspace-manager.git",
         "branch": "main",
+        "schemas": "schemas",
         "dir": "borshevik-workspace-manager@komorebinator"
     },
     {
