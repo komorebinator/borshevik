@@ -29,11 +29,6 @@
         "schemas": "schemas"
     },
     {
-        "repo": "https://github.com/Rafostar/gnome-shell-extension-pip-on-top",
-        "branch": "main",
-        "schemas": "schemas"
-    },
-    {
         "repo": "https://gitlab.com/sagidayan/primary-input-on-lockscreen",
         "dir": "primary_input_on_lockscreen@sagidayan.com",
         "branch": "main"
