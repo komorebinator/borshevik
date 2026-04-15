@@ -69,9 +69,9 @@
         "asset": "emoji-copy@felipeftn.zip"
     },
     {
-        "repo": "https://github.com/komorebinator/fullscreen-to-new-workspace",
-        "branch": "master",
-        "dir": "src"
+        "repo": "https://github.com/komorebinator/borshevik-workspace-manager.git",
+        "branch": "main",
+        "dir": "borshevik-workspace-manager@komorebinator"
     },
     {
         "repo": "https://github.com/tuberry/color-picker.git",
