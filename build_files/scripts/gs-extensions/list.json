@@ -29,11 +29,6 @@
         "schemas": "schemas"
     },
     {
-        "repo": "https://github.com/Rafostar/gnome-shell-extension-pip-on-top",
-        "branch": "main",
-        "schemas": "schemas"
-    },
-    {
         "repo": "https://gitlab.com/sagidayan/primary-input-on-lockscreen",
         "dir": "primary_input_on_lockscreen@sagidayan.com",
         "branch": "main"
@@ -48,6 +43,7 @@
         "repo": "https://github.com/CleoMenezesJr/weather-oclock",
         "dir": "weatheroclock@CleoMenezesJr.github.io",
         "schemas": "schemas",
+        "branch": "v50.0",
         "forceGnomeVersion": true
     },
     {
@@ -68,9 +64,10 @@
         "asset": "emoji-copy@felipeftn.zip"
     },
     {
-        "repo": "https://github.com/komorebinator/fullscreen-to-new-workspace",
-        "branch": "master",
-        "dir": "src"
+        "repo": "https://github.com/komorebinator/borshevik-workspace-manager.git",
+        "branch": "main",
+        "schemas": "schemas",
+        "dir": "borshevik-workspace-manager@komorebinator"
     },
     {
         "repo": "https://github.com/tuberry/color-picker.git",
