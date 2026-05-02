@@ -7,24 +7,24 @@
         "repo": "https://github.com/aunetx/blur-my-shell",
         "asset": "blur-my-shell@aunetx.shell-extension.zip",
         "schemas": "schemas",
-        "forceGnomeVersion": true,
         "patches": {
             "blur-my-shell-defaults.patch": "schemas/org.gnome.shell.extensions.blur-my-shell.gschema.xml"
         }
     },
     {
         "repo": "https://github.com/pomoke/battery_time",
-        "branch": "main"
+        "branch": "main",
+        "forceGnomeVersion": true
     },
     {
         "repo": "https://github.com/eonpatapon/gnome-shell-extension-caffeine",
-        "branch": "v59",
+        "branch": "v60",
         "dir": "caffeine@patapon.info",
         "schemas": "schemas"
     },
     {
         "repo": "https://github.com/vchlum/notification-timeout",
-        "branch": "14",
+        "branch": "16",
         "dir": "extension",
         "schemas": "schemas"
     },
@@ -36,7 +36,6 @@
     {
         "repo": "https://github.com/statyan/gnome-extension-transcode-searchapp",
         "branch": "master",
-        "commit": "3a2ff60",
         "dir": "src"
     },
     {
@@ -71,7 +70,7 @@
     },
     {
         "repo": "https://github.com/tuberry/color-picker.git",
-        "branch": "49.0",
+        "branch": "50.1",
         "script": "color-picker.sh"
     },
     {
@@ -87,18 +86,19 @@
         "branch": "master",
         "dir": "status-area-horizontal-spacing@mathematical.coffee.gmail.com",
         "schemas": "schemas",
+        "forceGnomeVersion": true,
         "patches": {
             "status-area-spacer-defaults.patch": "schemas/org.gnome.shell.extensions.status-area-horizontal-spacing.gschema.xml"
         }
     },
     {
         "repo": "https://github.com/andyholmes/gnome-shell-extension-gsconnect.git",
-        "branch": "v71",
+        "branch": "v72",
         "script": "gsconnect.sh"
     },
     {
         "repo": "https://github.com/ubuntu/gnome-shell-extension-appindicator",
-        "branch": "v63",
+        "branch": "v64",
         "script": "appindicator.sh"
     }
 ]
