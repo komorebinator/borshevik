@@ -1,0 +1,12 @@
+--- a/src/extension.js
++++ b/src/extension.js
+@@ -104,9 +104,8 @@ export default class TranscodeAppSearchExtension extends Extension {
+       generateInvertedDict(cyrillicToLatin, latinToCyrillic);
+       generateInvertedDict(phoneticLayout, phoneticToLatin);
+
+-      this._settings = this.getSettings();
+-      const settings = this._settings;
+-
++      const settings = {get_boolean: (_key) => true};
++      this._settings = settings;
+       originalGetInitialResultSet =

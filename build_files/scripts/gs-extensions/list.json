@@ -36,7 +36,10 @@
     {
         "repo": "https://github.com/statyan/gnome-extension-transcode-searchapp",
         "branch": "master",
-        "dir": "src"
+        "dir": "src",
+        "patches": {
+            "transcode-appsearch-fix-settings.patch": "extension.js"
+        }
     },
     {
         "repo": "https://github.com/CleoMenezesJr/weather-oclock",
