@@ -2,7 +2,12 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-dconf compile /usr/share/gdm/greeter-dconf-defaults "$SCRIPT_DIR/dconf/gdm.d"
+mkdir -p /etc/dconf/db/gdm.d
+cp "$SCRIPT_DIR/dconf/gdm.d/gdm" /etc/dconf/db/gdm.d/00-borshevik
+
+mkdir -p /etc/dconf/profile
+printf 'user-db:user\nsystem-db:gdm\nfile-db:/usr/share/gdm/greeter-dconf-defaults\n' > /etc/dconf/profile/gdm
+
 cp -a "$SCRIPT_DIR/dconf/local.d/." /etc/dconf/db/local.d/
 
 echo "→ Enable extensions by default"
