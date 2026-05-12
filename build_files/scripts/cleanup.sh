@@ -19,6 +19,9 @@ rm /usr/lib64/gnome-software/plugins-*/libgs_plugin_dkms.so
 rm /usr/libexec/gnome-software-dkms-helper
 rm /usr/share/polkit-1/actions/org.gnome.software.dkms-helper.policy
 
+echo "Remove Gnome Software DNF5 plugin"
+rm /usr/lib64/gnome-software/plugins-*/libgs_plugin_dnf5.so
+
 echo "Disable Fedora flapak service"
 systemctl disable flatpak-add-fedora-repos.service
 
