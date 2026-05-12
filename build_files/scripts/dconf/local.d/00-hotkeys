@@ -33,3 +33,5 @@ move-to-workspace-7=['<Shift><Super>7']
 move-to-workspace-8=['<Shift><Super>8']
 move-to-workspace-9=['<Shift><Super>9']
 move-to-workspace-10=['<Shift><Super>0']
+
+switch-input-source=['<Super>space', '<Shift><Super>F23']
