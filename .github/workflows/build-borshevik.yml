@@ -141,7 +141,7 @@ jobs:
         run: |
           IMAGE_FULL="${{ steps.registry_case.outputs.lowercase }}/${{ steps.image_case.outputs.lowercase }}"
           echo "Signing $IMAGE_FULL@${{ steps.digest.outputs.digest }}"
-          cosign sign -y --new-bundle-format=false --key env://COSIGN_PRIVATE_KEY "$IMAGE_FULL@${{ steps.digest.outputs.digest }}"
+          cosign sign -y --use-signing-config=false --new-bundle-format=false --key env://COSIGN_PRIVATE_KEY "$IMAGE_FULL@${{ steps.digest.outputs.digest }}"
         env:
           COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
           COSIGN_EXPERIMENTAL: false

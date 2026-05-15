@@ -86,5 +86,5 @@ jobs:
           set -euo pipefail
           IMAGE_FULL="ghcr.io/${OWNER}/${VARIANT}"
           echo "Signing $IMAGE_FULL@${{ steps.stable_digest.outputs.digest }}"
-          cosign sign -y --new-bundle-format=false --key env://COSIGN_PRIVATE_KEY "$IMAGE_FULL@${{ steps.stable_digest.outputs.digest }}"
+          cosign sign -y --use-signing-config=false --new-bundle-format=false --key env://COSIGN_PRIVATE_KEY "$IMAGE_FULL@${{ steps.stable_digest.outputs.digest }}"
 
