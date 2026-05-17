@@ -1,0 +1,17 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+
+Name=Hiddify (VPN)
+Name[ru]=Hiddify (VPN)
+
+Comment=Proxy and VPN client powered by sing-box
+Comment[ru]=Прокси и VPN клиент на базе sing-box
+
+Exec=/usr/bin/hiddify
+Icon=Hiddify
+Terminal=false
+StartupNotify=true
+Categories=Network;
+Keywords=vpn;proxy;vless;vmess;sing-box;tun;
+Keywords[ru]=впн;прокси;

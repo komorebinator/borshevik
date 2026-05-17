@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+pgrep -x hiddify >/dev/null || exec /usr/lib/hiddify/AppRun "$@"
