@@ -73,25 +73,21 @@ EXTRACT_DIR="${WORKDIR}/squashfs-root"
 mkdir -p "$DEST_DIR"
 cp -a "${EXTRACT_DIR}/." "$DEST_DIR/"
 
-# --- setcap on the VPN service binary ----------------------------------------
-# Hiddify v4+ bundles the VPN core as hiddify-core.so (a shared library loaded
-# into the Flutter process). Shared libraries cannot receive file capabilities,
-# and applying setcap to the Flutter UI binary breaks $ORIGIN RUNPATH resolution
-# in secure-execution mode (AT_SECURE=1), causing missing-library errors.
-# setcap is applied only to a standalone service binary if present.
+# --- Fix RUNPATH and apply setcap --------------------------------------------
+# hiddify and HiddifyCli use RUNPATH=$ORIGIN/lib. The dynamic linker does not
+# expand $ORIGIN in AT_SECURE mode (triggered by file capabilities), so we
+# replace the relative RUNPATH with an absolute path before applying setcap.
+# patchelf is installed temporarily for this step.
+
+dnf install -y patchelf
+patchelf --set-rpath "${DEST_DIR}/lib" "${DEST_DIR}/hiddify"
+patchelf --set-rpath "${DEST_DIR}/lib" "${DEST_DIR}/HiddifyCli"
+dnf remove -y patchelf
 
 CAPS="cap_net_raw,cap_net_admin,cap_net_bind_service+eip"
-
-for candidate in \
-    "${DEST_DIR}/hiddify-service" \
-    "${DEST_DIR}/usr/bin/hiddify-service" \
-    "${DEST_DIR}/lib/hiddify-service"
-do
-    if [[ -f "$candidate" ]] && file "$candidate" | grep -q ELF; then
-        setcap "$CAPS" "$candidate"
-        echo "setcap → ${candidate}"
-    fi
-done
+setcap "$CAPS" "${DEST_DIR}/hiddify"
+setcap "$CAPS" "${DEST_DIR}/HiddifyCli"
+echo "setcap → ${DEST_DIR}/hiddify, ${DEST_DIR}/HiddifyCli"
 
 # --- Icon --------------------------------------------------------------------
 
