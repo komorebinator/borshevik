@@ -114,8 +114,6 @@ jobs:
 
       - name: Install Cosign
         uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
-        with:
-          cosign-release: v2.6.1
 
       - name: Get image digest
         id: digest
@@ -128,7 +126,17 @@ jobs:
         run: |
           IMAGE_FULL="${{ steps.registry_case.outputs.lowercase }}/${{ steps.image_case.outputs.lowercase }}"
           echo "Signing $IMAGE_FULL@${{ steps.digest.outputs.digest }}"
-          cosign sign -y --key env://COSIGN_PRIVATE_KEY "$IMAGE_FULL@${{ steps.digest.outputs.digest }}"
+          cosign sign -y --use-signing-config=false --new-bundle-format=false --key env://COSIGN_PRIVATE_KEY "$IMAGE_FULL@${{ steps.digest.outputs.digest }}"
         env:
           COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
           COSIGN_EXPERIMENTAL: false
+
+  build-borshevik:
+    name: Build Borshevik Images
+    needs: build_and_push
+    uses: ./.github/workflows/build-borshevik.yml
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    secrets: inherit
