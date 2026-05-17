@@ -8,10 +8,11 @@ Name[ru]=Hiddify (VPN)
 Comment=Proxy and VPN client powered by sing-box
 Comment[ru]=Прокси и VPN клиент на базе sing-box
 
-Exec=/usr/bin/hiddify
-Icon=Hiddify
+Exec=/usr/lib/hiddify/AppRun
+Icon=hiddify
 Terminal=false
 StartupNotify=true
+StartupWMClass=app.hiddify.com
 Categories=Network;
 Keywords=vpn;proxy;vless;vmess;sing-box;tun;
 Keywords[ru]=впн;прокси;

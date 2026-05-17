@@ -21,7 +21,7 @@ set -euo pipefail
 
 HIDDIFY_REPO="hiddify/hiddify-app"
 DEST_DIR="/usr/lib/hiddify"
-DEST_ICON="/usr/share/pixmaps/Hiddify.png"
+DEST_ICON="/usr/share/icons/hicolor/256x256/apps/hiddify.png"
 
 WORKDIR="$(mktemp -d)"
 cleanup() { rm -rf "$WORKDIR"; }
@@ -74,11 +74,13 @@ mkdir -p "$DEST_DIR"
 cp -a "${EXTRACT_DIR}/." "$DEST_DIR/"
 
 # --- setcap on the VPN service binary ----------------------------------------
-# hiddify-service is the sing-box-based core that opens TUN interfaces and
-# binds privileged ports. The Flutter UI binary itself does not need caps.
+# Hiddify v4+ bundles the VPN core as hiddify-core.so (a shared library loaded
+# into the Flutter process). Shared libraries cannot receive file capabilities,
+# and applying setcap to the Flutter UI binary breaks $ORIGIN RUNPATH resolution
+# in secure-execution mode (AT_SECURE=1), causing missing-library errors.
+# setcap is applied only to a standalone service binary if present.
 
 CAPS="cap_net_raw,cap_net_admin,cap_net_bind_service+eip"
-SETCAP_DONE=0
 
 for candidate in \
     "${DEST_DIR}/hiddify-service" \
@@ -88,24 +90,8 @@ do
     if [[ -f "$candidate" ]] && file "$candidate" | grep -q ELF; then
         setcap "$CAPS" "$candidate"
         echo "setcap → ${candidate}"
-        SETCAP_DONE=1
     fi
 done
-
-if [[ $SETCAP_DONE -eq 0 ]]; then
-    # Fallback: look for any sing-box or hiddify binary that is an ELF
-    FALLBACK="$(find "$DEST_DIR" -maxdepth 3 \( -name 'sing-box' -o -name 'hiddify' \) -type f \
-        | xargs -I{} sh -c 'file "{}" | grep -q ELF && echo "{}"' 2>/dev/null | head -1 || true)"
-    if [[ -n "$FALLBACK" ]]; then
-        setcap "$CAPS" "$FALLBACK"
-        echo "setcap (fallback) → ${FALLBACK}"
-        SETCAP_DONE=1
-    fi
-fi
-
-if [[ $SETCAP_DONE -eq 0 ]]; then
-    echo "WARNING: No ELF service binary found for setcap — VPN core may lack required capabilities." >&2
-fi
 
 # --- Icon --------------------------------------------------------------------
 
@@ -115,6 +101,7 @@ for icon_candidate in \
     "${DEST_DIR}/usr/share/pixmaps/hiddify.png"
 do
     if [[ -f "$icon_candidate" ]]; then
+        mkdir -p "$(dirname "$DEST_ICON")"
         install -m 0644 "$icon_candidate" "$DEST_ICON"
         echo "Icon → ${DEST_ICON}"
         break
