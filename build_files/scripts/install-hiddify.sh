@@ -44,20 +44,16 @@ fi
 echo "Fetching Hiddify release metadata: ${API_URL}"
 RELEASE_JSON="$(curl -fsSL --retry 3 "${CURL_AUTH[@]}" "$API_URL")"
 
-ASSET_LINE="$(
-    printf '%s' "$RELEASE_JSON" \
-    | jq -r '.assets[] | .name + "\t" + .browser_download_url' \
-    | awk -F'\t' 'tolower($1) ~ /linux-x64.*\.appimage$/ { print; exit }'
-)"
+ASSET_NAME="$(printf '%s' "$RELEASE_JSON" \
+    | jq -r '[.assets[] | select(.name | test("Linux-x64.*\\.AppImage$"))] | first | .name // empty')"
+ASSET_URL="$(printf '%s' "$RELEASE_JSON" \
+    | jq -r '[.assets[] | select(.name | test("Linux-x64.*\\.AppImage$"))] | first | .browser_download_url // empty')"
 
-if [[ -z "$ASSET_LINE" ]]; then
+if [[ -z "$ASSET_NAME" ]]; then
     echo "Hiddify linux-x64 AppImage not found. Available assets:" >&2
     printf '%s' "$RELEASE_JSON" | jq -r '.assets[].name' | sed 's/^/  /' >&2
     exit 1
 fi
-
-ASSET_NAME="$(printf '%s' "$ASSET_LINE" | cut -f1)"
-ASSET_URL="$(printf '%s' "$ASSET_LINE" | cut -f2)"
 
 echo "Downloading Hiddify: ${ASSET_NAME}"
 APPIMAGE_PATH="${WORKDIR}/${ASSET_NAME}"
