@@ -60,6 +60,7 @@ curl -fL --retry 3 --retry-delay 2 "${CURL_AUTH[@]}" \
 
 cd "$WORKDIR"
 ar x hiddify.deb
+mkdir -p "$WORKDIR/pkg"
 tar xf data.tar.* -C "$WORKDIR/pkg"
 
 # Install binaries to /usr/lib/hiddify/ — /usr/lib/ is a glibc-trusted path,
