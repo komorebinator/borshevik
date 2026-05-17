@@ -79,10 +79,8 @@ cp -a "${EXTRACT_DIR}/." "$DEST_DIR/"
 # replace the relative RUNPATH with an absolute path before applying setcap.
 # patchelf is installed temporarily for this step.
 
-dnf install -y patchelf
 patchelf --set-rpath "${DEST_DIR}/lib" "${DEST_DIR}/hiddify"
 patchelf --set-rpath "${DEST_DIR}/lib" "${DEST_DIR}/HiddifyCli"
-dnf remove -y patchelf
 
 CAPS="cap_net_raw,cap_net_admin,cap_net_bind_service+eip"
 setcap "$CAPS" "${DEST_DIR}/hiddify"
