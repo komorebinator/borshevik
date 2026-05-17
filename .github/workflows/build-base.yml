@@ -130,3 +130,13 @@ jobs:
         env:
           COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
           COSIGN_EXPERIMENTAL: false
+
+  build-borshevik:
+    name: Build Borshevik Images
+    needs: build_and_push
+    uses: ./.github/workflows/build-borshevik.yml
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    secrets: inherit
