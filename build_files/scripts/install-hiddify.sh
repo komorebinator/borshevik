@@ -47,7 +47,7 @@ RELEASE_JSON="$(curl -fsSL --retry 3 "${CURL_AUTH[@]}" "$API_URL")"
 ASSET_LINE="$(
     printf '%s' "$RELEASE_JSON" \
     | jq -r '.assets[] | .name + "\t" + .browser_download_url' \
-    | awk -F'\t' 'tolower($1) ~ /linux-x64\.appimage$/ { print; exit }'
+    | awk -F'\t' 'tolower($1) ~ /linux-x64.*\.appimage$/ { print; exit }'
 )"
 
 if [[ -z "$ASSET_LINE" ]]; then
