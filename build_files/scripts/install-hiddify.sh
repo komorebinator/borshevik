@@ -74,9 +74,8 @@ cp -a "$WORKDIR/pkg/usr/share/icons" /usr/share/
 # --- Apply setcap ------------------------------------------------------------
 
 CAPS="cap_net_raw,cap_net_admin,cap_net_bind_service+eip"
-setcap "$CAPS" "${DEST_DIR}/hiddify"
 setcap "$CAPS" "${DEST_DIR}/HiddifyCli"
-echo "setcap → ${DEST_DIR}/hiddify, ${DEST_DIR}/HiddifyCli"
+echo "setcap → ${DEST_DIR}/HiddifyCli"
 
 TAG_NAME="$(printf '%s' "$RELEASE_JSON" | jq -r '.tag_name')"
 echo "Hiddify ${TAG_NAME} → ${DEST_DIR} (capabilities set)"
