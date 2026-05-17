@@ -18,7 +18,7 @@ set -euo pipefail
 #   curl, jq, ar (binutils), patchelf
 
 HIDDIFY_REPO="hiddify/hiddify-app"
-DEST_DIR="/usr/share/hiddify"
+DEST_DIR="/usr/lib/hiddify"
 
 WORKDIR="$(mktemp -d)"
 cleanup() { rm -rf "$WORKDIR"; }
@@ -60,18 +60,17 @@ curl -fL --retry 3 --retry-delay 2 "${CURL_AUTH[@]}" \
 
 cd "$WORKDIR"
 ar x hiddify.deb
-tar xf data.tar.* -C /
+tar xf data.tar.* -C "$WORKDIR/pkg"
 
-# The deb ships its own hiddify.desktop — remove it; ours in
-# /usr/share/applications/Hiddify.desktop (installed via COPY) takes precedence.
-rm -f /usr/share/applications/hiddify.desktop
+# Install binaries to /usr/lib/hiddify/ — /usr/lib/ is a glibc-trusted path,
+# so $ORIGIN in RUNPATH is expanded even in AT_SECURE mode (setcap). No patchelf needed.
+mkdir -p "$DEST_DIR"
+cp -a "$WORKDIR/pkg/usr/share/hiddify/." "$DEST_DIR/"
 
-# --- Fix RUNPATH and apply setcap --------------------------------------------
-# The binaries use RUNPATH=$ORIGIN/lib. $ORIGIN is not expanded in AT_SECURE
-# mode (triggered by file capabilities), so replace it with an absolute path.
+# Icons from deb go to the right place already; just copy them.
+cp -a "$WORKDIR/pkg/usr/share/icons" /usr/share/
 
-patchelf --set-rpath "${DEST_DIR}/lib" "${DEST_DIR}/hiddify"
-patchelf --set-rpath "${DEST_DIR}/lib" "${DEST_DIR}/HiddifyCli"
+# --- Apply setcap ------------------------------------------------------------
 
 CAPS="cap_net_raw,cap_net_admin,cap_net_bind_service+eip"
 setcap "$CAPS" "${DEST_DIR}/hiddify"
