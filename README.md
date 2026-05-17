@@ -39,12 +39,12 @@ It also supports bulk installation from a custom list: you can paste (or generat
 | VLESS + Reality | Recommended — censorship-resistant, mimics HTTPS |
 | VLESS + TLS | Standard VLESS over TLS |
 | VMess | Classic v2ray protocol |
-| Shadowsocks | Modern Shadowsocks |
-| Trojan | TLS-based protocol |
-| Hysteria2 | UDP-based, fast on lossy connections |
+| Hysteria / Hysteria2 | UDP-based, fast on lossy connections |
 | TUIC | QUIC-based protocol |
+| WireGuard | Including Cloudflare WARP |
+| SSH | SSH tunneling |
 
-Import your connection via a share link or subscription URL directly in the app.
+Supports subscription formats: Sing-box, V2ray, Clash, Clash Meta. Import via a share link or subscription URL directly in the app.
 
 ## 🧩 GNOME Extensions
 
