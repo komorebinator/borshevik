@@ -7,7 +7,7 @@ Name[ru]=Hiddify (VPN)
 Comment=Proxy and VPN client powered by sing-box
 Comment[ru]=Прокси и VPN клиент на базе sing-box
 
-Exec=/usr/bin/hiddify %U
+Exec=/usr/lib/hiddify/hiddify %U
 Icon=hiddify
 Terminal=false
 StartupNotify=true
