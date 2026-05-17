@@ -32,17 +32,19 @@ It also supports bulk installation from a custom list: you can paste (or generat
 
 ## 🔒 VPN
 
-[GoXRay](https://github.com/goxray/desktop) comes preinstalled — a native desktop VPN client powered by [xray-core](https://github.com/XTLS/Xray-core). It runs as a tray application and supports all major modern proxy protocols:
+[Hiddify](https://github.com/hiddify/hiddify-app) comes preinstalled — a native desktop VPN client powered by [sing-box](https://github.com/SagerNet/sing-box). It runs as a tray application and supports all major modern proxy protocols:
 
 | Protocol | Notes |
 |----------|-------|
 | VLESS + Reality | Recommended — censorship-resistant, mimics HTTPS |
 | VLESS + TLS | Standard VLESS over TLS |
-| VMess | Classic xray/v2ray protocol |
-| Shadowsocks 2022 | Modern Shadowsocks |
+| VMess | Classic v2ray protocol |
+| Shadowsocks | Modern Shadowsocks |
 | Trojan | TLS-based protocol |
+| Hysteria2 | UDP-based, fast on lossy connections |
+| TUIC | QUIC-based protocol |
 
-Import your connection via a share link (VLESS URI, VMess URI, etc.) directly in the app.
+Import your connection via a share link or subscription URL directly in the app.
 
 ## 🧩 GNOME Extensions
 

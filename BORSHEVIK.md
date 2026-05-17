@@ -9,7 +9,7 @@
 built on top of Fedora Atomic (Silverblue) and the [Universal Blue](https://universal-blue.org/) ecosystem.
 
 The system ships as an OCI container image, updates atomically, and supports rollback to any
-previous version. Goal: "install and get to work" — Chrome, Steam, VPN (GoXRay), GNOME extensions,
+previous version. Goal: "install and get to work" — Chrome, Steam, VPN (Hiddify), GNOME extensions,
 multimedia codecs all included out of the box.
 
 **Two image variants:**
@@ -33,8 +33,8 @@ The build is split into two layers — this is the key architectural decision:
    (RPMs, Chrome, Steam)   (+ NVIDIA drivers)
           │                    │
      borshevik           borshevik-nvidia
-   (+ GoXRay, extensions,  (+ GoXRay, extensions,
-    configs, UI tools)      configs, UI tools)
+   (+ Hiddify, extensions,  (+ Hiddify, extensions,
+    configs, UI tools)       configs, UI tools)
 ```
 
 **Why two layers?**
@@ -96,7 +96,7 @@ All scripts run **inside rootful Podman** during `docker build`.
 |------|--------------|--------------|
 | `build-base.sh` | target `borshevik-base` | RPM packages → Chrome → Steam → cleanup → podman.socket |
 | `build-base-nvidia.sh` | target `borshevik-base-nvidia` | Installs NVIDIA kmod + userspace from the akmod image |
-| `build-addons.sh` | targets `borshevik`, `borshevik-nvidia` | os-info → GoXRay → GNOME extensions → schemas → dconf → services → initramfs |
+| `build-addons.sh` | targets `borshevik`, `borshevik-nvidia` | os-info → Hiddify → GNOME extensions → schemas → dconf → services → initramfs |
 
 ### Atomic Scripts
 
@@ -105,7 +105,7 @@ All scripts run **inside rootful Podman** during `docker build`.
 | `install-rpm-packages.sh` | `rpm-ostree install`: htop, mc, gnome-tweaks, pwgen, openssl, distrobox, zsh, gh, adw-gtk3-theme, meson/cmake/gcc (for building extensions), libxcrypt-compat |
 | `install-google-chrome.sh` | Chrome from the official Google RPM repo |
 | `install-steam.sh` | Steam via rpm-ostree |
-| `install-goxray.sh` | Downloads GoXRay from GitHub Releases, installs to `/usr/lib/goxray/goxray`, sets `setcap` (cap_net_raw+cap_net_admin+cap_net_bind_service) |
+| `install-hiddify.sh` | Downloads Hiddify from GitHub Releases (.deb), extracts to `/usr/lib/hiddify/`, patches RUNPATH via patchelf, sets `setcap` (cap_net_raw+cap_net_admin+cap_net_bind_service) on `hiddify` and `HiddifyCli` |
 | `install-gs-extensions.sh` | Reads `gs-extensions/list.json`, clones extension repos, patches defaults, installs |
 | `apply-schemas.sh` | Installs GSchema overrides from `schemas/` |
 | `apply-dconf.sh` | Applies dconf system defaults from `dconf/` |
@@ -160,6 +160,8 @@ root/
 │   │   └── registries.d/          # Per-registry sigstore verification config
 │   ├── gnome-initial-setup/
 │   │   └── vendor.conf            # Skips GNOME Initial Setup (software page)
+│   ├── polkit-1/rules.d/
+│   │   └── 50-hiddify.rules       # Allow resolvectl DNS config without password prompt
 │   └── wireplumber/
 │       └── wireplumber.conf.d/    # Audio config (WirePlumber)
 │
@@ -172,11 +174,10 @@ root/
 │   │   └── tmpfiles.d/            # tmpfiles rules
 │   ├── libexec/borshevik/         # Internal scripts (not in PATH)
 │   └── share/
-│       ├── applications/          # .desktop files (GoXRay, AppManager, ImageManager)
+│       ├── applications/          # .desktop files (Hiddify, AppManager, ImageManager)
 │       ├── borshevik-app-manager/ # Borshevik App Manager source (GJS)
 │       ├── borshevik-image-manager/ # Borshevik Image Manager source (GJS)
 │       ├── icons/                 # Application icons
-│       ├── pixmaps/               # GoXRay icon
 │       └── plymouth/              # Custom plymouth boot splash
 ```
 
@@ -188,7 +189,7 @@ root/
 | `borshevik-app-manager-first-run` | Launches App Manager on first login (checks a stamp file) |
 | `borshevik-image-manager` | Launches Image Manager: `gjs -m /usr/share/borshevik-image-manager/main.js` |
 | `borshevik-promote-to-stable` | CLI wrapper: triggers `gh workflow run promote-image-to-stable.yml` and watches it |
-| `goxray` | Wrapper: launches `/usr/lib/goxray/goxray` only if not already running |
+| `hiddify` | Wrapper: launches `/usr/lib/hiddify/hiddify` only if not already running |
 
 ### usr/libexec/borshevik/ — Internal Scripts
 
