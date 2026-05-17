@@ -1,2 +1,8 @@
 #!/usr/bin/env bash
+SCHEME=$(gsettings get org.gnome.desktop.interface color-scheme 2>/dev/null)
+if [[ "$SCHEME" == *"dark"* ]]; then
+    export GTK_THEME=adw-gtk3-dark
+else
+    export GTK_THEME=adw-gtk3
+fi
 pgrep -x hiddify >/dev/null || exec /usr/lib/hiddify/hiddify "$@"
