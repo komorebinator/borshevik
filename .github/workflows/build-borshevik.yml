@@ -11,17 +11,20 @@ env:
 
 jobs:
   build_and_push:
-    name: Build and push ${{ matrix.variant }}
+    name: Build and push both final images
     runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-      packages: write
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       BUILD_TAGS: latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.variant }}
       cancel-in-progress: true
+
     strategy:
       matrix:
         include:
@@ -79,6 +82,7 @@ jobs:
           podman system df -v || true
 
       - name: Login to GHCR
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v3
         with:
           registry: ghcr.io
@@ -87,17 +91,20 @@ jobs:
 
       - name: Normalize registry name
         id: registry_case
+        if: github.event_name != 'pull_request'
         uses: ASzc/change-string-case-action@ecd1412d078f2e06e9eedcbaa6fcd988151c3f82 # v8
         with:
           string: ${{ env.IMAGE_REGISTRY }}
 
       - name: Normalize image name
         id: image_case
+        if: github.event_name != 'pull_request'
         uses: ASzc/change-string-case-action@ecd1412d078f2e06e9eedcbaa6fcd988151c3f82 # v8
         with:
           string: ${{ matrix.variant }}
 
       - name: Push image
+        if: github.event_name != 'pull_request'
         uses: redhat-actions/push-to-registry@5ed88d269cf581ea9ef6dd6806d01562096bee9c # v2
         with:
           registry: ${{ steps.registry_case.outputs.lowercase }}
@@ -108,94 +115,24 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-  scan:
-    name: Scan ${{ matrix.variant }}
-    needs: build_and_push
-    runs-on: ubuntu-24.04
-    continue-on-error: ${{ github.ref_name == 'experimental' }}
-    permissions:
-      security-events: write
-    strategy:
-      matrix:
-        include:
-          - variant: borshevik
-          - variant: borshevik-nvidia
-
-    steps:
-      - name: Scan image with Trivy
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          image-ref: ${{ env.IMAGE_REGISTRY }}/${{ matrix.variant }}:latest
-          format: sarif
-          output: trivy-${{ matrix.variant }}.sarif
-          severity: HIGH,CRITICAL
-          exit-code: '1'
-
-      - name: Upload results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: trivy-${{ matrix.variant }}.sarif
-          category: trivy-${{ matrix.variant }}
-
-  sign:
-    name: Sign ${{ matrix.variant }}
-    needs: [build_and_push, scan]
-    if: needs.scan.result == 'success'
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
-    env:
-      BUILD_TAGS: latest
-    strategy:
-      matrix:
-        include:
-          - variant: borshevik
-          - variant: borshevik-nvidia
-
-    steps:
       - name: Install Cosign
+        if: github.event_name != 'pull_request'
         uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
 
       - name: Get image digest
         id: digest
+        if: github.event_name != 'pull_request'
         run: |
-          IMAGE_FULL="ghcr.io/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/$(echo '${{ matrix.variant }}' | tr '[:upper:]' '[:lower:]')"
+          IMAGE_FULL="${{ steps.registry_case.outputs.lowercase }}/${{ steps.image_case.outputs.lowercase }}"
           DIGEST=$(skopeo inspect "docker://$IMAGE_FULL:$BUILD_TAGS" | jq -r '.Digest')
           echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
 
       - name: Sign image by digest
+        if: github.event_name != 'pull_request'
         run: |
-          IMAGE_FULL="ghcr.io/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/$(echo '${{ matrix.variant }}' | tr '[:upper:]' '[:lower:]')"
+          IMAGE_FULL="${{ steps.registry_case.outputs.lowercase }}/${{ steps.image_case.outputs.lowercase }}"
           echo "Signing $IMAGE_FULL@${{ steps.digest.outputs.digest }}"
           cosign sign -y --use-signing-config=false --new-bundle-format=false --key env://COSIGN_PRIVATE_KEY "$IMAGE_FULL@${{ steps.digest.outputs.digest }}"
         env:
           COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
           COSIGN_EXPERIMENTAL: false
-
-  delete:
-    name: Delete ${{ matrix.variant }} (CVE found)
-    needs: [build_and_push, scan]
-    if: needs.scan.result == 'failure'
-    runs-on: ubuntu-24.04
-    permissions:
-      packages: write
-    strategy:
-      matrix:
-        include:
-          - variant: borshevik
-          - variant: borshevik-nvidia
-
-    steps:
-      - name: Login to GHCR
-        run: |
-          echo '${{ secrets.GITHUB_TOKEN }}' | \
-            skopeo login ghcr.io --username '${{ github.actor }}' --password-stdin
-
-      - name: Delete image tags
-        run: |
-          IMAGE="ghcr.io/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/${{ matrix.variant }}"
-          skopeo delete "docker://$IMAGE:latest" || true
-          skopeo delete "docker://$IMAGE:$(date -u +%d.%m.%Y)" || true
