@@ -84,11 +84,187 @@ export const TRANSLATIONS = {
     copyResultsBtn: "Скопировать отчет",
     reportCopiedToast: "Отчет скопирован",
 },
+
+  uk: {
+    appTitle: "Менеджер застосунків Borshevik",
+    loadingTitle: "Завантаження…",
+    loadingBody: "Завантажується список застосунків…",
+    loadFailedTitle: "Не вдалося отримати список застосунків",
+    loadFailedBody: "Перевірте інтернет-з'єднання та спробуйте знову.",
+    retry: "Повторити",
+
+    welcomeTitle: "Ласкаво просимо!",
+    welcomeBody:
+      "Оберіть категорії для встановлення або увімкніть Custom і вставте список з іншого комп'ютера.",
+    categoriesHeader: "Категорії",
+    customHeader: "Custom",
+    enableCustom: "Власний список",
+    customPlaceholder:
+      "Вставте Flatpak ID застосунків (по одному на рядок).\nНаприклад:\norg.gnome.Calculator\norg.gnome.Weather",
+    copyCommandLabel: "Команда для отримання сумісного списку на іншій машині:",
+    copyInstalledBtn: "Скопіювати мої застосунки з Flathub",
+    copiedToast: "Скопійовано до буфера обміну",
+    copyFailedToast: "Не вдалося скопіювати (чи встановлено flatpak?)",
+    installBtn: "Встановити",
+    nothingSelectedToast: "Нічого не вибрано",
+    installingTitle: "Встановлення…",
+    installingFmt: "Встановлюємо {app} ({idx} з {total})",
+    alreadyInstalledFmt: "Вже встановлено: {app} ({idx} з {total})",
+    alreadyInstalledHeader: "Вже встановлено",
+    preparing: "Підготовка…",
+    doneTitle: "Готово!",
+    doneBody: "Вибрані застосунки встановлено.",
+    ok: "ОК",
+    errorTitle: "Помилка встановлення",
+    errorBodyFmt: "Помилка під час встановлення:\n{app}\n\nДеталі:\n{details}",
+    cancelBtn: "Скасувати",
+    cancelling: "Скасування…",
+    resultsTitle: "Готово",
+    resultsBody: "Встановлення завершено.",
+    installedHeader: "Встановлено",
+    failedHeader: "Не вдалося встановити",
+    canceledNote: "Скасовано користувачем.",
+    copyResultsBtn: "Скопіювати звіт",
+    reportCopiedToast: "Звіт скопійовано",
+},
+
+  hy: {
+    appTitle: "Borshevik-ի հավելվածների կառավարիչ",
+    loadingTitle: "Բեռնում…",
+    loadingBody: "Հավելվածների ցանկը ներբեռնվում է…",
+    loadFailedTitle: "Չհաջողվեց ստանալ հավելվածների ցանկը",
+    loadFailedBody: "Ստուգեք ինտերնետ կապը և կրկին փորձեք:",
+    retry: "Կրկին փորձել",
+
+    welcomeTitle: "Բարի գալուստ!",
+    welcomeBody:
+      "Ընտրեք կատեգորիաներ տեղադրելու համար, կամ միացրեք Custom-ը և տեղադրեք ցանկ այլ համակարգչից:",
+    categoriesHeader: "Կատեգորիաներ",
+    customHeader: "Custom",
+    enableCustom: "Custom",
+    customPlaceholder:
+      "Տեղադրեք Flatpak հավելվածների ID-ները, մեկը մեկ տողում:\nՕրինակ:\norg.gnome.Calculator\norg.gnome.Weather",
+    copyCommandLabel: "Հրաման՝ այլ մեքենայում համատեղելի ցանկ ստանալու համար:",
+    copyInstalledBtn: "Պատճենել իմ Flathub հավելվածները",
+    copiedToast: "Պատճենվեց սեղմատախտակ",
+    copyFailedToast: "Չհաջողվեց պատճենել (տեղադրված՞ է flatpak)",
+    installBtn: "Տեղադրել",
+    nothingSelectedToast: "Ոչինչ չի ընտրված",
+    installingTitle: "Տեղադրում…",
+    installingFmt: "{app}-ի տեղադրում ({idx} / {total})",
+    alreadyInstalledFmt: "{app} արդեն տեղադրված է ({idx} / {total})",
+    alreadyInstalledHeader: "Արդեն տեղադրված է",
+    preparing: "Պատրաստվում է…",
+    doneTitle: "Պատրաստ է!",
+    doneBody: "Ընտրված հավելվածները տեղադրվեցին:",
+    ok: "Լավ",
+    errorTitle: "Տեղադրման սխալ",
+    errorBodyFmt: "Սխալ տեղադրման ժամանակ:\n{app}\n\nՄանրամասներ:\n{details}",
+    cancelBtn: "Չեղարկել",
+    cancelling: "Չեղարկում…",
+    resultsTitle: "Ավարտված",
+    resultsBody: "Տեղադրումն ավարտվեց:",
+    installedHeader: "Տեղադրված",
+    failedHeader: "Չհաջողվեց տեղադրել",
+    canceledNote: "Չեղարկված օգտատիրոջ կողմից:",
+    copyResultsBtn: "Պատճենել հաշվետվությունը",
+    reportCopiedToast: "Հաշվետվությունը պատճենվեց",
+},
+
+  be: {
+    appTitle: "Менеджар прыкладанняў Borshevik",
+    loadingTitle: "Загрузка…",
+    loadingBody: "Спампоўваецца спіс прыкладанняў…",
+    loadFailedTitle: "Не ўдалося атрымаць спіс прыкладанняў",
+    loadFailedBody: "Праверце інтэрнэт-злучэнне і паўтарыце спробу.",
+    retry: "Паўтарыць",
+
+    welcomeTitle: "Сардэчна запрашаем!",
+    welcomeBody:
+      "Выберыце катэгорыі для ўстаноўкі, або ўключыце Custom і ўстаўце спіс з іншага кампутара.",
+    categoriesHeader: "Катэгорыі",
+    customHeader: "Custom",
+    enableCustom: "Уласны спіс",
+    customPlaceholder:
+      "Устаўце Flatpak ID прыкладанняў (па аднаму на радок).\nНапрыклад:\norg.gnome.Calculator\norg.gnome.Weather",
+    copyCommandLabel: "Каманда для атрымання сумяшчальнага спісу на іншай машыне:",
+    copyInstalledBtn: "Скапіяваць мае прыкладанні з Flathub",
+    copiedToast: "Скапіявана ў буфер абмену",
+    copyFailedToast: "Не ўдалося скапіяваць (ці ўсталяваны flatpak?)",
+    installBtn: "Усталяваць",
+    nothingSelectedToast: "Нічога не выбрана",
+    installingTitle: "Усталёўка…",
+    installingFmt: "Усталёўваем {app} ({idx} з {total})",
+    alreadyInstalledFmt: "Ужо ўсталявана: {app} ({idx} з {total})",
+    alreadyInstalledHeader: "Ужо ўсталявана",
+    preparing: "Падрыхтоўка…",
+    doneTitle: "Гатова!",
+    doneBody: "Выбраныя прыкладанні ўсталяваны.",
+    ok: "ОК",
+    errorTitle: "Памылка ўстаноўкі",
+    errorBodyFmt: "Памылка пры ўстаноўцы:\n{app}\n\nПадрабязнасці:\n{details}",
+    cancelBtn: "Скасаваць",
+    cancelling: "Скасаванне…",
+    resultsTitle: "Гатова",
+    resultsBody: "Усталёўка завершана.",
+    installedHeader: "Усталявана",
+    failedHeader: "Не ўдалося ўсталяваць",
+    canceledNote: "Скасавана карыстальнікам.",
+    copyResultsBtn: "Скапіяваць справаздачу",
+    reportCopiedToast: "Справаздача скапіявана",
+},
+
+  ka: {
+    appTitle: "Borshevik-ის აპლიკაციების მენეჯერი",
+    loadingTitle: "ჩატვირთვა…",
+    loadingBody: "აპლიკაციების სია ჩამოიტვირთება…",
+    loadFailedTitle: "აპლიკაციების სიის მიღება ვერ მოხერხდა",
+    loadFailedBody: "შეამოწმეთ ინტერნეტ კავშირი და სცადეთ ხელახლა.",
+    retry: "ხელახლა ცდა",
+
+    welcomeTitle: "კეთილი იყოს თქვენი მობრძანება!",
+    welcomeBody:
+      "შეარჩიეთ კატეგორიები დასაყენებლად, ან ჩართეთ Custom და ჩასვით სია სხვა კომპიუტერიდან.",
+    categoriesHeader: "კატეგორიები",
+    customHeader: "Custom",
+    enableCustom: "Custom",
+    customPlaceholder:
+      "ჩასვით Flatpak აპლიკაციების ID-ები, თითო სტრიქონზე.\nმაგალითად:\norg.gnome.Calculator\norg.gnome.Weather",
+    copyCommandLabel: "ბრძანება სხვა მანქანაზე თავსებადი სიის მისაღებად:",
+    copyInstalledBtn: "ჩემი Flathub აპლიკაციების კოპირება",
+    copiedToast: "ბუფერში დაკოპირდა",
+    copyFailedToast: "კოპირება ვერ მოხერხდა (დაყენებულია flatpak?)",
+    installBtn: "დაყენება",
+    nothingSelectedToast: "არაფერია შერჩეული",
+    installingTitle: "დაყენება…",
+    installingFmt: "{app}-ის დაყენება ({idx} / {total})",
+    alreadyInstalledFmt: "{app} უკვე დაყენებულია ({idx} / {total})",
+    alreadyInstalledHeader: "უკვე დაყენებულია",
+    preparing: "მომზადება…",
+    doneTitle: "მზადაა!",
+    doneBody: "შერჩეული აპლიკაციები დაყენდა.",
+    ok: "კარგი",
+    errorTitle: "დაყენების შეცდომა",
+    errorBodyFmt: "შეცდომა დაყენებისას:\n{app}\n\nდეტალები:\n{details}",
+    cancelBtn: "გაუქმება",
+    cancelling: "გაუქმება…",
+    resultsTitle: "დასრულდა",
+    resultsBody: "დაყენება დასრულდა.",
+    installedHeader: "დაყენებულია",
+    failedHeader: "ვერ დაყენდა",
+    canceledNote: "გაუქმებულია მომხმარებლის მიერ.",
+    copyResultsBtn: "ანგარიშის კოპირება",
+    reportCopiedToast: "ანგარიში კოპირდა",
+},
 };
 
 export function detectLang(env = {}) {
   const s = (env.LC_ALL || env.LANG || env.LANGUAGE || "").toString().trim().toLowerCase();
   if (s.startsWith("ru") || s.includes("ru_") || s.includes("ru-")) return "ru";
+  if (s.startsWith("uk") || s.includes("uk_") || s.includes("uk-")) return "uk";
+  if (s.startsWith("ka") || s.includes("ka_") || s.includes("ka-")) return "ka";
+  if (s.startsWith("hy") || s.includes("hy_") || s.includes("hy-")) return "hy";
+  if (s.startsWith("be") || s.includes("be_") || s.includes("be-")) return "be";
   return "en";
 }
 
@@ -97,6 +273,10 @@ function normalizeLang(lang) {
   const s = String(lang).trim().toLowerCase().replace("_", "-");
   if (!s) return null;
   if (s.startsWith("ru")) return "ru";
+  if (s.startsWith("uk")) return "uk";
+  if (s.startsWith("ka")) return "ka";
+  if (s.startsWith("hy")) return "hy";
+  if (s.startsWith("be")) return "be";
   if (s.startsWith("en")) return "en";
   return null;
 }
