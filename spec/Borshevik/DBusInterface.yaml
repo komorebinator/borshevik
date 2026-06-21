@@ -1,0 +1,19 @@
+name: DBusInterface
+description: A D-Bus interface — the bus name, object path, interface name, and the methods, signals, and properties it exposes. Used to document both interfaces this project calls and interfaces it implements.
+extends: @DesignPattern
+properties:
+  - name: bus
+    description: which bus — session or system
+  - name: bus_name
+    description: the well-known D-Bus bus name (e.g. org.gnome.SessionManager)
+  - name: object_path
+    description: the D-Bus object path (e.g. /org/gnome/SessionManager)
+  - name: interface_name
+    description: the D-Bus interface name (e.g. org.gnome.SessionManager)
+contains:
+  - name: methods
+    description: callable D-Bus methods; each has a name, input parameters, output parameters, and description
+  - name: signals
+    description: D-Bus signals this interface emits; each has a name and parameters
+  - name: properties
+    description: D-Bus properties this interface exposes; each has a name, type, and access (read/write/readwrite)
