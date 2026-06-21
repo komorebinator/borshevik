@@ -1,12 +1,13 @@
 name: SystemdUnit
-description: A systemd unit file (service, timer, target, socket, etc.) that manages a system or user process lifecycle.
-extends: @ConfigFile
+description: A unit file that extends @Systemd with a managed process, timer, socket, or mount. Declarative — describes what systemd should run, when, and under what conditions.
+extends: @Extension
+target: "@Systemd"
 properties:
   - name: unit_type
-    description: type of unit — service, timer, target, socket, path, mount, etc.
+    description: type of unit — service, timer, target, socket, path, mount
   - name: scope
-    description: whether this is a system unit (/usr/lib/systemd/system/) or user unit (/usr/lib/systemd/user/)
+    description: system unit (/usr/lib/systemd/system/) or user unit (/usr/lib/systemd/user/)
   - name: triggers
-    description: what activates this unit — another unit (Wants/Requires/After), a timer, an event, or boot
+    description: what activates this unit — another unit (Wants/Requires/After), a @SystemdUnit timer, a socket, or boot
   - name: executes
-    description: command or script this unit runs (ExecStart); empty for non-service units
+    description: command or script this unit runs (ExecStart); empty for timer, target, and socket units

@@ -18,3 +18,5 @@ software:
   - extends: @Installer
   - extends: @GnomeExtensions
   - extends: @SystemConfig
+  - extends: @Systemd
+  - extends: @SystemdUnit
