@@ -21,9 +21,15 @@ components:
     description: Clipboard history in the status bar.
   - name: blur-my-shell
     type: @Extension
-    src: (asset blur-my-shell@aunetx.shell-extension.zip from github.com/aunetx/blur-my-shell; schemas compiled; blur-my-shell-defaults.patch applied to org.gnome.shell.extensions.blur-my-shell.gschema.xml)
+    src: (asset blur-my-shell@aunetx.shell-extension.zip from github.com/aunetx/blur-my-shell; schemas compiled)
     target: GNOME Shell
     description: Blurs the panel and dash backgrounds. Defaults patched via gschema override.
+    patches:
+      - name: blur-my-shell-defaults
+        src: build_files/scripts/gs-extensions/blur-my-shell-defaults.patch
+        functions:
+          - name: configure
+            description: "Adds a dark color overlay effect to the pipeline effects list. Sets style-components default to 2 (dark, was 1 light). Sets style-dialogs default to 3 (dark, was 1 transparent)."
   - name: battery-time
     type: @Extension
     src: (cloned from github.com/pomoke/battery_time, branch main; forceGnomeVersion=true patches metadata.json shell-version to installed gnome-shell RPM version)
@@ -51,9 +57,15 @@ components:
     description: Shows weather in the status bar clock area.
   - name: twitchlive
     type: @Extension
-    src: (cloned from github.com/maweki/twitchlive-extension, branch master; forceGnomeVersion=true; schemas compiled; twitch-live-defaults.patch applied to org.gnome.shell.extensions.twitchlive.gschema.xml)
+    src: (cloned from github.com/maweki/twitchlive-extension, branch master; forceGnomeVersion=true; schemas compiled)
     target: GNOME Shell
     description: Twitch stream live status notifications.
+    patches:
+      - name: twitch-live-defaults
+        src: build_files/scripts/gs-extensions/twitch-live-defaults.patch
+        functions:
+          - name: configure
+            description: "Sets topbarmode default to 'count-only' (was 'all-icons')."
   - name: legacy-theme-auto-switcher
     type: @Extension
     src: (cloned from github.com/mukul29/legacy-theme-auto-switcher-gnome-extension, branch main)
@@ -71,14 +83,26 @@ components:
     description: Screen color eyedropper tool.
   - name: bluetooth-battery-meter
     type: @Extension
-    src: (cloned from github.com/maniacx/Bluetooth-Battery-Meter, branch GNOME46, schemas compiled; bluetooth-battery-meter-defaults.patch applied to org.gnome.shell.extensions.Bluetooth-Battery-Meter.gschema.xml)
+    src: (cloned from github.com/maniacx/Bluetooth-Battery-Meter, branch GNOME46, schemas compiled)
     target: GNOME Shell
     description: Shows battery levels of paired Bluetooth devices in the status bar.
+    patches:
+      - name: bluetooth-battery-meter-defaults
+        src: build_files/scripts/gs-extensions/bluetooth-battery-meter-defaults.patch
+        functions:
+          - name: configure
+            description: "Disables enable-battery-level-icon (was true). Enables enable-battery-level-text (was false). Sets level-indicator-type to 1 (was 0)."
   - name: status-area-spacer
     type: @Extension
-    src: (cloned from gitlab.com/p91paul/status-area-horizontal-spacing-gnome-shell-extension, branch master, dir status-area-horizontal-spacing@mathematical.coffee.gmail.com, schemas compiled; forceGnomeVersion=true; status-area-spacer-defaults.patch applied)
+    src: (cloned from gitlab.com/p91paul/status-area-horizontal-spacing-gnome-shell-extension, branch master, dir status-area-horizontal-spacing@mathematical.coffee.gmail.com, schemas compiled; forceGnomeVersion=true)
     target: GNOME Shell
     description: Controls horizontal spacing between status bar icons.
+    patches:
+      - name: status-area-spacer-defaults
+        src: build_files/scripts/gs-extensions/status-area-spacer-defaults.patch
+        functions:
+          - name: configure
+            description: "Sets hpadding default to 4 pixels (was 6)."
   - name: gsconnect
     type: @Extension
     src: (cloned from github.com/andyholmes/gnome-shell-extension-gsconnect, branch v72; installed via custom script gsconnect.sh)
@@ -114,31 +138,3 @@ components:
     functions:
       - name: run
         description: "Builds and installs the Color Picker extension using Meson (set -ouex pipefail): meson setup build -Ddatadir=/usr/share -Dtarget=system -Dlocaledir=/usr/share/locale; meson install -C build."
-  - name: blur-my-shell-defaults
-    type: @Patch
-    src: build_files/scripts/gs-extensions/blur-my-shell-defaults.patch
-    target: schemas/org.gnome.shell.extensions.blur-my-shell.gschema.xml
-    functions:
-      - name: configure
-        description: "Adds a dark color overlay effect to the pipeline effects list. Sets style-components default to 2 (dark, was 1 light). Sets style-dialogs default to 3 (dark, was 1 transparent)."
-  - name: bluetooth-battery-meter-defaults
-    type: @Patch
-    src: build_files/scripts/gs-extensions/bluetooth-battery-meter-defaults.patch
-    target: schemas/org.gnome.shell.extensions.Bluetooth-Battery-Meter.gschema.xml
-    functions:
-      - name: configure
-        description: "Disables enable-battery-level-icon (was true). Enables enable-battery-level-text (was false). Sets level-indicator-type to 1 (was 0)."
-  - name: twitch-live-defaults
-    type: @Patch
-    src: build_files/scripts/gs-extensions/twitch-live-defaults.patch
-    target: schemas/org.gnome.shell.extensions.twitchlive.gschema.xml
-    functions:
-      - name: configure
-        description: "Sets topbarmode default to 'count-only' (was 'all-icons')."
-  - name: status-area-spacer-defaults
-    type: @Patch
-    src: build_files/scripts/gs-extensions/status-area-spacer-defaults.patch
-    target: status-area-horizontal-spacing@mathematical.coffee.gmail.com/schemas/org.gnome.shell.extensions.status-area-horizontal-spacing.gschema.xml
-    functions:
-      - name: configure
-        description: "Sets hpadding default to 4 pixels (was 6)."
