@@ -117,3 +117,52 @@ components:
     functions:
       - name: configure
         description: "XDG desktop entry for Hiddify VPN client. Exec=hiddify (the wrapper script). Replaces the .desktop file from the Debian package, pointing at the wrapper instead of the binary directly."
+  - name: app-manager-icon
+    type: @Graphic
+    src: build_files/root/usr/share/icons/hicolor/scalable/apps/org.borshevik.AppManager.svg
+    format: SVG
+    role: app-icon
+    alt: Borshevik App Manager application icon
+  - name: image-manager-icon
+    type: @Graphic
+    src: build_files/root/usr/share/icons/hicolor/scalable/apps/org.borshevik.ImageManager.svg
+    format: SVG
+    role: app-icon
+    alt: Borshevik Image Manager application icon
+  - name: borshevik-logo
+    type: @Graphic
+    src: build_files/root/usr/share/pixmaps/borshevik_logo.svg
+    format: SVG
+    role: logo
+    alt: Borshevik distro logo, used by the Image Manager as the main header image
+  - name: borshevik-logo-dark
+    type: @Graphic
+    src: build_files/root/usr/share/pixmaps/borshevik_logo_dark.svg
+    format: SVG
+    role: logo
+    alt: Dark-background variant of the Borshevik logo; reserved for future use — not currently in Util#pickLogoCandidates
+  - name: fedora-logo
+    type: @Graphic
+    src: build_files/root/usr/share/pixmaps/fedora_logo_med.png
+    format: PNG
+    role: placeholder
+    alt: Fedora logo; fallback shown by the Image Manager if no Borshevik logo is found
+  - name: fedora-logo-white
+    type: @Graphic
+    src: build_files/root/usr/share/pixmaps/fedora_whitelogo_med.png
+    format: PNG
+    role: placeholder
+    alt: White Fedora logo variant; fallback for dark backgrounds
+  - name: plymouth-watermark
+    type: @Graphic
+    src: build_files/root/usr/share/plymouth/themes/spinner/watermark.png
+    format: PNG
+    role: splash
+    alt: Borshevik watermark shown during boot by the Plymouth spinner theme
+  - name: cosign-key
+    type: @PublicKey
+    src: cosign.pub
+    path: /etc/pki/containers/cosign.pub
+    functions:
+      - name: configure
+        description: "Cosign public key used to verify Sigstore signatures on Borshevik OCI images. Copied into the image by the Containerfile; referenced by container-policy and container-registry-sigstore to enforce that all rpm-ostree rebase and bootc switch operations to ghcr.io/komorebinator/* must be signed."
