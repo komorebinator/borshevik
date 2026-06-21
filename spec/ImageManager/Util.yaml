@@ -1,0 +1,17 @@
+name: Util
+description: Utility functions for D-Bus calls, filesystem checks, os-release parsing, and authorization error detection. Used by MainWindow and SettingsWindow.
+extends: @Singleton
+src: build_files/root/usr/share/borshevik-image-manager/util.js
+functions:
+  - name: readOsRelease
+    description: "Reads /etc/os-release as bytes via GLib.file_get_contents. Parses KEY=VALUE and KEY='VALUE' lines with a regex; strips surrounding single or double quotes. Returns a plain key/value object. Returns {} on any read or parse error."
+  - name: pickLogoCandidates
+    description: "Returns an ordered array of paths to check for the distro logo: borshevik_logo.svg → borshevik_logo.png → borshevik-logo.svg → borshevik-logo.png → fedora-logo-icon.svg → fedora-logo-icon.png, all under /usr/share/pixmaps/."
+  - name: firstExistingPath
+    description: "Iterates a paths array; returns the first path that passes GLib.file_test(p, GLib.FileTest.EXISTS). Returns null if none exist."
+  - name: requestRebootInteractive
+    description: "Calls org.gnome.SessionManager D-Bus method 'Reboot' on the session bus via an explicit callback wrapper. If the error message contains 'cancel' (user dismissed GNOME's reboot dialog), returns silently — does NOT fall back to any other mechanism, to avoid rebooting on cancel. Any other D-Bus error is rethrown."
+  - name: isAuthorizationError
+    description: "Returns true if text (lowercased) contains any of: 'not authorized', 'authentication is required', 'authentication required', 'polkit', 'permission denied'."
+  - name: runCommandCapture
+    description: "Spawns argv with STDOUT_PIPE|STDERR_PIPE. Awaits communicate_utf8_async via explicit callback wrapper. Returns {success, exitStatus, stdout, stderr}."

@@ -1,0 +1,29 @@
+name: RpmOstree
+description: Pure utility functions for invoking and parsing rpm-ostree and skopeo. No UI state; all functions are stateless and return plain data objects.
+extends: @Singleton
+src: build_files/root/usr/share/borshevik-image-manager/rpm_ostree.js
+functions:
+  - name: runStatusJson
+    description: "Spawns rpm-ostree status --json with STDOUT_PIPE|STDERR_PIPE. Uses explicit communicate_utf8_async finish wrapper (avoids implicit GJS promisification). Checks proc.get_successful() (not just the communicate ok flag). On success: JSON.parses stdout, returns {ok:true, json, stdout}. On failure or exception: returns {ok:false, error, stdout}."
+  - name: parseStatusJson
+    description: "Extracts deployments array from json.deployments. Finds booted (d.booted===true), staged (d.staged===true), pending (d.pending===true). Finds rollback as the first deployment with d.rollback flag, or the first deployment that is neither booted, staged, nor pending — staged must not be mistaken for rollback. Returns {booted, staged, pending, rollback, deployments}."
+  - name: extractOrigin
+    description: "Returns deployment.origin ?? deployment['container-image-reference'] ?? deployment.container_image_reference ?? ''. Does NOT fall back to checksum — checksum is not an image reference."
+  - name: extractDigest
+    description: "Returns deployment['container-image-reference-digest'] ?? deployment.container_image_reference_digest ?? ''. If the value starts with 'sha256:', strips that prefix for display."
+  - name: extractBuildTime
+    description: "Returns deployment.timestamp ?? deployment['base-timestamp'] ?? deployment.base_timestamp ?? ''."
+  - name: extractTag
+    description: "Finds the last ':' and last '/' in ref. If ':' is after the last '/', returns the substring after ':' as the tag. Returns null for digest refs or refs without a tag-style colon."
+  - name: stripDockerTagIfPresent
+    description: "Returns ref unchanged if it contains '@sha256:'. Otherwise strips the trailing :tag using the same lastIndexOf logic as extractTag."
+  - name: buildTargetRef
+    description: "Strips any existing tag from baseRef. Selects tag: 'latest'→'latest', 'stable'→'stable', 'custom'→customTag string. Returns empty string if tag is blank. Returns '<base>:<tag>'."
+  - name: inferVariantAndChannelFromOrigin
+    description: "Lowercases origin. Checks for 'ghcr.io/komorebinator/borshevik-nvidia' (nvidia) or 'ghcr.io/komorebinator/borshevik' (standard); otherwise 'custom'. Extracts tag via extractTag: 'latest'→channel=latest, 'stable'→channel=stable, other→channel=custom with customTag set. Digest refs → channel=custom, empty customTag. Returns {variant, channel, customTag}."
+  - name: formatTimestamp
+    description: "String ISO timestamps matching YYYY-MM-DDThh:mm:ss[.ms]Z are normalized to 'YYYY-MM-DD hh:mm:ss' (strip fractional seconds, replace T with space, drop Z). Numeric timestamps >1e12 treated as milliseconds, otherwise as seconds; recursively formats via toISOString(). Unrecognized forms fall back to String(ts)."
+  - name: getRegistryDigest
+    description: "Spawns skopeo inspect --format '{{.Digest}}' docker://<dockerRef>. Returns the digest string (stripping 'sha256:' prefix) on success, or null on non-successful exit or exception."
+  - name: needsReboot
+    description: "Returns true if parsed.staged or parsed.pending is truthy."

@@ -1,0 +1,9 @@
+name: NetService
+description: HTTP fetch utilities using libsoup 3 (Soup.Session) for JSON and binary responses.
+extends: @Singleton
+src: build_files/root/usr/share/borshevik-app-manager/net.js
+functions:
+  - name: fetchJson
+    description: "Creates Soup.Session with timeout=ceil(timeoutMs/1000) and user_agent='borshevik-app-installer/1.0'. Sends GET to url via send_and_read_async. Checks HTTP status 200–299; rejects with 'HTTP <status>' otherwise. Decodes bytes as UTF-8 and JSON.parses. Returns the parsed value."
+  - name: fetchBytes
+    description: "Same as fetchJson but returns the raw GLib.Bytes without JSON parsing."

@@ -1,0 +1,102 @@
+name: SystemConfig
+description: Configuration and data files copied into the image filesystem at build time (via COPY build_files/root/ /). Covers container policy, polkit rules, audio config, GNOME setup, Chrome policy, systemd units, desktop files, and branding assets.
+extends: @Software
+platform: systemd / GLib / Podman / GNOME
+src: build_files/root/
+components:
+  - name: container-policy
+    type: @Singleton
+    src: build_files/root/etc/containers/policy.json
+    functions:
+      - name: configure
+        description: "Container image signature verification policy for Podman/bootc. Configures the 'default' transport to require Sigstore signatures verified against /etc/pki/containers/cosign.pub. Enforces that every 'rpm-ostree rebase' or 'bootc switch' to ghcr.io/komorebinator/* must be signed by the Borshevik cosign key."
+  - name: container-registry-sigstore
+    type: @Singleton
+    src: build_files/root/etc/containers/registries.d/borshevik.yaml
+    functions:
+      - name: configure
+        description: "Per-registry Sigstore verification config for ghcr.io/komorebinator. Points to the lookaside bundle location for signature storage."
+  - name: gnome-initial-setup
+    type: @Singleton
+    src: build_files/root/etc/gnome-initial-setup/vendor.conf
+    functions:
+      - name: configure
+        description: "Disables the GNOME Initial Setup 'Software' welcome page so that new users are not prompted to install apps via GNOME Software on first login (the App Manager replaces this flow)."
+  - name: hiddify-polkit
+    type: @Singleton
+    src: build_files/root/etc/polkit-1/rules.d/50-hiddify.rules
+    functions:
+      - name: configure
+        description: "Polkit rule that allows Hiddify to call resolvectl (systemd-resolved DNS configuration) without prompting the user for a password. Required because Hiddify needs to set per-interface DNS servers for its VPN connections."
+  - name: wireplumber-no-autoswitch
+    type: @Singleton
+    src: build_files/root/usr/wireplumber/wireplumber.conf.d/50-disable-autoswitch.conf
+    functions:
+      - name: configure
+        description: "WirePlumber audio policy config. Disables automatic output device switching when a new audio device is plugged in, preventing headphone plug-in from interrupting ongoing playback."
+  - name: chrome-policy
+    type: @Singleton
+    src: build_files/root/usr/etc/opt/chrome/policies/managed/borshevik.json
+    functions:
+      - name: configure
+        description: "Chrome managed policy JSON applied system-wide. Configures Chrome settings that are enforced for all users (e.g. sync, telemetry, or update settings appropriate for an immutable OS)."
+  - name: os-release
+    type: @Singleton
+    src: build_files/root/usr/lib/os-release
+    functions:
+      - name: configure
+        description: "Template os-release file with Borshevik branding: NAME='Borshevik', ID='borshevik', ID_LIKE='fedora', HOME_URL, DOCUMENTATION_URL, SUPPORT_URL, BUG_REPORT_URL. The os-info.sh build script overwrites this with the final values including VERSION_ID."
+  - name: setup-kargs-service
+    type: @Singleton
+    src: build_files/root/usr/lib/systemd/system/setup-kargs.service
+    functions:
+      - name: configure
+        description: "Oneshot system service that runs /usr/libexec/borshevik/setup-kargs.sh early in boot (Before=display-manager.service, not in recovery mode). Reboots the system if kernel args were changed. Runs once per boot via systemd's exec/reboot cycle."
+  - name: setup-ublue-mok-service
+    type: @Singleton
+    src: build_files/root/usr/lib/systemd/system/setup-ublue-mok.service
+    functions:
+      - name: configure
+        description: "Oneshot system service that runs /usr/libexec/borshevik/setup-ublue-mok.sh to enroll the uBlue MOK key for NVIDIA Secure Boot. Only active on borshevik-nvidia."
+  - name: app-manager-first-run-service
+    type: @Singleton
+    src: build_files/root/usr/lib/systemd/user/borshevik-app-manager-first-run.service
+    functions:
+      - name: configure
+        description: "User systemd service that runs borshevik-app-manager-first-run on login. Enabled globally via 90-borshevik.preset. Runs only once per user (stamp file check)."
+  - name: gnome-watchdog-service
+    type: @Singleton
+    src: build_files/root/usr/lib/systemd/user/borshevik-kill-gnome-if-hung.service
+    functions:
+      - name: configure
+        description: "User systemd service that runs borshevik-kill-gnome-if-hung.sh when triggered by the timer."
+  - name: gnome-watchdog-timer
+    type: @Singleton
+    src: build_files/root/usr/lib/systemd/user/borshevik-kill-gnome-if-hung.timer
+    functions:
+      - name: configure
+        description: "User systemd timer. Fires borshevik-kill-gnome-if-hung.service every 1 minute, starting 1 minute after login (OnBootSec=1min, OnUnitActiveSec=1min)."
+  - name: user-preset
+    type: @Singleton
+    src: build_files/root/usr/lib/systemd/user-preset/90-borshevik.preset
+    functions:
+      - name: configure
+        description: "Preset file that enables borshevik-app-manager-first-run.service and borshevik-kill-gnome-if-hung.timer globally for all users via 'systemctl --global preset-all' semantics."
+  - name: app-manager-desktop
+    type: @Singleton
+    src: build_files/root/usr/share/applications/org.borshevik.AppManager.desktop
+    functions:
+      - name: configure
+        description: "XDG desktop entry for the App Manager. Name='Borshevik App Manager', Exec=borshevik-app-manager, Icon=org.borshevik.AppManager, Categories=System. Makes the app visible in GNOME application launcher."
+  - name: image-manager-desktop
+    type: @Singleton
+    src: build_files/root/usr/share/applications/org.borshevik.ImageManager.desktop
+    functions:
+      - name: configure
+        description: "XDG desktop entry for the Image Manager. Name='Borshevik Image Manager', Exec=borshevik-image-manager, Icon=org.borshevik.ImageManager, Categories=System."
+  - name: hiddify-desktop
+    type: @Singleton
+    src: build_files/root/usr/share/applications/Hiddify.desktop
+    functions:
+      - name: configure
+        description: "XDG desktop entry for Hiddify VPN client. Exec=hiddify (the wrapper script). Replaces the .desktop file from the Debian package, pointing at the wrapper instead of the binary directly."

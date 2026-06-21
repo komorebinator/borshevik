@@ -1,0 +1,91 @@
+name: GnomeExtensions
+description: Set of GNOME Shell extensions installed at image build time from gs-extensions/list.json. Includes two Borshevik-owned extensions and fifteen third-party extensions with patched defaults.
+extends: @Software
+platform: GNOME Shell (GJS)
+src: build_files/scripts/gs-extensions/
+components:
+  - name: borshevik-app-search
+    type: @Extension
+    src: (cloned from github.com/komorebinator/borshevik-app-search, branch main, dir borshevik-app-search@komorebinator)
+    target: GNOME Shell
+    description: Borshevik-owned extension. Integrates app installation search into the GNOME Overview search results.
+  - name: borshevik-workspace-manager
+    type: @Extension
+    src: (cloned from github.com/komorebinator/borshevik-workspace-manager, branch main, dir borshevik-workspace-manager@komorebinator, schemas compiled)
+    target: GNOME Shell
+    description: Borshevik-owned extension. Workspace management with customized behavior.
+  - name: clipboard-indicator
+    type: @Extension
+    src: (cloned from github.com/Tudmotu/gnome-shell-extension-clipboard-indicator, branch master)
+    target: GNOME Shell
+    description: Clipboard history in the status bar.
+  - name: blur-my-shell
+    type: @Extension
+    src: (asset blur-my-shell@aunetx.shell-extension.zip from github.com/aunetx/blur-my-shell; schemas compiled; blur-my-shell-defaults.patch applied to org.gnome.shell.extensions.blur-my-shell.gschema.xml)
+    target: GNOME Shell
+    description: Blurs the panel and dash backgrounds. Defaults patched via gschema override.
+  - name: battery-time
+    type: @Extension
+    src: (cloned from github.com/pomoke/battery_time, branch main; forceGnomeVersion=true patches metadata.json shell-version to installed gnome-shell RPM version)
+    target: GNOME Shell
+    description: Shows estimated battery time remaining in the status bar.
+  - name: caffeine
+    type: @Extension
+    src: (cloned from github.com/eonpatapon/gnome-shell-extension-caffeine, branch v60, dir caffeine@patapon.info, schemas compiled)
+    target: GNOME Shell
+    description: Temporarily prevents the screen from going to sleep.
+  - name: notification-timeout
+    type: @Extension
+    src: (cloned from github.com/vchlum/notification-timeout, branch 16, dir extension, schemas compiled)
+    target: GNOME Shell
+    description: Automatically hides notifications after a timeout.
+  - name: primary-input-on-lockscreen
+    type: @Extension
+    src: (cloned from gitlab.com/sagidayan/primary-input-on-lockscreen, branch main, dir primary_input_on_lockscreen@sagidayan.com)
+    target: GNOME Shell
+    description: Forces the primary input method on the lock screen.
+  - name: weather-oclock
+    type: @Extension
+    src: (cloned from github.com/CleoMenezesJr/weather-oclock, branch v50.0, dir weatheroclock@CleoMenezesJr.github.io, schemas compiled; forceGnomeVersion=true)
+    target: GNOME Shell
+    description: Shows weather in the status bar clock area.
+  - name: twitchlive
+    type: @Extension
+    src: (cloned from github.com/maweki/twitchlive-extension, branch master; forceGnomeVersion=true; schemas compiled; twitch-live-defaults.patch applied to org.gnome.shell.extensions.twitchlive.gschema.xml)
+    target: GNOME Shell
+    description: Twitch stream live status notifications.
+  - name: legacy-theme-auto-switcher
+    type: @Extension
+    src: (cloned from github.com/mukul29/legacy-theme-auto-switcher-gnome-extension, branch main)
+    target: GNOME Shell
+    description: Switches legacy GTK3 themes between light and dark when the system appearance changes.
+  - name: emoji-copy
+    type: @Extension
+    src: (asset emoji-copy@felipeftn.zip from github.com/felipeftn/emoji-copy)
+    target: GNOME Shell
+    description: Emoji picker accessible from the status bar.
+  - name: color-picker
+    type: @Extension
+    src: (cloned from github.com/tuberry/color-picker, branch 50.1; installed via custom script color-picker.sh)
+    target: GNOME Shell
+    description: Screen color eyedropper tool.
+  - name: bluetooth-battery-meter
+    type: @Extension
+    src: (cloned from github.com/maniacx/Bluetooth-Battery-Meter, branch GNOME46, schemas compiled; bluetooth-battery-meter-defaults.patch applied to org.gnome.shell.extensions.Bluetooth-Battery-Meter.gschema.xml)
+    target: GNOME Shell
+    description: Shows battery levels of paired Bluetooth devices in the status bar.
+  - name: status-area-spacer
+    type: @Extension
+    src: (cloned from gitlab.com/p91paul/status-area-horizontal-spacing-gnome-shell-extension, branch master, dir status-area-horizontal-spacing@mathematical.coffee.gmail.com, schemas compiled; forceGnomeVersion=true; status-area-spacer-defaults.patch applied)
+    target: GNOME Shell
+    description: Controls horizontal spacing between status bar icons.
+  - name: gsconnect
+    type: @Extension
+    src: (cloned from github.com/andyholmes/gnome-shell-extension-gsconnect, branch v72; installed via custom script gsconnect.sh)
+    target: GNOME Shell
+    description: Android/KDE Connect integration — file transfer, clipboard sync, notifications.
+  - name: appindicator
+    type: @Extension
+    src: (cloned from github.com/ubuntu/gnome-shell-extension-appindicator, branch v64; installed via custom script appindicator.sh)
+    target: GNOME Shell
+    description: Legacy tray icon (AppIndicator/StatusNotifier) support.

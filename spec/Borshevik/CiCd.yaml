@@ -1,0 +1,42 @@
+name: CiCd
+description: GitHub Actions CI/CD pipelines that build, push, sign, and promote Borshevik OCI images to GHCR on a daily schedule and on push to main.
+extends: @Software
+platform: GitHub Actions (YAML)
+src: .github/
+components:
+  - name: build-base
+    type: @Script
+    src: .github/workflows/build-base.yml
+    functions:
+      - name: run
+        description: "Triggered by cron (daily 10:00 UTC) or workflow_dispatch. Runs a matrix build of borshevik-base and borshevik-base-nvidia targets in parallel (each cancels in-progress runs on the same ref). For each variant: creates /mnt/xdg-data for container storage (to avoid runner disk fill); builds the Containerfile target via redhat-actions/buildah-build with BUILD_DATE, IMAGE_TAG=latest, IMAGE_NAME args; logs into GHCR; normalizes registry/image names to lowercase; pushes with tags 'latest' and 'DD.MM.YYYY'; installs cosign; fetches the pushed image digest via skopeo inspect; signs the image by digest using SIGNING_SECRET as COSIGN_PRIVATE_KEY with cosign sign --key env://COSIGN_PRIVATE_KEY. On matrix completion, calls build-borshevik.yml as a reusable workflow (needs: build_and_push)."
+  - name: build-borshevik
+    type: @Script
+    src: .github/workflows/build-borshevik.yml
+    functions:
+      - name: run
+        description: "Triggered by workflow_call (from build-base.yml after base images complete) or workflow_dispatch (manual). Matrix builds borshevik and borshevik-nvidia final image targets in parallel. Steps mirror build-base but target the final Containerfile stages (borshevik, borshevik-nvidia) which pull FROM ghcr.io/komorebinator/borshevik-base:latest. Push/sign steps are skipped for pull_request events. Signs each image by digest with cosign after push."
+  - name: build-iso
+    type: @Script
+    src: .github/workflows/build-iso.yml
+    functions:
+      - name: run
+        description: "Triggered manually (workflow_dispatch) or via workflow_call. Builds ISO installer images for borshevik:stable and borshevik-nvidia:stable using build-container-installer. Uploads resulting ISOs (borshevik-stable.iso, borshevik-nvidia-stable.iso) as GitHub Actions artifacts with 0-day retention."
+  - name: promote-image-to-stable
+    type: @Script
+    src: .github/workflows/promote-image-to-stable.yml
+    functions:
+      - name: run
+        description: "Triggered by workflow_dispatch with required inputs: variant (borshevik or borshevik-nvidia) and digest (sha256:... hex string). Validates digest format with regex ^sha256:[0-9a-f]{64}$. Logs into GHCR. Runs 'docker buildx imagetools create --tag ghcr.io/<owner>/<variant>:stable ghcr.io/<owner>/<variant>@<digest>' to create/update the :stable tag pointing to the given digest (no data copy, manifest-only). Fetches the resulting stable tag's manifest digest. Signs that manifest digest with cosign using SIGNING_SECRET. Triggered by borshevik-promote-to-stable CLI script."
+  - name: dependabot
+    type: @Script
+    src: .github/dependabot.yml
+    functions:
+      - name: configure
+        description: "Configures GitHub Dependabot for additional dependency monitoring across the repository."
+  - name: renovate
+    type: @Script
+    src: .github/renovate.json5
+    functions:
+      - name: configure
+        description: "Configures Renovate bot to automatically update SHA-pinned GitHub Actions versions in workflow files (e.g. actions/checkout@<sha>)."

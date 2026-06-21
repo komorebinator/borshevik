@@ -1,0 +1,14 @@
+name: AppManager
+description: GJS/GTK4+libadwaita application for installing curated Flatpak apps from Flathub. Opens automatically on first login via a systemd user service.
+extends: @DuckspecProject
+uses:
+  - ../duckspec/Duckspec.yaml
+settings:
+  terms_folder: AppManager/
+  readme: ../README.md
+software:
+  - extends: @AppManagerApp
+  - extends: @AppWindow
+  - extends: @FlatpakService
+  - extends: @NetService
+  - extends: @AppManagerTranslations

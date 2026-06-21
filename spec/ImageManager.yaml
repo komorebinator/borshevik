@@ -1,0 +1,18 @@
+name: ImageManager
+description: GJS/GTK4+libadwaita application for managing the Borshevik OS image — checking for updates, applying updates, rolling back, rebasing to a different channel or variant, and toggling automatic updates.
+extends: @DuckspecProject
+uses:
+  - ../duckspec/Duckspec.yaml
+settings:
+  terms_folder: ImageManager/
+  readme: ../README.md
+software:
+  - extends: @ImageManagerApp
+  - extends: @MainWindow
+  - extends: @ProgressWindow
+  - extends: @SettingsWindow
+  - extends: @RpmOstree
+  - extends: @AppState
+  - extends: @CommandRunner
+  - extends: @Util
+  - extends: @ImageManagerTranslations

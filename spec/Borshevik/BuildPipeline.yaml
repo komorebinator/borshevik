@@ -1,0 +1,116 @@
+name: BuildPipeline
+description: OCI container image build pipeline — multi-stage Containerfile, a Justfile for local development, and bash build scripts that run inside rootful Podman during docker build.
+extends: @Software
+platform: bash + Containerfile (BuildKit) + just
+src: build_files/scripts/
+components:
+  - name: justfile
+    type: @Script
+    src: Justfile
+    interpreter: just
+    functions:
+      - name: build
+        description: "Runs podman build with BUILD_ARGS: MAJOR_VERSION, IMAGE_NAME, IMAGE_VENDOR, ENABLE_DX, ENABLE_HWE, ENABLE_GDX. If git working tree is clean, adds --build-arg SHA_HEAD_SHORT=<short SHA>. Tags as <target_image>:<tag>."
+      - name: build-qcow2
+        description: "Ensures the built image is available in root podman storage (_rootful_load_image — copies via podman scp if in user storage, pulls from remote if not found). Runs bootc-image-builder (BIB) via 'sudo podman run --privileged --net=host' with type=qcow2 and config=image.toml. Moves output from temp dir to output/ and chowns to $USER."
+      - name: build-iso
+        description: "Same as build-qcow2 but type=iso and config=iso.toml."
+      - name: run-vm-qcow2
+        description: "Checks if output/qcow2/disk.qcow2 exists; builds it if not. Finds an available port starting at 8006 (increments until 'ss -tunalp' shows it free). Runs docker.io/qemux/qemu-docker via podman: 4 CPUs, 8G RAM, 64G disk, TPM=Y, GPU=Y, KVM device, mounts disk.qcow2 as /boot.qcow2. Opens xdg-open http://localhost:<port> after 30s in background."
+      - name: lint
+        description: "Finds all .sh files recursively via find and runs shellcheck on each."
+      - name: format
+        description: "Finds all .sh files recursively and runs shfmt --write on each."
+      - name: clean
+        description: "Removes *_build* directories, previous.manifest.json, changelog.md, output.env, and output/."
+  - name: containerfile
+    type: @Script
+    src: Containerfile
+    interpreter: Dockerfile (BuildKit)
+    functions:
+      - name: build
+        description: "Four named targets. 'ctx': FROM scratch, COPYs build_files/scripts to /build_scripts/. 'borshevik-base': FROM ghcr.io/ublue-os/silverblue-main:<FEDORA_MAJOR_VERSION>; copies cosign.pub to /etc/pki/containers/; runs build-base.sh; ostree container commit. 'borshevik-base-nvidia': FROM borshevik-base; COPYs akmods-nvidia-open image content to /tmp/akmods-nvidia; runs build-base-nvidia.sh; ostree container commit. 'borshevik': FROM ghcr.io/komorebinator/borshevik-base:latest; COPYs build_files/root/ to /; runs build-addons.sh; ostree container commit. 'borshevik-nvidia': same as borshevik but FROM borshevik-base-nvidia:latest. Build args: FEDORA_MAJOR_VERSION (default 44), IMAGE_NAME, IMAGE_TAG, BUILD_DATE."
+  - name: build-base
+    type: @ShellScript
+    src: build_files/scripts/build-base.sh
+    functions:
+      - name: run
+        description: "Orchestrates borshevik-base layer (set -ouex pipefail): runs install-rpm-packages.sh → install-google-chrome.sh → install-steam.sh → cleanup.sh. Enables podman.socket via systemctl enable."
+  - name: build-base-nvidia
+    type: @ShellScript
+    src: build_files/scripts/build-base-nvidia.sh
+    functions:
+      - name: run
+        description: "Installs the NVIDIA proprietary driver and CUDA stack from /tmp/akmods-nvidia (content of the akmod-nvidia-open image COPYed in by the Containerfile). Runs cleanup.sh."
+  - name: build-addons
+    type: @ShellScript
+    src: build_files/scripts/build-addons.sh
+    functions:
+      - name: run
+        description: "Orchestrates the final borshevik/borshevik-nvidia layer (set -ouex pipefail): os-info.sh → install-hiddify.sh → install-gs-extensions.sh → apply-schemas.sh → apply-dconf.sh → enable-services.sh → rebuild-initramfs.sh."
+  - name: install-rpm-packages
+    type: @ShellScript
+    src: build_files/scripts/install-rpm-packages.sh
+    functions:
+      - name: run
+        description: "rpm-ostree install: htop, mc, gnome-tweaks, pwgen, openssl, distrobox, zsh, gh, adw-gtk3-theme, meson, cmake, gcc (needed to build GNOME extensions), libxcrypt-compat."
+  - name: install-google-chrome
+    type: @ShellScript
+    src: build_files/scripts/install-google-chrome.sh
+    functions:
+      - name: run
+        description: "Adds the official Google Chrome RPM repository and installs google-chrome-stable via rpm-ostree."
+  - name: install-steam
+    type: @ShellScript
+    src: build_files/scripts/install-steam.sh
+    functions:
+      - name: run
+        description: "Installs Steam via rpm-ostree, enabling RPM Fusion nonfree repo if needed."
+  - name: install-hiddify
+    type: @ShellScript
+    src: build_files/scripts/install-hiddify.sh
+    functions:
+      - name: run
+        description: "Fetches Hiddify release metadata from api.github.com/repos/hiddify/hiddify-app/releases/latest (or a specific HIDDIFY_VERSION tag); authenticates with GITHUB_TOKEN if set. Finds the asset matching 'Debian-x64.deb'. Downloads to a temp dir (cleaned via EXIT trap). Extracts with 'ar x' then 'tar xf data.tar.*'. Copies pkg/usr/share/hiddify/ to /usr/lib/hiddify/ (a glibc-trusted path, so $ORIGIN RUNPATH resolves in AT_SECURE mode). Copies icons. Patches RUNPATH of /usr/lib/hiddify/hiddify with patchelf --set-rpath <dest>/lib. Applies setcap cap_net_raw,cap_net_admin,cap_net_bind_service+eip to both hiddify and HiddifyCli binaries."
+  - name: install-gs-extensions
+    type: @ShellScript
+    src: build_files/scripts/install-gs-extensions.sh
+    functions:
+      - name: run
+        description: "Reads gs-extensions/list.json (validated as array). Iterates entries via 'jq -c .[] | while read'. For each entry, resolves source via one of four methods: (1) 'asset' field — downloads named zip asset from GitHub releases API; (2) no branch + no asset — downloads zipball/tarball of latest GitHub release, strips outer wrapper dir; (3) branch + commit — clones at branch then checks out commit; (4) branch only — shallow-clones with --depth 1. Applies optional 'dir' sub-path to narrow ext_src. Applies 'patches' map (patch-file → relative-target inside ext_src) via patch command. If 'script' field is set, executes that local script from gs-extensions/ and continues to next entry. Default install: reads uuid from metadata.json; rsyncs ext_src to /usr/share/gnome-shell/extensions/<uuid>/; compiles GSettings schemas if 'schemas' path is set; patches metadata.json shell-version to installed gnome-shell RPM version if forceGnomeVersion=true."
+  - name: apply-schemas
+    type: @ShellScript
+    src: build_files/scripts/apply-schemas.sh
+    functions:
+      - name: run
+        description: "Copies *.gschema.override files from build_files/scripts/schemas/ to /usr/share/glib-2.0/schemas/ and runs glib-compile-schemas. Overrides set system-wide GNOME defaults: pink accent color, dark theme, disabled hot corners, dock favorites (Chrome/Telegram/Nautilus/Calendar/Secrets/Steam/GNOME Software), touchpad settings, window button layout."
+  - name: apply-dconf
+    type: @ShellScript
+    src: build_files/scripts/apply-dconf.sh
+    functions:
+      - name: run
+        description: "Copies dconf profile files from build_files/scripts/dconf/ to /etc/dconf/ and runs dconf update. Installs system-wide GNOME defaults: Adwaita dark theme, app folders in GNOME Overview, Super+1–9 switch workspace / Shift+Super+1–9 move window / Super+Space switch input source keybindings, GDM login screen settings."
+  - name: enable-services
+    type: @ShellScript
+    src: build_files/scripts/enable-services.sh
+    functions:
+      - name: run
+        description: "Enables systemd system units (setup-kargs.service, setup-ublue-mok.service) and user units globally (borshevik-app-manager-first-run.service, borshevik-kill-gnome-if-hung.service and .timer) via systemctl enable and systemctl --global enable."
+  - name: rebuild-initramfs
+    type: @ShellScript
+    src: build_files/scripts/rebuild-initramfs.sh
+    functions:
+      - name: run
+        description: "Rebuilds initramfs via dracut --regenerate-all --force to include all installed kernel modules and hooks."
+  - name: cleanup
+    type: @ShellScript
+    src: build_files/scripts/cleanup.sh
+    functions:
+      - name: run
+        description: "Cleans rpm/dnf package manager caches and removes temp files to reduce the final image layer size."
+  - name: os-info
+    type: @ShellScript
+    src: build_files/scripts/os-info.sh
+    functions:
+      - name: run
+        description: "Writes Borshevik branding to /usr/lib/os-release: NAME='Borshevik', ID='borshevik', ID_LIKE='fedora', VERSION_ID, PRETTY_NAME, HOME_URL=https://borshevik.org, and related URLs. Preserves the base Fedora ID_LIKE field."

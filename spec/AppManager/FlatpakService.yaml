@@ -1,0 +1,13 @@
+name: FlatpakService
+description: Module-level functions for interacting with the Flatpak CLI — listing installed apps and running installs sequentially with per-app error handling.
+extends: @Singleton
+src: build_files/root/usr/share/borshevik-app-manager/flatpak.js
+functions:
+  - name: parseCustomList
+    description: "Splits text on newlines. For each line: strips \\r and leading/trailing whitespace; skips blank lines and lines starting with '#'; takes the first whitespace-delimited token as the app ID. Returns array of non-empty IDs."
+  - name: listInstalledFlathubApps
+    description: "Spawns flatpak list --app --columns=application,origin. Throws if exit status non-zero. Parses stdout line by line: splits on whitespace; skips header lines where first token is Application/ApplicationId/Id or last token is Origin; skips lines without a dot in the app ID. Returns IDs whose last token equals 'flathub'."
+  - name: listInstalledApps
+    description: "Spawns flatpak list --app --columns=application. Throws on non-zero exit. Skips header tokens (Application/ApplicationId/Id); skips entries without a dot. Returns all app IDs regardless of origin."
+  - name: installApps
+    description: "Deduplicates appIds (trim + filter empty). Iterates sequentially. Before each app: checks cancelCtl.cancelled and breaks. If installedSet is a Set and has the app: adds to alreadyInstalled, calls onStep({skipped:true}), continues. Otherwise: calls onStep({skipped:false}), spawns flatpak install -y --noninteractive flathub <appId>, stores proc in cancelCtl.currentProc, awaits communicate_utf8_async. Rechecks cancelCtl.cancelled after communicate; if true, breaks. If exit 0: adds to installed. Otherwise: extracts error from stderr or stdout, adds {appId, error} to failed. Clears cancelCtl.currentProc in finally. Returns {installed, alreadyInstalled, failed, cancelled}."

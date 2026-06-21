@@ -1,0 +1,3 @@
+[submodule "duckspec"]
+	path = duckspec
+	url = git@github.com:komorebinator/duckspec.git

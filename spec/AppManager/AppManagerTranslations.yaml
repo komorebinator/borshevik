@@ -1,0 +1,9 @@
+name: AppManagerTranslations
+description: Inline translation dictionary and locale detection for the App Manager. Supports en, ru, uk, ka, hy, be. All strings are embedded in the source file rather than loaded from JSON files.
+extends: @Singleton
+src: build_files/root/usr/share/borshevik-app-manager/i18n.js
+functions:
+  - name: detectLang
+    description: "Checks env.LC_ALL, env.LANG, env.LANGUAGE (lowercased, first non-empty wins) for known language prefixes ru/uk/ka/hy/be. Returns the matched code or 'en'."
+  - name: makeTranslator
+    description: "Calls normalizeLang(forcedLang) first; falls back to detectLang(env). Selects TRANSLATIONS[lang] or TRANSLATIONS.en. Returns {t, lang}. t(key, vars): looks up key in selected dict, falls back to TRANSLATIONS.en[key], then key itself; replaces {varName} placeholders from the vars object."

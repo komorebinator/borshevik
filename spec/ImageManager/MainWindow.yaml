@@ -1,0 +1,85 @@
+name: MainWindow
+description: Main window of the Image Manager. Shows the current image info, update check state, rollback availability, and auto-updates toggle. Transitions to ProgressWindow for long-running operations. On startup refreshes status then runs a silent update check.
+extends: @View
+src: build_files/root/usr/share/borshevik-image-manager/main_window.js
+signals:
+  - name: rebase-done
+    description: Emitted by SettingsWindow after a successful rebase; triggers _refreshStatus() in MainWindow.
+components:
+  - name: header-bar
+    type: @View
+    description: Adw.HeaderBar with a menu button on the right. Menu items — Settings (always), Promote to stable (only when channel=latest and variant is borshevik or borshevik-nvidia), About (always).
+    components:
+      - name: menu-button
+        type: @Button
+        label: (hamburger icon open-menu-symbolic)
+  - name: header-section
+    type: @View
+    description: Vertically stacked centered block showing the distro logo, name, build metadata, and digest.
+    components:
+      - name: logo
+        type: @Image
+        description: "Loads the first existing path from Util#pickLogoCandidates() at 124×124px. Falls back to 'computer-symbolic' icon if no file found."
+      - name: distro-name
+        type: @Label
+        label: (NAME from /etc/os-release, typically 'Borshevik')
+        description: CSS class title-1. Updated by _refreshStatus().
+      - name: meta-label
+        type: @Label
+        label: "<channel>, <build-time>"
+        description: CSS classes caption + dim-label. Selectable. Updated by _refreshStatus().
+      - name: digest-label
+        type: @Label
+        label: "sha256:<hex>"
+        description: CSS classes caption + dim-label. Selectable. Updated by _refreshStatus().
+  - name: primary-stack
+    type: @View
+    description: "Crossfade stack with two named children: 'button' (the primary action button) and 'spinner' (an indeterminate spinner shown while checking for updates)."
+    components:
+      - name: primary-button
+        type: @Button
+        label: "Check for updates" or "Update"
+        description: "CSS classes suggested-action + pill; width 320px. Label and enabled state driven by AppState#computeUiState. 'Check for updates' → calls _checkForUpdates({interactive:true}). 'Update' → calls _doUpgrade()."
+      - name: primary-spinner
+        type: @Spinner
+        description: Shown and spinning while check.phase === 'checking'.
+  - name: status-label
+    type: @Label
+    label: (check result message)
+    description: "Shows update availability, download size, 'no new updates', 'update pending reboot', or error text. Driven by AppState#computeUiState. Selectable."
+  - name: status-group
+    type: @View
+    description: Adw.PreferencesGroup with two action rows.
+    components:
+      - name: update-ready-row
+        type: @View
+        description: "Adw.ActionRow 'Reboot to apply update'. Visible only when facts.needsReboot. Subtitle shows the staged build time."
+        components:
+          - name: reboot-button
+            type: @Button
+            label: "Reboot"
+            description: "Calls _doReboot(). Briefly disabled (1200ms) after click to debounce."
+      - name: rollback-row
+        type: @View
+        description: "Adw.ActionRow 'Roll back to previous version'. Subtitle shows rollback build time or 'Not available'."
+        components:
+          - name: rollback-button
+            type: @Button
+            label: "Roll back"
+            disabled: (when facts.hasRollback is false)
+            functions:
+              - name: on_click
+                description: "Shows _confirmRollback() dialog (destructive appearance). On confirmation, calls _doRollback()."
+  - name: auto-updates-row
+    type: @Toggle
+    label: "Automatic updates"
+    description: "Adw.SwitchRow. Reflects state of rpm-ostreed-automatic.timer (queried via 'systemctl is-enabled'). Disabled and subtitle set to 'unavailable' if the unit doesn't exist. Toggle calls _setAutoUpdatesEnabled(desired) which runs 'systemctl enable/disable --now rpm-ostreed-automatic.timer' and reverts UI on failure."
+functions:
+  - name: _refreshStatus
+    description: "Reads /etc/os-release via Util#readOsRelease. Runs RpmOstree#runStatusJson; on failure: sets error check state and updates UI. On success: calls RpmOstree#parseStatusJson, then AppState#buildFacts. Updates distro-name, meta-label, digest-label labels. Shows/hides update-ready-row based on facts.needsReboot. Updates rollback-row subtitle and rollback-button sensitivity. Calls _updatePromoteMenuItem(). Calls _applyUiState(). Fires _refreshAutoUpdates() in background."
+  - name: _checkForUpdates
+    description: "Calls _refreshStatus() first. Sets check to {phase:'checking'}; calls _applyUiState. Runs 'rpm-ostree update --check' (root:false) via CommandRunner collecting all output. Filters blank lines and 'Note:' lines; normalizes non-breaking spaces. Detects 'AvailableUpdate:' and 'No updates available' patterns. Extracts download size (prefers 'Added layers ... Size:' match over any 'Size:' match). On non-success exit: if hasNoUpdates or already-staged sets phase=no_updates; otherwise sets phase=error. On success with AvailableUpdate and staged deployment: fetches registry digest via RpmOstree#getRegistryDigest (skopeo inspect); if it matches stagedDigest, sets phase=no_updates instead of available. Otherwise sets phase=available with size. Calls _applyUiState() and _refreshStatus()."
+  - name: _runWithProgress
+    description: "Creates ProgressWindow (modal, transient_for this). Sets its command label and starts progress. Creates CommandRunner streaming to progressWin.appendOutput. Runs command (root:false). If withAuthRetry is true and result failed and collected output passes Util#isAuthorizationError, retries with root:true (pkexec prepended). If result.success and onSuccess provided, awaits onSuccess(progressWin). Returns result."
+  - name: _promoteToStable
+    description: "Shows confirm dialog. On confirm: runs /usr/bin/borshevik-promote-to-stable <digest> <variant> via _runWithProgress (withAuthRetry:false). Shows info dialog on success."
