@@ -4,25 +4,6 @@ extends: @Software
 platform: bash + Containerfile (BuildKit) + just
 src: build_files/scripts/
 components:
-  - name: justfile
-    type: @Script
-    src: Justfile
-    interpreter: just
-    functions:
-      - name: build
-        description: "Runs podman build with BUILD_ARGS: MAJOR_VERSION, IMAGE_NAME, IMAGE_VENDOR, ENABLE_DX, ENABLE_HWE, ENABLE_GDX. If git working tree is clean, adds --build-arg SHA_HEAD_SHORT=<short SHA>. Tags as <target_image>:<tag>."
-      - name: build-qcow2
-        description: "Ensures the built image is available in root podman storage (_rootful_load_image — copies via podman scp if in user storage, pulls from remote if not found). Runs bootc-image-builder (BIB) via 'sudo podman run --privileged --net=host' with type=qcow2 and config=image.toml. Moves output from temp dir to output/ and chowns to $USER."
-      - name: build-iso
-        description: "Same as build-qcow2 but type=iso and config=iso.toml."
-      - name: run-vm-qcow2
-        description: "Checks if output/qcow2/disk.qcow2 exists; builds it if not. Finds an available port starting at 8006 (increments until 'ss -tunalp' shows it free). Runs docker.io/qemux/qemu-docker via podman: 4 CPUs, 8G RAM, 64G disk, TPM=Y, GPU=Y, KVM device, mounts disk.qcow2 as /boot.qcow2. Opens xdg-open http://localhost:<port> after 30s in background."
-      - name: lint
-        description: "Finds all .sh files recursively via find and runs shellcheck on each."
-      - name: format
-        description: "Finds all .sh files recursively and runs shfmt --write on each."
-      - name: clean
-        description: "Removes *_build* directories, previous.manifest.json, changelog.md, output.env, and output/."
   - name: containerfile
     type: @Script
     src: Containerfile
@@ -114,3 +95,66 @@ components:
     functions:
       - name: run
         description: "Writes Borshevik branding to /usr/lib/os-release: NAME='Borshevik', ID='borshevik', ID_LIKE='fedora', VERSION_ID, PRETTY_NAME, HOME_URL=https://borshevik.org, and related URLs. Preserves the base Fedora ID_LIKE field."
+  - name: gdm-dconf
+    type: @ConfigFile
+    format: dconf
+    src: build_files/scripts/dconf/gdm.d/gdm
+    functions:
+      - name: configure
+        description: "GDM login screen dconf overrides under [org/gnome/login-screen]: logo='/usr/share/pixmaps/borshevik_logo.svg'. Under [org/gnome/desktop/peripherals/touchpad]: tap-to-click=true, click-method='areas', two-finger-scrolling-enabled=true. Under [org/gnome/desktop/interface]: accent-color='pink'."
+  - name: dark-by-default-dconf
+    type: @ConfigFile
+    format: dconf
+    src: build_files/scripts/dconf/local.d/00-dark-by-default
+    functions:
+      - name: configure
+        description: "System-wide dconf defaults under [org/gnome/desktop/interface]: color-scheme='prefer-dark', gtk-theme='adw-gtk3-dark'."
+  - name: app-folders-dconf
+    type: @ConfigFile
+    format: dconf
+    src: build_files/scripts/dconf/local.d/00-enable-app-folders
+    functions:
+      - name: configure
+        description: "System-wide dconf defaults for GNOME app folders. Sets folder-children=['system','utilities','borshevik']. 'system' maps to System-Tools.directory (categories: System, Settings). 'utilities' maps to Utilities.directory (categories: Utility, Utilities). 'borshevik' is a non-translated folder containing org.borshevik.ImageManager.desktop and org.borshevik.AppManager.desktop."
+  - name: hotkeys-dconf
+    type: @ConfigFile
+    format: dconf
+    src: build_files/scripts/dconf/local.d/00-hotkeys
+    functions:
+      - name: configure
+        description: "System-wide dconf keybinding defaults. Clears switch-to-application-1..10 (frees Super+1–9 from app switching). Sets switch-to-workspace-1..10 to Super+1..0. Sets move-to-workspace-1..10 to Shift+Super+1..0. Sets switch-input-source to [Super+Space, Shift+Super+F23]."
+  - name: disable-hot-corners-schema
+    type: @ConfigFile
+    format: GSettings override
+    src: build_files/scripts/schemas/90-disable-hot-corners.gschema.override
+    functions:
+      - name: configure
+        description: "GSettings override for [org.gnome.desktop.interface]: enable-hot-corners=false."
+  - name: favorites-schema
+    type: @ConfigFile
+    format: GSettings override
+    src: build_files/scripts/schemas/90-favorites.gschema.override
+    functions:
+      - name: configure
+        description: "GSettings override for [org.gnome.shell]: favorite-apps=['google-chrome.desktop','org.telegram.desktop.desktop','org.gnome.Nautilus.desktop','org.gnome.Calendar.desktop','org.gnome.World.Secrets.desktop','steam.desktop','org.gnome.Software.desktop']."
+  - name: pink-by-default-schema
+    type: @ConfigFile
+    format: GSettings override
+    src: build_files/scripts/schemas/90-pink-by-default.gschema.override
+    functions:
+      - name: configure
+        description: "GSettings override for [org.gnome.desktop.interface]: accent-color='pink'."
+  - name: touchpad-schema
+    type: @ConfigFile
+    format: GSettings override
+    src: build_files/scripts/schemas/90-touchpad.gschema.override
+    functions:
+      - name: configure
+        description: "GSettings override for [org.gnome.desktop.peripherals.touchpad]: tap-to-click=true, click-method='areas', two-finger-scrolling-enabled=true."
+  - name: wm-button-layout-schema
+    type: @ConfigFile
+    format: GSettings override
+    src: build_files/scripts/schemas/90-wm-button-layout.gschema.override
+    functions:
+      - name: configure
+        description: "GSettings override for [org.gnome.desktop.wm.preferences]: button-layout='appmenu:minimize,maximize,close'."

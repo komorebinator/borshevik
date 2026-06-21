@@ -89,3 +89,56 @@ components:
     src: (cloned from github.com/ubuntu/gnome-shell-extension-appindicator, branch v64; installed via custom script appindicator.sh)
     target: GNOME Shell
     description: Legacy tray icon (AppIndicator/StatusNotifier) support.
+  - name: extensions-list
+    type: @ConfigFile
+    format: JSON
+    src: build_files/scripts/gs-extensions/list.json
+    functions:
+      - name: configure
+        description: "JSON array consumed by install-gs-extensions.sh. Each entry is an object with fields: repo (GitHub/GitLab URL), branch (optional; if absent, latest release zipball is used), commit (optional; checked out after clone), asset (optional; name of a release zip asset to download instead of cloning), dir (optional; sub-path inside the cloned/extracted source to use as the extension root), schemas (optional; path inside the extension source where .gschema.xml files live, triggers glib-compile-schemas), patches (optional; map of patch-file-name → relative-target-inside-ext_src), script (optional; name of a local shell script in gs-extensions/ to run instead of the default install), forceGnomeVersion (optional boolean; patches metadata.json shell-version to the installed gnome-shell RPM version)."
+  - name: appindicator-installer
+    type: @ShellScript
+    src: build_files/scripts/gs-extensions/appindicator.sh
+    functions:
+      - name: run
+        description: "Builds and installs the AppIndicator extension using Meson (set -ouex pipefail): meson setup _build . --prefix=/usr; meson compile -C _build; meson install -C _build."
+  - name: gsconnect-installer
+    type: @ShellScript
+    src: build_files/scripts/gs-extensions/gsconnect.sh
+    functions:
+      - name: run
+        description: "Builds and installs GSConnect using Meson with custom flags (set -ouex pipefail): --prefix=/usr, --libdir=/usr/lib64, -Dgnome_shell_libdir=/usr/lib64, -Dsession_bus_services_dir=/usr/share/dbus-1/services, -Dwebextension=false, -Dnautilus=true; then meson compile and meson install."
+  - name: color-picker-installer
+    type: @ShellScript
+    src: build_files/scripts/gs-extensions/color-picker.sh
+    functions:
+      - name: run
+        description: "Builds and installs the Color Picker extension using Meson (set -ouex pipefail): meson setup build -Ddatadir=/usr/share -Dtarget=system -Dlocaledir=/usr/share/locale; meson install -C build."
+  - name: blur-my-shell-defaults
+    type: @Patch
+    src: build_files/scripts/gs-extensions/blur-my-shell-defaults.patch
+    target: schemas/org.gnome.shell.extensions.blur-my-shell.gschema.xml
+    functions:
+      - name: configure
+        description: "Adds a dark color overlay effect to the pipeline effects list. Sets style-components default to 2 (dark, was 1 light). Sets style-dialogs default to 3 (dark, was 1 transparent)."
+  - name: bluetooth-battery-meter-defaults
+    type: @Patch
+    src: build_files/scripts/gs-extensions/bluetooth-battery-meter-defaults.patch
+    target: schemas/org.gnome.shell.extensions.Bluetooth-Battery-Meter.gschema.xml
+    functions:
+      - name: configure
+        description: "Disables enable-battery-level-icon (was true). Enables enable-battery-level-text (was false). Sets level-indicator-type to 1 (was 0)."
+  - name: twitch-live-defaults
+    type: @Patch
+    src: build_files/scripts/gs-extensions/twitch-live-defaults.patch
+    target: schemas/org.gnome.shell.extensions.twitchlive.gschema.xml
+    functions:
+      - name: configure
+        description: "Sets topbarmode default to 'count-only' (was 'all-icons')."
+  - name: status-area-spacer-defaults
+    type: @Patch
+    src: build_files/scripts/gs-extensions/status-area-spacer-defaults.patch
+    target: status-area-horizontal-spacing@mathematical.coffee.gmail.com/schemas/org.gnome.shell.extensions.status-area-horizontal-spacing.gschema.xml
+    functions:
+      - name: configure
+        description: "Sets hpadding default to 4 pixels (was 6)."
