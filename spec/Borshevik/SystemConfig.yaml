@@ -47,35 +47,52 @@ components:
       - name: configure
         description: "Template os-release file with Borshevik branding: NAME='Borshevik', ID='borshevik', ID_LIKE='fedora', HOME_URL, DOCUMENTATION_URL, SUPPORT_URL, BUG_REPORT_URL. The os-info.sh build script overwrites this with the final values including VERSION_ID."
   - name: setup-kargs-service
-    type: @ConfigFile
+    type: @SystemdUnit
     src: build_files/root/usr/lib/systemd/system/setup-kargs.service
+    unit_type: service
+    scope: system
+    triggers: boot — Before=display-manager.service, ConditionKernelCommandLine not in recovery mode
+    executes: /usr/libexec/borshevik/setup-kargs.sh
     functions:
       - name: configure
-        description: "Oneshot system service that runs /usr/libexec/borshevik/setup-kargs.sh early in boot (Before=display-manager.service, not in recovery mode). Reboots the system if kernel args were changed. Runs once per boot via systemd's exec/reboot cycle."
+        description: "Oneshot service. Reboots the system if kernel args were changed. Runs once per boot via systemd's exec/reboot cycle."
   - name: setup-ublue-mok-service
-    type: @ConfigFile
+    type: @SystemdUnit
     src: build_files/root/usr/lib/systemd/system/setup-ublue-mok.service
+    unit_type: service
+    scope: system
+    triggers: boot
+    executes: /usr/libexec/borshevik/setup-ublue-mok.sh
     functions:
       - name: configure
-        description: "Oneshot system service that runs /usr/libexec/borshevik/setup-ublue-mok.sh to enroll the uBlue MOK key for NVIDIA Secure Boot. Only active on borshevik-nvidia."
+        description: "Oneshot service. Enrolls the uBlue MOK key for NVIDIA Secure Boot. Only active on borshevik-nvidia."
   - name: app-manager-first-run-service
-    type: @ConfigFile
+    type: @SystemdUnit
     src: build_files/root/usr/lib/systemd/user/borshevik-app-manager-first-run.service
+    unit_type: service
+    scope: user
+    triggers: login — enabled globally via 90-borshevik.preset
+    executes: borshevik-app-manager-first-run
     functions:
       - name: configure
-        description: "User systemd service that runs borshevik-app-manager-first-run on login. Enabled globally via 90-borshevik.preset. Runs only once per user (stamp file check)."
+        description: "Runs borshevik-app-manager-first-run on login. Opens the App Manager exactly once per user (stamp file check in the script)."
   - name: gnome-watchdog-service
-    type: @ConfigFile
+    type: @SystemdUnit
     src: build_files/root/usr/lib/systemd/user/borshevik-kill-gnome-if-hung.service
+    unit_type: service
+    scope: user
+    triggers: gnome-watchdog-timer
+    executes: /usr/libexec/borshevik/borshevik-kill-gnome-if-hung.sh
     functions:
       - name: configure
-        description: "User systemd service that runs borshevik-kill-gnome-if-hung.sh when triggered by the timer."
+        description: "Oneshot service. Runs the GNOME Shell watchdog script when triggered by the timer."
   - name: gnome-watchdog-timer
-    type: @ConfigFile
+    type: @SystemdUnit
     src: build_files/root/usr/lib/systemd/user/borshevik-kill-gnome-if-hung.timer
-    functions:
-      - name: configure
-        description: "User systemd timer. Fires borshevik-kill-gnome-if-hung.service every 1 minute, starting 1 minute after login (OnBootSec=1min, OnUnitActiveSec=1min)."
+    unit_type: timer
+    scope: user
+    triggers: OnBootSec=1min, OnUnitActiveSec=1min
+    executes: ""
   - name: user-preset
     type: @ConfigFile
     src: build_files/root/usr/lib/systemd/user-preset/90-borshevik.preset
