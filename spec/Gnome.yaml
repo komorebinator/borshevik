@@ -1,0 +1,9 @@
+name: Gnome
+description: GNOME Shell as it runs in Borshevik — the @GnomeShell application, its @Extension set, and all GNOME-specific configuration files.
+extends: @DuckspecProject
+uses:
+  - ../duckspec/Duckspec.yaml
+settings:
+  terms_folder: Gnome/
+software:
+  - extends: @GnomeExtensions

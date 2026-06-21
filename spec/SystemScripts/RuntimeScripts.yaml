@@ -1,4 +1,4 @@
-name: SystemScripts
+name: RuntimeScripts
 description: Runtime shell scripts and CLI utilities installed into the image filesystem under /usr/bin/ and /usr/libexec/borshevik/.
 extends: @Software
 platform: bash

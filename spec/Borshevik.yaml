@@ -5,18 +5,14 @@ uses:
   - ../duckspec/Duckspec.yaml
   - AppManager.yaml
   - ImageManager.yaml
+  - BuildPipeline.yaml
+  - Systemd.yaml
+  - Gnome.yaml
+  - Installer.yaml
+  - SystemScripts.yaml
 startup:
   - load
 settings:
   terms_folder: Borshevik/
   readme: ../README.md
   agents: AGENTS.md
-software:
-  - extends: @BuildPipeline
-  - extends: @SystemScripts
-  - extends: @CiCd
-  - extends: @Installer
-  - extends: @GnomeExtensions
-  - extends: @SystemConfig
-  - extends: @Systemd
-  - extends: @SystemdUnit

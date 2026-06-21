@@ -1,0 +1,10 @@
+name: BuildPipeline
+description: OCI container image build pipeline — Containerfile, build scripts, CI/CD workflows, and local development tooling.
+extends: @DuckspecProject
+uses:
+  - ../duckspec/Duckspec.yaml
+settings:
+  terms_folder: BuildPipeline/
+software:
+  - extends: @ImageBuild
+  - extends: @CiCd

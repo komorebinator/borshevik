@@ -1,4 +1,4 @@
-name: Systemd
+name: SystemdManager
 description: The systemd system and service manager — the init system for Linux responsible for starting, stopping, and managing processes, sockets, timers, and mounts.
 extends: @Application
 platform: C (external dependency, not built by this project)

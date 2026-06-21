@@ -1,7 +1,7 @@
 name: SystemdUnit
 description: A unit file that extends @Systemd with a managed process, timer, socket, or mount. Declarative — describes what systemd should run, when, and under what conditions.
 extends: @Extension
-target: "@Systemd"
+target: "@SystemdManager"
 properties:
   - name: unit_type
     description: type of unit — service, timer, target, socket, path, mount

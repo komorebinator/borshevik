@@ -1,4 +1,4 @@
-name: Installer
+name: IsoInstaller
 description: Configuration and lorax templates for building the Anaconda-based ISO installer; produces a minimal-UI install experience that ends with a bootc switch to the correct Borshevik image on GHCR.
 extends: @Software
 platform: TOML (image-builder config) + lorax templates (Anaconda)

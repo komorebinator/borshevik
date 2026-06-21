@@ -1,0 +1,9 @@
+name: Installer
+description: ISO installer configuration — lorax templates, image-builder TOML configs, and kickstart post-install scripts.
+extends: @DuckspecProject
+uses:
+  - ../duckspec/Duckspec.yaml
+settings:
+  terms_folder: Installer/
+software:
+  - extends: @IsoInstaller
