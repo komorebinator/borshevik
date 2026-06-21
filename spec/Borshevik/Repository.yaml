@@ -1,0 +1,8 @@
+name: Repository
+description: A data access abstraction that provides CRUD operations for a specific entity type, decoupling the rest of the code from the underlying storage implementation.
+extends: @Singleton
+properties:
+  - name: entity
+    description: the entity type this repository manages (e.g. User, Order, Image)
+  - name: storage
+    description: the underlying @Database or storage mechanism this repository reads from and writes to
