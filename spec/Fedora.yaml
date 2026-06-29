@@ -3,6 +3,11 @@ description: Fedora Linux platform terms — D-Bus interface model, GNOME Shell,
 extends: @DuckspecProject
 uses:
   - ../duckspec/Duckspec.yaml
+software:
+  - @DBus
+  - @GnomeShell
+  - @SystemdManager
+  - @SystemdUnit
 settings:
   terms_folder: Fedora/
   src: ..
