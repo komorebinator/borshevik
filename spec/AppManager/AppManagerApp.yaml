@@ -6,8 +6,10 @@ src: build_files/root/usr/share/borshevik-app-manager/main.js
 functions:
   - name: parseLangArg
     description: "Scans ARGV for --lang=<code> or --lang <code> (two-token form). Iterates args left to right; returns the first matching language code string, or null if not found."
-  - name: activate
-    description: "GApplication vfunc_activate. Reads LANG, LC_ALL, LANGUAGE from GLib env. Calls parseLangArg(ARGV) for an optional override. Constructs makeTranslator(forcedLang, env) and window(app, i18n). Presents the window. application_id: org.borshevik.AppManager."
+  - name: _init
+    description: "GObject subclass constructor. Calls super._init with application_id='org.borshevik.AppManager' and flags=0."
+  - name: vfunc_activate
+    description: "GApplication vfunc_activate. Reads LANG, LC_ALL, LANGUAGE from GLib env. Calls parseLangArg(ARGV) for an optional override. Constructs makeTranslator(forcedLang, env) and window(app, i18n). Presents the window."
 components:
   - name: window
     type: @View

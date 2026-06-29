@@ -8,7 +8,7 @@ src:
 functions:
   - name: run
     description: "main.js: imports Application, constructs an instance, calls app.run(ARGV)."
-  - name: _init
+  - name: constructor
     description: "Registers GObject subclass with application_id='org.borshevik.ImageManager'. Resolves baseDir from Gio.File.new_for_uri(import.meta.url).get_parent(). Constructs I18n with baseDir/i18n as the locale directory. Wires 'activate' to _onActivate."
   - name: _onActivate
     description: "If no active_window: constructs main-window(this) and presents it. If a window already exists, just presents it (single-instance enforcement via GApplication)."
