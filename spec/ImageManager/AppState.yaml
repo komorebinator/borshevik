@@ -1,9 +1,0 @@
-name: AppState
-description: Pure state derivation functions that compute display-ready facts and UI state from raw rpm-ostree data. No side effects; all functions are deterministic given their inputs.
-extends: @Singleton
-src: build_files/root/usr/share/borshevik-image-manager/app_state.js
-functions:
-  - name: buildFacts
-    description: "Pure function. Arguments: {i18n, osRelease, parsed}. Extracts distroName from osRelease.NAME (fallback 'Borshevik'). Gets booted/staged/pending/rollback from parsed. Computes buildTime from RpmOstree#extractBuildTime(booted) via RpmOstree#formatTimestamp. Selects currentOrigin as the booted deployment field that has a tag (checks origin, container-image-reference, container_image_reference, and extractOrigin output). Extracts channel from tag or i18n.t('unknown'). Extracts and formats digest (prepends 'sha256:'). Infers variant name ('borshevik', 'borshevik-nvidia', or 'custom') via RpmOstree#inferVariantAndChannelFromOrigin. Computes stagedDigest from staged deployment. Computes nextTime from staged/pending build time. Computes hasRollback (rollback exists and is not the booted deployment), rollbackTime. Returns flat facts object: {distroName, buildTime, channel, digest, variant, currentOrigin, needsReboot, stagedDigest, nextTime, hasRollback, rollbackTime}."
-  - name: computeUiState
-    description: "Pure function. Arguments: {i18n, facts, check}. showCheckSpinner = check.phase==='checking'. primaryMode = 'update' only when check.phase==='available'; otherwise 'check'. statusText: 'updates available + size' when available; 'update pending reboot' when needsReboot and no new update; 'no new updates' when no_updates; 'error: <message>' when error phase; empty otherwise. Returns {showCheckSpinner, primaryMode, primaryLabel, statusText}."

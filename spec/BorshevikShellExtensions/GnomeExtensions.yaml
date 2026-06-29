@@ -1,0 +1,51 @@
+name: GnomeExtensions
+description: GNOME Shell extensions installed in Borshevik at image build time. The installer reads list.json and installs each extension from its source repository, applying patches and compiling schemas as needed.
+extends: @Software
+platform: bash + GNOME Shell (GJS)
+src: build_files/scripts/gs-extensions/
+components:
+  - name: installer
+    type: @ShellScript
+    src: build_files/scripts/install-gs-extensions.sh
+    functions:
+      - name: run
+        description: "Reads gs-extensions/list.json (validated as array). Iterates entries via 'jq -c .[] | while read'. For each entry, resolves source via one of four methods: (1) 'asset' field — downloads named zip asset from GitHub releases API; (2) no branch + no asset — downloads zipball/tarball of latest GitHub release, strips outer wrapper dir; (3) branch + commit — clones at branch then checks out commit; (4) branch only — shallow-clones with --depth 1. Applies optional 'dir' sub-path to narrow ext_src. Applies 'patches' map (patch-file → relative-target inside ext_src) via patch command. If 'script' field is set, executes that local script from gs-extensions/ and continues to next entry. Default install: reads uuid from metadata.json; rsyncs ext_src to /usr/share/gnome-shell/extensions/<uuid>/; compiles GSettings schemas if 'schemas' path is set; patches metadata.json shell-version to installed gnome-shell RPM version if forceGnomeVersion=true."
+  - name: extensions-list
+    type: @ConfigFile
+    format: JSON
+    src: build_files/scripts/gs-extensions/list.json
+    description: "JSON array consumed by the installer. Each entry is an object with fields: repo (GitHub/GitLab URL), branch (optional; if absent, latest release zipball is used), commit (optional; checked out after clone), asset (optional; name of a release zip asset to download instead of cloning), dir (optional; sub-path inside the cloned/extracted source to use as the extension root), schemas (optional; path inside the extension source where .gschema.xml files live, triggers glib-compile-schemas), patches (optional; map of patch-file-name → relative-target-inside-ext_src), script (optional; name of a local shell script in gs-extensions/ to run instead of the default install), forceGnomeVersion (optional boolean; patches metadata.json shell-version to the installed gnome-shell RPM version)."
+  - name: blur-my-shell-defaults
+    type: @Patch
+    src: build_files/scripts/gs-extensions/blur-my-shell-defaults.patch
+    description: "Adds a dark color overlay effect to the pipeline effects list. Sets style-components default to 2 (dark, was 1 light). Sets style-dialogs default to 3 (dark, was 1 transparent)."
+  - name: twitch-live-defaults
+    type: @Patch
+    src: build_files/scripts/gs-extensions/twitch-live-defaults.patch
+    description: "Sets topbarmode default to 'count-only' (was 'all-icons')."
+  - name: bluetooth-battery-meter-defaults
+    type: @Patch
+    src: build_files/scripts/gs-extensions/bluetooth-battery-meter-defaults.patch
+    description: "Disables enable-battery-level-icon (was true). Enables enable-battery-level-text (was false). Sets level-indicator-type to 1 (was 0)."
+  - name: status-area-spacer-defaults
+    type: @Patch
+    src: build_files/scripts/gs-extensions/status-area-spacer-defaults.patch
+    description: "Sets hpadding default to 4 pixels (was 6)."
+  - name: appindicator-installer
+    type: @ShellScript
+    src: build_files/scripts/gs-extensions/appindicator.sh
+    functions:
+      - name: run
+        description: "Builds and installs the AppIndicator extension using Meson (set -ouex pipefail): meson setup _build . --prefix=/usr; meson compile -C _build; meson install -C _build."
+  - name: gsconnect-installer
+    type: @ShellScript
+    src: build_files/scripts/gs-extensions/gsconnect.sh
+    functions:
+      - name: run
+        description: "Builds and installs GSConnect using Meson with custom flags (set -ouex pipefail): --prefix=/usr, --libdir=/usr/lib64, -Dgnome_shell_libdir=/usr/lib64, -Dsession_bus_services_dir=/usr/share/dbus-1/services, -Dwebextension=false, -Dnautilus=true; then meson compile and meson install."
+  - name: color-picker-installer
+    type: @ShellScript
+    src: build_files/scripts/gs-extensions/color-picker.sh
+    functions:
+      - name: run
+        description: "Builds and installs the Color Picker extension using Meson (set -ouex pipefail): meson setup build -Ddatadir=/usr/share -Dtarget=system -Dlocaledir=/usr/share/locale; meson install -C build."

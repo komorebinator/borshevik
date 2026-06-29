@@ -1,5 +1,5 @@
 name: ImageManagerApp
-description: GJS application entry point. Resolves the base directory from import.meta.url, constructs I18n, and presents MainWindow.
+description: GJS/GTK4+libadwaita application for managing the Borshevik OS image — checking for updates, applying updates, rolling back, rebasing to a different channel or variant, and toggling automatic updates. Resolves the base directory from import.meta.url, constructs I18n, and presents the main window.
 extends: @Application
 platform: GJS
 src:
@@ -11,4 +11,270 @@ functions:
   - name: _init
     description: "Registers GObject subclass with application_id='org.borshevik.ImageManager'. Resolves baseDir from Gio.File.new_for_uri(import.meta.url).get_parent(). Constructs I18n with baseDir/i18n as the locale directory. Wires 'activate' to _onActivate."
   - name: _onActivate
-    description: "If no active_window: constructs MainWindow(this) and presents it. If a window already exists, just presents it (single-instance enforcement via GApplication)."
+    description: "If no active_window: constructs main-window(this) and presents it. If a window already exists, just presents it (single-instance enforcement via GApplication)."
+components:
+  - name: main-window
+    type: @View
+    src: build_files/root/usr/share/borshevik-image-manager/main_window.js
+    signals:
+      - name: rebase-done
+        description: Emitted by settings-window after a successful rebase; triggers _refreshStatus() in main-window.
+    components:
+      - name: header-bar
+        type: @View
+        description: Adw.HeaderBar with a menu button on the right. Menu items — Settings (always), Promote to stable (only when channel=latest and variant is borshevik or borshevik-nvidia), About (always).
+        components:
+          - name: menu-button
+            type: @Button
+            label: (hamburger icon open-menu-symbolic)
+            description: Opens the header bar menu with Settings, Promote to stable, and About items.
+      - name: header-section
+        type: @View
+        description: Vertically stacked centered block showing the distro logo, name, build metadata, and digest.
+        components:
+          - name: logo
+            type: @Image
+            description: "Loads the first existing path from util#pickLogoCandidates() at 124×124px. Falls back to 'computer-symbolic' icon if no file found."
+          - name: distro-name
+            type: @Label
+            label: (NAME from /etc/os-release, typically 'Borshevik')
+            description: CSS class title-1. Updated by _refreshStatus().
+          - name: meta-label
+            type: @Label
+            label: "<channel>, <build-time>"
+            description: CSS classes caption + dim-label. Selectable. Updated by _refreshStatus().
+          - name: digest-label
+            type: @Label
+            label: "sha256:<hex>"
+            description: CSS classes caption + dim-label. Selectable. Updated by _refreshStatus().
+      - name: primary-stack
+        type: @View
+        description: "Crossfade stack with two named children: 'button' (the primary action button) and 'spinner' (an indeterminate spinner shown while checking for updates)."
+        components:
+          - name: primary-button
+            type: @Button
+            label: "Check for updates" or "Update"
+            description: "CSS classes suggested-action + pill; width 320px. Label and enabled state driven by app-state#computeUiState. 'Check for updates' → calls _checkForUpdates({interactive:true}). 'Update' → calls _doUpgrade()."
+          - name: primary-spinner
+            type: @Spinner
+            description: Shown and spinning while check.phase === 'checking'.
+      - name: status-label
+        type: @Label
+        label: (check result message)
+        description: "Shows update availability, download size, 'no new updates', 'update pending reboot', or error text. Driven by app-state#computeUiState. Selectable."
+      - name: status-group
+        type: @View
+        description: Adw.PreferencesGroup with two action rows.
+        components:
+          - name: update-ready-row
+            type: @View
+            description: "Adw.ActionRow 'Reboot to apply update'. Visible only when facts.needsReboot. Subtitle shows the staged build time."
+            components:
+              - name: reboot-button
+                type: @Button
+                label: "Reboot"
+                description: "Calls _doReboot(). Briefly disabled (1200ms) after click to debounce."
+          - name: rollback-row
+            type: @View
+            description: "Adw.ActionRow 'Roll back to previous version'. Subtitle shows rollback build time or 'Not available'."
+            components:
+              - name: rollback-button
+                type: @Button
+                label: "Roll back"
+                disabled: (when facts.hasRollback is false)
+                functions:
+                  - name: on_click
+                    description: "Shows _confirmRollback() dialog (destructive appearance). On confirmation, calls _doRollback()."
+      - name: auto-updates-row
+        type: @Toggle
+        label: "Automatic updates"
+        description: "Adw.SwitchRow. Reflects state of rpm-ostreed-automatic.timer (queried via 'systemctl is-enabled'). Disabled and subtitle set to 'unavailable' if the unit doesn't exist. Toggle calls _setAutoUpdatesEnabled(desired) which runs 'systemctl enable/disable --now rpm-ostreed-automatic.timer' and reverts UI on failure."
+    functions:
+      - name: _refreshStatus
+        description: "Reads /etc/os-release via util#readOsRelease. Runs rpm-ostree#runStatusJson; on failure: sets error check state and updates UI. On success: calls rpm-ostree#parseStatusJson, then app-state#buildFacts. Updates distro-name, meta-label, digest-label labels. Shows/hides update-ready-row based on facts.needsReboot. Updates rollback-row subtitle and rollback-button sensitivity. Calls _updatePromoteMenuItem(). Calls _applyUiState(). Fires _refreshAutoUpdates() in background."
+      - name: _checkForUpdates
+        description: "Calls _refreshStatus() first. Sets check to {phase:'checking'}; calls _applyUiState. Runs 'rpm-ostree update --check' (root:false) via command-runner collecting all output. Filters blank lines and 'Note:' lines; normalizes non-breaking spaces. Detects 'AvailableUpdate:' and 'No updates available' patterns. Extracts download size (prefers 'Added layers ... Size:' match over any 'Size:' match). On non-success exit: if hasNoUpdates or already-staged sets phase=no_updates; otherwise sets phase=error. On success with AvailableUpdate and staged deployment: fetches registry digest via rpm-ostree#getRegistryDigest (skopeo inspect); if it matches stagedDigest, sets phase=no_updates instead of available. Otherwise sets phase=available with size. Calls _applyUiState() and _refreshStatus()."
+      - name: _runWithProgress
+        description: "Creates progress-window (modal, transient_for this). Sets its command label and starts progress. Creates command-runner streaming to progress-window#appendOutput. Runs command (root:false). If withAuthRetry is true and result failed and collected output passes util#isAuthorizationError, retries with root:true (pkexec prepended). If result.success and onSuccess provided, awaits onSuccess(progressWin). Returns result."
+      - name: _promoteToStable
+        description: "Shows confirm dialog. On confirm: runs /usr/bin/borshevik-promote-to-stable <digest> <variant> via _runWithProgress (withAuthRetry:false). Shows info dialog on success."
+  - name: progress-window
+    type: @View
+    src: build_files/root/usr/share/borshevik-image-manager/progress_window.js
+    signals:
+      - name: operation-complete
+        description: "Emitted by stopProgress(). Carries a boolean 'success' parameter. Received by the caller to know whether to proceed with onSuccess logic."
+      - name: operation-cancelled
+        description: Emitted when the cancel button is clicked, before force_exit() is called on the runner.
+    components:
+      - name: command-label
+        type: @Label
+        label: (the command string being run, e.g. "rpm-ostree update")
+        description: CSS class caption. Set by setCommand(argv).
+      - name: progress-bar
+        type: @ProgressBar
+        description: "Starts at 0, pulses every 80ms while running (indeterminate). Switches to deterministic fraction when appendOutput detects a [N/M] or (N/M) pattern in the output. Set to 1.0 by stopProgress()."
+      - name: cancel-button
+        type: @Button
+        label: "Cancel"
+        description: "Enabled during operation. On click: emits operation-cancelled, disables itself, calls runner.cancel()."
+      - name: terminal
+        type: @LongText
+        description: "Vte.Terminal instance. Receives output via appendOutput() which feeds text as CRLF (replaces \\n with \\r\\n). Paired with a plain Gtk.Scrollbar attached to the terminal's own vadjustment (VTE implements GtkScrollable; do NOT wrap in ScrolledWindow)."
+      - name: close-button
+        type: @Button
+        label: "Close"
+        disabled: (while operation is running)
+        description: Enabled by stopProgress(). On click: closes the window.
+    functions:
+      - name: startProgress
+        description: "Resets VTE terminal. Sets progress to 0. Starts an 80ms GLib timeout that calls progress.pulse() (GLib.SOURCE_CONTINUE) for indeterminate animation. Enables cancel-button, disables close-button."
+      - name: stopProgress
+        description: "Removes the pulse timer. Sets progress to 1.0. Disables cancel-button, enables close-button. Emits 'operation-complete' with success flag."
+      - name: appendOutput
+        description: "Feeds text to VTE replacing \\n with \\r\\n. Calls _parseProgress(text) to detect [N/M] or (N/M) patterns; if found, sets progress to N/M fraction and removes the pulse timer."
+  - name: settings-window
+    type: @View
+    src: build_files/root/usr/share/borshevik-image-manager/settings_window.js
+    signals:
+      - name: rebase-done
+        description: Emitted after a successful rpm-ostree rebase. Received by main-window to trigger _refreshStatus().
+    components:
+      - name: image-url-preview
+        type: @Input
+        label: "Image URL"
+        description: "Read-only (editable:false, can_focus:false). Shows the computed target ref string, e.g. 'ostree-image-signed:docker://ghcr.io/komorebinator/borshevik:latest'. Updated reactively by _updateDerived() whenever variant or channel changes."
+      - name: variant-group
+        type: @View
+        description: Adw.PreferencesGroup titled 'Variant'. Contains two radio button rows.
+        components:
+          - name: standard-radio
+            type: @RadioButton
+            label: "Standard"
+            description: "Selects ghcr.io/komorebinator/borshevik as the base image. Part of a Gtk.CheckButton radio group."
+          - name: nvidia-radio
+            type: @RadioButton
+            label: "NVIDIA"
+            description: "Selects ghcr.io/komorebinator/borshevik-nvidia as the base image."
+      - name: channel-group
+        type: @View
+        description: Adw.PreferencesGroup titled 'Channel'. Contains three radio button rows.
+        components:
+          - name: latest-radio
+            type: @RadioButton
+            label: "Latest"
+            description: "Tags the target ref with ':latest'."
+          - name: stable-radio
+            type: @RadioButton
+            label: "Stable"
+            description: "Tags the target ref with ':stable'."
+          - name: custom-radio
+            type: @RadioButton
+            label: "Custom"
+            description: "Enables custom-tag-input; tags the target ref with the entered string."
+      - name: custom-tag-input
+        type: @Input
+        label: "Custom tag"
+        disabled: (when channel is not 'custom')
+        description: "Free-text entry for a custom image tag (e.g. a date string or branch name). Feeds into rpm-ostree#buildTargetRef as customTag."
+      - name: apply-button
+        type: @Button
+        label: "Apply"
+        disabled: (when settings are unchanged from initial state, or target ref is empty)
+        description: "In header bar. On click: runs 'rpm-ostree rebase <target>' via progress-window+command-runner; on auth error retries with pkexec. On success: closes both windows, emits 'rebase-done', calls util#requestRebootInteractive."
+      - name: reset-button
+        type: @Button
+        label: "Reset"
+        description: "In header bar. Restores current to initial state and re-syncs all UI widgets."
+    functions:
+      - name: _updateDerived
+        description: "Computes target ref from rpm-ostree#buildTargetRef(base, current.channel, current.customTag) where base is DEFAULT_STANDARD or DEFAULT_NVIDIA. Updates image-url-preview via _setPreviewText() (guarded by _settingText flag to prevent recursive changed signal). Shows/hides custom-tag-input based on channel==='custom'. Enables apply-button only when dirty (current ≠ initial via JSON.stringify) and target is non-empty. Appends '*' to window title when dirty."
+      - name: _inferInitialState
+        description: "Calls rpm-ostree#inferVariantAndChannelFromOrigin(origin). Maps 'nvidia' to 'nvidia', anything else to 'standard' (custom variant is not exposed in the UI). Returns {variant, channel, customTag}."
+  - name: rpm-ostree
+    type: @Singleton
+    src: build_files/root/usr/share/borshevik-image-manager/rpm_ostree.js
+    functions:
+      - name: runStatusJson
+        description: "Spawns rpm-ostree status --json with STDOUT_PIPE|STDERR_PIPE. Uses explicit communicate_utf8_async finish wrapper (avoids implicit GJS promisification). Checks proc.get_successful() (not just the communicate ok flag). On success: JSON.parses stdout, returns {ok:true, json, stdout}. On failure or exception: returns {ok:false, error, stdout}."
+      - name: parseStatusJson
+        description: "Extracts deployments array from json.deployments. Finds booted (d.booted===true), staged (d.staged===true), pending (d.pending===true). Finds rollback as the first deployment with d.rollback flag, or the first deployment that is neither booted, staged, nor pending — staged must not be mistaken for rollback. Returns {booted, staged, pending, rollback, deployments}."
+      - name: extractOrigin
+        description: "Returns deployment.origin ?? deployment['container-image-reference'] ?? deployment.container_image_reference ?? ''. Does NOT fall back to checksum — checksum is not an image reference."
+      - name: extractDigest
+        description: "Returns deployment['container-image-reference-digest'] ?? deployment.container_image_reference_digest ?? ''. If the value starts with 'sha256:', strips that prefix for display."
+      - name: extractBuildTime
+        description: "Returns deployment.timestamp ?? deployment['base-timestamp'] ?? deployment.base_timestamp ?? ''."
+      - name: extractTag
+        description: "Finds the last ':' and last '/' in ref. If ':' is after the last '/', returns the substring after ':' as the tag. Returns null for digest refs or refs without a tag-style colon."
+      - name: stripDockerTagIfPresent
+        description: "Returns ref unchanged if it contains '@sha256:'. Otherwise strips the trailing :tag using the same lastIndexOf logic as extractTag."
+      - name: buildTargetRef
+        description: "Strips any existing tag from baseRef. Selects tag: 'latest'→'latest', 'stable'→'stable', 'custom'→customTag string. Returns empty string if tag is blank. Returns '<base>:<tag>'."
+      - name: inferVariantAndChannelFromOrigin
+        description: "Lowercases origin. Checks for 'ghcr.io/komorebinator/borshevik-nvidia' (nvidia) or 'ghcr.io/komorebinator/borshevik' (standard); otherwise 'custom'. Extracts tag via extractTag: 'latest'→channel=latest, 'stable'→channel=stable, other→channel=custom with customTag set. Digest refs → channel=custom, empty customTag. Returns {variant, channel, customTag}."
+      - name: formatTimestamp
+        description: "String ISO timestamps matching YYYY-MM-DDThh:mm:ss[.ms]Z are normalized to 'YYYY-MM-DD hh:mm:ss' (strip fractional seconds, replace T with space, drop Z). Numeric timestamps >1e12 treated as milliseconds, otherwise as seconds; recursively formats via toISOString(). Unrecognized forms fall back to String(ts)."
+      - name: getRegistryDigest
+        description: "Spawns skopeo inspect --format '{{.Digest}}' docker://<dockerRef>. Returns the digest string (stripping 'sha256:' prefix) on success, or null on non-successful exit or exception."
+      - name: needsReboot
+        description: "Returns true if parsed.staged or parsed.pending is truthy."
+  - name: app-state
+    type: @Singleton
+    src: build_files/root/usr/share/borshevik-image-manager/app_state.js
+    functions:
+      - name: buildFacts
+        description: "Pure function. Arguments: {i18n, osRelease, parsed}. Extracts distroName from osRelease.NAME (fallback 'Borshevik'). Gets booted/staged/pending/rollback from parsed. Computes buildTime from rpm-ostree#extractBuildTime(booted) via rpm-ostree#formatTimestamp. Selects currentOrigin as the booted deployment field that has a tag (checks origin, container-image-reference, container_image_reference, and extractOrigin output). Extracts channel from tag or i18n.t('unknown'). Extracts and formats digest (prepends 'sha256:'). Infers variant name ('borshevik', 'borshevik-nvidia', or 'custom') via rpm-ostree#inferVariantAndChannelFromOrigin. Computes stagedDigest from staged deployment. Computes nextTime from staged/pending build time. Computes hasRollback (rollback exists and is not the booted deployment), rollbackTime. Returns flat facts object: {distroName, buildTime, channel, digest, variant, currentOrigin, needsReboot, stagedDigest, nextTime, hasRollback, rollbackTime}."
+      - name: computeUiState
+        description: "Pure function. Arguments: {i18n, facts, check}. showCheckSpinner = check.phase==='checking'. primaryMode = 'update' only when check.phase==='available'; otherwise 'check'. statusText: 'updates available + size' when available; 'update pending reboot' when needsReboot and no new update; 'no new updates' when no_updates; 'error: <message>' when error phase; empty otherwise. Returns {showCheckSpinner, primaryMode, primaryLabel, statusText}."
+  - name: command-runner
+    type: @Singleton
+    src: build_files/root/usr/share/borshevik-image-manager/command_runner.js
+    functions:
+      - name: run
+        description: "If root:true, prepends pkexec to argv. Creates Gio.SubprocessLauncher with STDOUT_PIPE|STDERR_PIPE; sets TERM=xterm env var. Spawns the process. Wraps stdout and stderr in Gio.DataInputStream. Runs two concurrent read loops (readLoop): each calls read_line_async via an explicit async/finish wrapper (avoids GJS implicit promisification differences across versions) until null is returned; calls onStdout/onStderr per decoded line. Waits for process exit via explicit wait_async/finish wrapper (avoids the GJS race condition where get_exit_status() triggers 'pid == 0' assertion when using implicit promisification). After exit is confirmed, drains both read loops with Promise.allSettled. Calls onExit({success, status}) in finally. Returns {success, status}."
+      - name: cancel
+        description: "Calls proc.force_exit() on the current _proc if set. Errors during force_exit are logged to console but not propagated."
+  - name: util
+    type: @Singleton
+    src: build_files/root/usr/share/borshevik-image-manager/util.js
+    functions:
+      - name: readOsRelease
+        description: "Reads /etc/os-release as bytes via GLib.file_get_contents. Parses KEY=VALUE and KEY='VALUE' lines with a regex; strips surrounding single or double quotes. Returns a plain key/value object. Returns {} on any read or parse error."
+      - name: pickLogoCandidates
+        description: "Returns an ordered array of paths to check for the distro logo: borshevik_logo.svg → borshevik_logo.png → borshevik-logo.svg → borshevik-logo.png → fedora-logo-icon.svg → fedora-logo-icon.png, all under /usr/share/pixmaps/."
+      - name: firstExistingPath
+        description: "Iterates a paths array; returns the first path that passes GLib.file_test(p, GLib.FileTest.EXISTS). Returns null if none exist."
+      - name: requestRebootInteractive
+        description: "Calls org.gnome.SessionManager D-Bus method 'Reboot' on the session bus via an explicit callback wrapper. If the error message contains 'cancel' (user dismissed GNOME's reboot dialog), returns silently — does NOT fall back to any other mechanism, to avoid rebooting on cancel. Any other D-Bus error is rethrown."
+      - name: isAuthorizationError
+        description: "Returns true if text (lowercased) contains any of: 'not authorized', 'authentication is required', 'authentication required', 'polkit', 'permission denied'."
+      - name: runCommandCapture
+        description: "Spawns argv with STDOUT_PIPE|STDERR_PIPE. Awaits communicate_utf8_async via explicit callback wrapper. Returns {success, exitStatus, stdout, stderr}."
+  - name: launcher
+    type: @ShellScript
+    src: build_files/root/usr/bin/borshevik-image-manager
+    functions:
+      - name: run
+        description: "Exec gjs /usr/share/borshevik-image-manager/main.js, passing all arguments through."
+  - name: promote-to-stable
+    type: @ShellScript
+    src: build_files/root/usr/bin/borshevik-promote-to-stable
+    functions:
+      - name: run
+        description: "Positional args: digest (sha256:...) and variant (borshevik | borshevik-nvidia). Triggers promote-image-to-stable.yml GitHub Actions workflow on komorebinator/borshevik via 'gh workflow run' with --ref main -f digest=<digest> -f variant=<variant>. Waits 5s. Fetches the latest run ID via 'gh run list --workflow promote-image-to-stable.yml --limit 1 --json databaseId -q .[0].databaseId'. Exits with error if no run ID. Streams live progress via 'gh run watch <run_id> --exit-status'. Called by main-window's promote-to-stable action."
+  - name: i18n
+    type: @Singleton
+    src:
+      - build_files/root/usr/share/borshevik-image-manager/i18n.js
+      - build_files/root/usr/share/borshevik-image-manager/i18n/en.json
+      - build_files/root/usr/share/borshevik-image-manager/i18n/ru.json
+      - build_files/root/usr/share/borshevik-image-manager/i18n/uk.json
+      - build_files/root/usr/share/borshevik-image-manager/i18n/ka.json
+      - build_files/root/usr/share/borshevik-image-manager/i18n/hy.json
+      - build_files/root/usr/share/borshevik-image-manager/i18n/be.json
+    functions:
+      - name: constructor
+        description: "Reads en.json from baseDir. Detects locale via LANGUAGE > LC_ALL > LC_MESSAGES > LANG env var chain; takes the first colon-separated segment; extracts the two-letter language code via regex. If locale differs from 'en', loads <locale>.json; on read or parse failure falls back to {}."
+      - name: t
+        description: "Looks up key in _dict (locale-specific), falls back to _en, falls back to key itself as the default string."

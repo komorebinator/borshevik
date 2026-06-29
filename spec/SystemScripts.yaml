@@ -1,9 +1,0 @@
-name: SystemScripts
-description: Runtime shell utilities installed into the image filesystem — CLI tools in /usr/bin and internal scripts in /usr/libexec/borshevik/.
-extends: @DuckspecProject
-uses:
-  - ../duckspec/Duckspec.yaml
-settings:
-  terms_folder: SystemScripts/
-software:
-  - extends: @RuntimeScripts

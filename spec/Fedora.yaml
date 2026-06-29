@@ -1,0 +1,8 @@
+name: Fedora
+description: Fedora Linux platform terms — D-Bus, Flatpak, RPM, and other Fedora-specific concepts used in Borshevik.
+extends: @DuckspecProject
+uses:
+  - ../duckspec/Duckspec.yaml
+settings:
+  terms_folder: Fedora/
+  src: ..

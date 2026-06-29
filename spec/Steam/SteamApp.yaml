@@ -1,0 +1,12 @@
+name: SteamApp
+description: Steam gaming client as integrated in Borshevik — installed via rpm-ostree from RPM Fusion nonfree at image build time.
+extends: @Software
+platform: RPM
+src: build_files/scripts/install-steam.sh
+components:
+  - name: installer
+    type: @ShellScript
+    src: build_files/scripts/install-steam.sh
+    functions:
+      - name: run
+        description: "Installs Steam via rpm-ostree, enabling RPM Fusion nonfree repo if needed."

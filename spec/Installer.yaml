@@ -5,5 +5,6 @@ uses:
   - ../duckspec/Duckspec.yaml
 settings:
   terms_folder: Installer/
+  src: ..
 software:
-  - extends: @IsoInstaller
+  - @IsoInstaller

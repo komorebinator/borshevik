@@ -3,16 +3,10 @@ description: GJS/GTK4+libadwaita application for managing the Borshevik OS image
 extends: @DuckspecProject
 uses:
   - ../duckspec/Duckspec.yaml
+  - ../Fedora.yaml
 settings:
   terms_folder: ImageManager/
+  src: ..
   readme: ../README.md
 software:
-  - extends: @ImageManagerApp
-  - extends: @MainWindow
-  - extends: @ProgressWindow
-  - extends: @SettingsWindow
-  - extends: @RpmOstree
-  - extends: @AppState
-  - extends: @CommandRunner
-  - extends: @Util
-  - extends: @ImageManagerTranslations
+  - @ImageManagerApp

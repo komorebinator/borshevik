@@ -1,168 +1,77 @@
 name: SystemConfig
-description: Configuration and data files copied into the image filesystem at build time (via COPY build_files/root/ /). Covers container policy, polkit rules, audio config, GNOME setup, Chrome policy, systemd units, desktop files, and branding assets.
+description: Configuration and data files copied into the image filesystem at build time (via COPY build_files/root/ /). Covers container signature policy, audio config, desktop entries, icons, branding assets, and OS release metadata.
 extends: @Software
-platform: systemd / GLib / Podman / GNOME
+platform: Podman / WirePlumber / GNOME
 src: build_files/root/
 components:
   - name: container-policy
     type: @ConfigFile
     src: build_files/root/etc/containers/policy.json
-    functions:
-      - name: configure
-        description: "Container image signature verification policy for Podman/bootc. Configures the 'default' transport to require Sigstore signatures verified against /etc/pki/containers/cosign.pub. Enforces that every 'rpm-ostree rebase' or 'bootc switch' to ghcr.io/komorebinator/* must be signed by the Borshevik cosign key."
+    description: "Container image signature verification policy for Podman/bootc. Configures the 'default' transport to require Sigstore signatures verified against /etc/pki/containers/cosign.pub. Enforces that every 'rpm-ostree rebase' or 'bootc switch' to ghcr.io/komorebinator/* must be signed by the Borshevik cosign key."
   - name: container-registry-sigstore
     type: @ConfigFile
     src: build_files/root/etc/containers/registries.d/borshevik.yaml
-    functions:
-      - name: configure
-        description: "Per-registry Sigstore verification config for ghcr.io/komorebinator. Points to the lookaside bundle location for signature storage."
-  - name: gnome-initial-setup
-    type: @ConfigFile
-    src: build_files/root/etc/gnome-initial-setup/vendor.conf
-    functions:
-      - name: configure
-        description: "Disables the GNOME Initial Setup 'Software' welcome page so that new users are not prompted to install apps via GNOME Software on first login (the App Manager replaces this flow)."
-  - name: hiddify-polkit
-    type: @ConfigFile
-    src: build_files/root/etc/polkit-1/rules.d/50-hiddify.rules
-    functions:
-      - name: configure
-        description: "Polkit rule that allows Hiddify to call resolvectl (systemd-resolved DNS configuration) without prompting the user for a password. Required because Hiddify needs to set per-interface DNS servers for its VPN connections."
+    description: "Per-registry Sigstore verification config for ghcr.io/komorebinator. Points to the lookaside bundle location for signature storage."
   - name: wireplumber-no-autoswitch
     type: @ConfigFile
     src: build_files/root/etc/wireplumber/wireplumber.conf.d/50-disable-autoswitch.conf
-    functions:
-      - name: configure
-        description: "WirePlumber audio policy config. Disables automatic output device switching when a new audio device is plugged in, preventing headphone plug-in from interrupting ongoing playback."
-  - name: chrome-policy
-    type: @ConfigFile
-    src: build_files/root/usr/etc/opt/chrome/policies/managed/borshevik.json
-    functions:
-      - name: configure
-        description: "Chrome managed policy JSON applied system-wide. Configures Chrome settings that are enforced for all users (e.g. sync, telemetry, or update settings appropriate for an immutable OS)."
+    description: "WirePlumber audio policy config. Disables automatic output device switching when a new audio device is plugged in, preventing headphone plug-in from interrupting ongoing playback."
   - name: os-release
     type: @ConfigFile
     src: build_files/root/usr/lib/os-release
-    functions:
-      - name: configure
-        description: "Template os-release file with Borshevik branding: NAME='Borshevik', ID='borshevik', ID_LIKE='fedora', HOME_URL, DOCUMENTATION_URL, SUPPORT_URL, BUG_REPORT_URL. The os-info.sh build script overwrites this with the final values including VERSION_ID."
-  - name: setup-kargs-service
-    type: @SystemdUnit
-    src: build_files/root/usr/lib/systemd/system/setup-kargs.service
-    unit_type: service
-    scope: system
-    triggers: boot — Before=display-manager.service, ConditionKernelCommandLine not in recovery mode
-    executes: /usr/libexec/borshevik/setup-kargs.sh
-    functions:
-      - name: configure
-        description: "Oneshot service. Reboots the system if kernel args were changed. Runs once per boot via systemd's exec/reboot cycle."
-  - name: setup-ublue-mok-service
-    type: @SystemdUnit
-    src: build_files/root/usr/lib/systemd/system/setup-ublue-mok.service
-    unit_type: service
-    scope: system
-    triggers: boot
-    executes: /usr/libexec/borshevik/setup-ublue-mok.sh
-    functions:
-      - name: configure
-        description: "Oneshot service. Enrolls the uBlue MOK key for NVIDIA Secure Boot. Only active on borshevik-nvidia."
-  - name: app-manager-first-run-service
-    type: @SystemdUnit
-    src: build_files/root/usr/lib/systemd/user/borshevik-app-manager-first-run.service
-    unit_type: service
-    scope: user
-    triggers: login — enabled globally via 90-borshevik.preset
-    executes: borshevik-app-manager-first-run
-    functions:
-      - name: configure
-        description: "Runs borshevik-app-manager-first-run on login. Opens the App Manager exactly once per user (stamp file check in the script)."
-  - name: gnome-watchdog-service
-    type: @SystemdUnit
-    src: build_files/root/usr/lib/systemd/user/borshevik-kill-gnome-if-hung.service
-    unit_type: service
-    scope: user
-    triggers: gnome-watchdog-timer
-    executes: /usr/libexec/borshevik/borshevik-kill-gnome-if-hung.sh
-    functions:
-      - name: configure
-        description: "Oneshot service. Runs the GNOME Shell watchdog script when triggered by the timer."
-  - name: gnome-watchdog-timer
-    type: @SystemdUnit
-    src: build_files/root/usr/lib/systemd/user/borshevik-kill-gnome-if-hung.timer
-    unit_type: timer
-    scope: user
-    triggers: OnBootSec=1min, OnUnitActiveSec=1min
-    executes: ""
-  - name: user-preset
-    type: @ConfigFile
-    src: build_files/root/usr/lib/systemd/user-preset/90-borshevik.preset
-    functions:
-      - name: configure
-        description: "Preset file that enables borshevik-app-manager-first-run.service and borshevik-kill-gnome-if-hung.timer globally for all users via 'systemctl --global preset-all' semantics."
+    description: "Template os-release file with Borshevik branding: NAME='Borshevik', ID='borshevik', ID_LIKE='fedora', HOME_URL, DOCUMENTATION_URL, SUPPORT_URL, BUG_REPORT_URL. The os-info.sh build script overwrites this with the final values including VERSION_ID."
   - name: app-manager-desktop
     type: @ConfigFile
     src: build_files/root/usr/share/applications/org.borshevik.AppManager.desktop
-    functions:
-      - name: configure
-        description: "XDG desktop entry for the App Manager. Name='Borshevik App Manager', Exec=borshevik-app-manager, Icon=org.borshevik.AppManager, Categories=System. Makes the app visible in GNOME application launcher."
+    description: "XDG desktop entry for the App Manager. Name='Borshevik App Manager', Exec=borshevik-app-manager, Icon=org.borshevik.AppManager, Categories=System. Makes the app visible in GNOME application launcher."
   - name: image-manager-desktop
     type: @ConfigFile
     src: build_files/root/usr/share/applications/org.borshevik.ImageManager.desktop
-    functions:
-      - name: configure
-        description: "XDG desktop entry for the Image Manager. Name='Borshevik Image Manager', Exec=borshevik-image-manager, Icon=org.borshevik.ImageManager, Categories=System."
-  - name: hiddify-desktop
-    type: @ConfigFile
-    src: build_files/root/usr/share/applications/Hiddify.desktop
-    functions:
-      - name: configure
-        description: "XDG desktop entry for Hiddify VPN client. Exec=hiddify (the wrapper script). Replaces the .desktop file from the Debian package, pointing at the wrapper instead of the binary directly."
+    description: "XDG desktop entry for the Image Manager. Name='Borshevik Image Manager', Exec=borshevik-image-manager, Icon=org.borshevik.ImageManager, Categories=System."
   - name: app-manager-icon
     type: @Graphic
     src: build_files/root/usr/share/icons/hicolor/scalable/apps/org.borshevik.AppManager.svg
     format: SVG
     role: app-icon
-    alt: Borshevik App Manager application icon
+    description: App icon for the App Manager shown in GNOME launcher and taskbar.
   - name: image-manager-icon
     type: @Graphic
     src: build_files/root/usr/share/icons/hicolor/scalable/apps/org.borshevik.ImageManager.svg
     format: SVG
     role: app-icon
-    alt: Borshevik Image Manager application icon
+    description: App icon for the Image Manager shown in GNOME launcher and taskbar.
   - name: borshevik-logo
     type: @Graphic
     src: build_files/root/usr/share/pixmaps/borshevik_logo.svg
     format: SVG
     role: logo
-    alt: Borshevik distro logo, used by the Image Manager as the main header image
+    description: Primary distro logo shown in the Image Manager header and GDM login screen.
   - name: borshevik-logo-dark
     type: @Graphic
     src: build_files/root/usr/share/pixmaps/borshevik_logo_dark.svg
     format: SVG
     role: logo
-    alt: Dark-background variant of the Borshevik logo; reserved for future use — not currently in Util#pickLogoCandidates
+    description: Dark-background variant of the distro logo; reserved for future use.
   - name: fedora-logo
     type: @Graphic
     src: build_files/root/usr/share/pixmaps/fedora_logo_med.png
     format: PNG
     role: placeholder
-    alt: Fedora logo; fallback shown by the Image Manager if no Borshevik logo is found
+    description: Fedora logo fallback shown by the Image Manager when no Borshevik logo is found.
   - name: fedora-logo-white
     type: @Graphic
     src: build_files/root/usr/share/pixmaps/fedora_whitelogo_med.png
     format: PNG
     role: placeholder
-    alt: White Fedora logo variant; fallback for dark backgrounds
+    description: White Fedora logo fallback for dark backgrounds.
   - name: plymouth-watermark
     type: @Graphic
     src: build_files/root/usr/share/plymouth/themes/spinner/watermark.png
     format: PNG
     role: splash
-    alt: Borshevik watermark shown during boot by the Plymouth spinner theme
+    description: Watermark shown by Plymouth during boot splash.
   - name: cosign-key
     type: @PublicKey
     src: cosign.pub
     path: /etc/pki/containers/cosign.pub
-    functions:
-      - name: configure
-        description: "Cosign public key used to verify Sigstore signatures on Borshevik OCI images. Copied into the image by the Containerfile; referenced by container-policy and container-registry-sigstore to enforce that all rpm-ostree rebase and bootc switch operations to ghcr.io/komorebinator/* must be signed."
+    description: "Cosign public key used to verify Sigstore signatures on Borshevik OCI images. Copied into the image by the Containerfile; referenced by container-policy and container-registry-sigstore to enforce that all rpm-ostree rebase and bootc switch operations to ghcr.io/komorebinator/* must be signed."

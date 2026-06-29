@@ -3,19 +3,26 @@ description: An immutable, laptop-first desktop image built on Fedora Atomic and
 extends: @DuckspecProject
 uses:
   - ../duckspec/Duckspec.yaml
+  - Fedora.yaml
   - AppManager.yaml
   - ImageManager.yaml
   - BuildPipeline.yaml
-  - Systemd.yaml
-  - Gnome.yaml
+  - BorshevikShellExtensions.yaml
+  - BorshevikShellCustomizations.yaml
+  - Hiddify.yaml
+  - BorshevikServices.yaml
+  - GoogleChrome.yaml
+  - Steam.yaml
   - Installer.yaml
-  - SystemScripts.yaml
 software:
-  - extends: @SystemConfig
-  - extends: @RepositoryAssets
+  - @SystemConfig
+  - @RepositoryAssets
 startup:
   - load
+workflow:
+  type: @GitHubWorkflow
 settings:
   terms_folder: Borshevik/
   readme: ../README.md
+  src: ..
   agents: AGENTS.md

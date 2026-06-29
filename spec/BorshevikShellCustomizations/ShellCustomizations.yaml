@@ -1,0 +1,67 @@
+name: ShellCustomizations
+description: System-wide GNOME Shell customizations installed at image build time via dconf profiles and GSettings schema overrides.
+extends: @Software
+platform: bash + dconf + GSettings
+src: build_files/scripts/
+components:
+  - name: apply-schemas
+    type: @ShellScript
+    src: build_files/scripts/apply-schemas.sh
+    functions:
+      - name: run
+        description: "Copies *.gschema.override files from build_files/scripts/schemas/ to /usr/share/glib-2.0/schemas/ and runs glib-compile-schemas. Overrides set system-wide GNOME defaults: pink accent color, dark theme, disabled hot corners, dock favorites (Chrome/Telegram/Nautilus/Calendar/Secrets/Steam/GNOME Software), touchpad settings, window button layout."
+  - name: apply-dconf
+    type: @ShellScript
+    src: build_files/scripts/apply-dconf.sh
+    functions:
+      - name: run
+        description: "Copies dconf profile files from build_files/scripts/dconf/ to /etc/dconf/ and runs dconf update. Installs system-wide GNOME defaults: Adwaita dark theme, app folders in GNOME Overview, Super+1–9 switch workspace / Shift+Super+1–9 move window / Super+Space switch input source keybindings, GDM login screen settings."
+  - name: gdm-dconf
+    type: @ConfigFile
+    format: dconf
+    src: build_files/scripts/dconf/gdm.d/gdm
+    description: "GDM login screen dconf overrides under [org/gnome/login-screen]: logo='/usr/share/pixmaps/borshevik_logo.svg'. Under [org/gnome/desktop/peripherals/touchpad]: tap-to-click=true, click-method='areas', two-finger-scrolling-enabled=true. Under [org/gnome/desktop/interface]: accent-color='pink'."
+  - name: dark-by-default-dconf
+    type: @ConfigFile
+    format: dconf
+    src: build_files/scripts/dconf/local.d/00-dark-by-default
+    description: "System-wide dconf defaults under [org/gnome/desktop/interface]: color-scheme='prefer-dark', gtk-theme='adw-gtk3-dark'."
+  - name: app-folders-dconf
+    type: @ConfigFile
+    format: dconf
+    src: build_files/scripts/dconf/local.d/00-enable-app-folders
+    description: "System-wide dconf defaults for GNOME app folders. Sets folder-children=['system','utilities','borshevik']. 'system' maps to System-Tools.directory (categories: System, Settings). 'utilities' maps to Utilities.directory (categories: Utility, Utilities). 'borshevik' is a non-translated folder containing org.borshevik.ImageManager.desktop and org.borshevik.AppManager.desktop."
+  - name: hotkeys-dconf
+    type: @ConfigFile
+    format: dconf
+    src: build_files/scripts/dconf/local.d/00-hotkeys
+    description: "System-wide dconf keybinding defaults. Clears switch-to-application-1..10 (frees Super+1–9 from app switching). Sets switch-to-workspace-1..10 to Super+1..0. Sets move-to-workspace-1..10 to Shift+Super+1..0. Sets switch-input-source to [Super+Space, Shift+Super+F23]."
+  - name: disable-hot-corners-schema
+    type: @ConfigFile
+    format: GSettings override
+    src: build_files/scripts/schemas/90-disable-hot-corners.gschema.override
+    description: "GSettings override for [org.gnome.desktop.interface]: enable-hot-corners=false."
+  - name: favorites-schema
+    type: @ConfigFile
+    format: GSettings override
+    src: build_files/scripts/schemas/90-favorites.gschema.override
+    description: "GSettings override for [org.gnome.shell]: favorite-apps=['google-chrome.desktop','org.telegram.desktop.desktop','org.gnome.Nautilus.desktop','org.gnome.Calendar.desktop','org.gnome.World.Secrets.desktop','steam.desktop','org.gnome.Software.desktop']."
+  - name: pink-by-default-schema
+    type: @ConfigFile
+    format: GSettings override
+    src: build_files/scripts/schemas/90-pink-by-default.gschema.override
+    description: "GSettings override for [org.gnome.desktop.interface]: accent-color='pink'."
+  - name: touchpad-schema
+    type: @ConfigFile
+    format: GSettings override
+    src: build_files/scripts/schemas/90-touchpad.gschema.override
+    description: "GSettings override for [org.gnome.desktop.peripherals.touchpad]: tap-to-click=true, click-method='areas', two-finger-scrolling-enabled=true."
+  - name: wm-button-layout-schema
+    type: @ConfigFile
+    format: GSettings override
+    src: build_files/scripts/schemas/90-wm-button-layout.gschema.override
+    description: "GSettings override for [org.gnome.desktop.wm.preferences]: button-layout='appmenu:minimize,maximize,close'."
+  - name: gnome-initial-setup
+    type: @ConfigFile
+    src: build_files/root/etc/gnome-initial-setup/vendor.conf
+    description: "Disables the GNOME Initial Setup 'Software' welcome page so that new users are not prompted to install apps via GNOME Software on first login (the App Manager replaces this flow)."

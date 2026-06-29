@@ -1,0 +1,11 @@
+name: BorshevikServices
+description: Borshevik-specific systemd services — kernel argument setup, MOK enrollment, App Manager first-run, and GNOME Shell watchdog.
+extends: @DuckspecProject
+uses:
+  - ../duckspec/Duckspec.yaml
+  - Fedora.yaml
+settings:
+  terms_folder: BorshevikServices/
+  src: ..
+software:
+  - @Services

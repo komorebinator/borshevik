@@ -1,0 +1,5 @@
+name: GnomeShell
+description: GNOME Shell — the graphical shell and window manager for the GNOME desktop environment. Hosts GNOME Shell extensions.
+extends: @Application
+platform: JavaScript (GJS)
+repository: https://gitlab.gnome.org/GNOME/gnome-shell

@@ -1,0 +1,10 @@
+name: BorshevikShellCustomizations
+description: System-wide GNOME Shell customizations applied at image build time — dconf profiles, GSettings schema overrides, and GDM configuration.
+extends: @DuckspecProject
+uses:
+  - ../duckspec/Duckspec.yaml
+settings:
+  terms_folder: BorshevikShellCustomizations/
+  src: ..
+software:
+  - @ShellCustomizations

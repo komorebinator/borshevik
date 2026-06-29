@@ -1,0 +1,86 @@
+name: Services
+description: Borshevik systemd services and their associated scripts installed at image build time.
+extends: @Software
+platform: systemd / bash
+src: build_files/root/usr/lib/systemd/
+components:
+  - name: kernel-args
+    type: @Singleton
+    description: Ensures required kernel arguments are set on first boot. Runs once per boot; reboots automatically if args were missing.
+    components:
+      - name: script
+        type: @ShellScript
+        src: build_files/root/usr/libexec/borshevik/setup-kargs.sh
+        functions:
+          - name: run
+            description: "NEEDED_ARGS starts with 'preempt=full'. If nvidia-driver RPM is installed (rpm -q), appends nvidia-drm.modeset=1, modprobe.blacklist=nouveau, modprobe.blacklist=nova_core, rd.driver.blacklist=nova_core. Reads /proc/cmdline into CMDLINE_ARGS array. Computes MISSING_ARGS = NEEDED_ARGS not in CMDLINE_ARGS. If both MISSING_ARGS and REMOVE_ARGS are empty, exits 0. Otherwise shows a plymouth message, calls rpm-ostree kargs with all --append=<arg> and --delete=<arg> in a single invocation, then calls systemctl reboot."
+      - name: service
+        type: @SystemdUnit
+        src: build_files/root/usr/lib/systemd/system/setup-kargs.service
+        unit_type: service
+        scope: system
+        triggers: boot — Before=display-manager.service, ConditionKernelCommandLine not in recovery mode
+        executes: /usr/libexec/borshevik/setup-kargs.sh
+        description: "Oneshot service. Reboots the system if kernel args were changed. Runs once per boot via systemd's exec/reboot cycle."
+  - name: mok-enrollment
+    type: @Singleton
+    description: Enrolls the uBlue MOK key for NVIDIA Secure Boot on first boot.
+    components:
+      - name: script
+        type: @ShellScript
+        src: build_files/root/usr/libexec/borshevik/setup-ublue-mok.sh
+        functions:
+          - name: run
+            description: "Enrolls the uBlue MOK (Machine Owner Key) for NVIDIA Secure Boot. Checks if the key is already enrolled; if not, calls mokutil --import and schedules a reboot for the user to confirm in the UEFI MOK manager."
+      - name: service
+        type: @SystemdUnit
+        src: build_files/root/usr/lib/systemd/system/setup-ublue-mok.service
+        unit_type: service
+        scope: system
+        triggers: boot
+        executes: /usr/libexec/borshevik/setup-ublue-mok.sh
+        description: "Oneshot service. Enrolls the uBlue MOK key for NVIDIA Secure Boot. Only active on borshevik-nvidia."
+  - name: app-manager-first-run
+    type: @SystemdUnit
+    src: build_files/root/usr/lib/systemd/user/borshevik-app-manager-first-run.service
+    unit_type: service
+    scope: user
+    triggers: login — enabled globally via user-preset
+    executes: borshevik-app-manager-first-run
+    description: "Runs borshevik-app-manager-first-run on login. Opens the App Manager exactly once per user (stamp file check in the script)."
+  - name: gnome-watchdog
+    type: @Singleton
+    description: Detects and restarts a hung GNOME Shell process. Runs every minute via a user-level timer.
+    components:
+      - name: script
+        type: @ShellScript
+        src: build_files/root/usr/libexec/borshevik/borshevik-kill-gnome-if-hung.sh
+        functions:
+          - name: run
+            description: "Calls gdbus to query org.gnome.Shell ShellVersion with a 10s timeout. If the call times out or fails: uses pgrep -u $USER -x gnome-shell to find GNOME Shell PIDs. If any found: sends SIGTERM; waits 2s (GRACE period); if still running, sends SIGKILL. Runs every 1 minute via the watchdog timer."
+      - name: service
+        type: @SystemdUnit
+        src: build_files/root/usr/lib/systemd/user/borshevik-kill-gnome-if-hung.service
+        unit_type: service
+        scope: user
+        triggers: gnome-watchdog#timer
+        executes: /usr/libexec/borshevik/borshevik-kill-gnome-if-hung.sh
+        description: "Oneshot service. Runs the GNOME Shell watchdog script when triggered by the timer."
+      - name: timer
+        type: @SystemdUnit
+        src: build_files/root/usr/lib/systemd/user/borshevik-kill-gnome-if-hung.timer
+        unit_type: timer
+        scope: user
+        triggers: OnBootSec=1min, OnUnitActiveSec=1min
+        executes: ""
+        description: "Fires gnome-watchdog#service every minute starting 1 minute after boot."
+  - name: enable-services
+    type: @ShellScript
+    src: build_files/scripts/enable-services.sh
+    functions:
+      - name: run
+        description: "Enables systemd system units (setup-kargs.service, setup-ublue-mok.service) and user units globally (borshevik-app-manager-first-run.service, borshevik-kill-gnome-if-hung.service and .timer) via systemctl enable and systemctl --global enable. Run at image build time from build-addons.sh."
+  - name: user-preset
+    type: @ConfigFile
+    src: build_files/root/usr/lib/systemd/user-preset/90-borshevik.preset
+    description: "Preset file that enables app-manager-first-run and gnome-watchdog#timer globally for all users via 'systemctl --global preset-all' semantics."

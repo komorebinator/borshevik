@@ -5,8 +5,9 @@ uses:
   - ../duckspec/Duckspec.yaml
 settings:
   terms_folder: BuildPipeline/
+  src: ..
 guidelines:
   - "The build is split into two layers. Base layer (borshevik-base, borshevik-base-nvidia): installs RPM packages, Chrome, Steam, and NVIDIA drivers. Final layer (borshevik, borshevik-nvidia): installs Hiddify, GNOME extensions, config files, and the GJS apps. The base layer rebuilds daily via cron to pull in upstream RPM updates; the final layer rebuilds on every push to main and depends on the already-built base, keeping the push-triggered build fast."
 software:
-  - extends: @ImageBuild
-  - extends: @CiCd
+  - @ImageBuild
+  - @CiCd

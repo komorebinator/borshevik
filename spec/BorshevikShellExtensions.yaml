@@ -1,0 +1,11 @@
+name: BorshevikShellExtensions
+description: GNOME Shell extensions installed in Borshevik at image build time — the installer script, extension manifest, patches, and custom build scripts.
+extends: @DuckspecProject
+uses:
+  - ../duckspec/Duckspec.yaml
+  - Fedora.yaml
+settings:
+  terms_folder: BorshevikShellExtensions/
+  src: ..
+software:
+  - @GnomeExtensions

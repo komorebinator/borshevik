@@ -1,0 +1,16 @@
+name: GoogleChromeApp
+description: Google Chrome browser as integrated in Borshevik — installed from the official Google RPM repository at image build time, with a system-wide managed policy enforced via Chrome's JSON policy mechanism.
+extends: @Software
+platform: RPM / JSON
+src: build_files/scripts/install-google-chrome.sh
+components:
+  - name: installer
+    type: @ShellScript
+    src: build_files/scripts/install-google-chrome.sh
+    functions:
+      - name: run
+        description: "Adds the official Google Chrome RPM repository and installs google-chrome-stable via rpm-ostree."
+  - name: policy
+    type: @ConfigFile
+    src: build_files/root/usr/etc/opt/chrome/policies/managed/borshevik.json
+    description: "Chrome managed policy JSON applied system-wide. Configures Chrome settings that are enforced for all users (e.g. sync, telemetry, or update settings appropriate for an immutable OS)."

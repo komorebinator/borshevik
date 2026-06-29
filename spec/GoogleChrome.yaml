@@ -1,0 +1,10 @@
+name: GoogleChrome
+description: Google Chrome browser — RPM installation and system-wide managed policy for Borshevik.
+extends: @DuckspecProject
+uses:
+  - ../duckspec/Duckspec.yaml
+settings:
+  terms_folder: GoogleChrome/
+  src: ..
+software:
+  - @GoogleChromeApp

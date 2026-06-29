@@ -1,0 +1,10 @@
+name: Steam
+description: Steam gaming client — RPM installation from RPM Fusion for Borshevik.
+extends: @DuckspecProject
+uses:
+  - ../duckspec/Duckspec.yaml
+settings:
+  terms_folder: Steam/
+  src: ..
+software:
+  - @SteamApp

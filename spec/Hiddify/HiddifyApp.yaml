@@ -1,0 +1,26 @@
+name: HiddifyApp
+description: Hiddify VPN client as integrated in Borshevik — installed from a Debian package at build time, launched via a wrapper script that prevents duplicate instances, with a polkit rule for DNS configuration.
+extends: @Software
+platform: Linux (binary)
+src: build_files/scripts/install-hiddify.sh
+components:
+  - name: installer
+    type: @ShellScript
+    src: build_files/scripts/install-hiddify.sh
+    functions:
+      - name: run
+        description: "Fetches Hiddify release metadata from api.github.com/repos/hiddify/hiddify-app/releases/latest (or a specific HIDDIFY_VERSION tag); authenticates with GITHUB_TOKEN if set. Finds the asset matching 'Debian-x64.deb'. Downloads to a temp dir (cleaned via EXIT trap). Extracts with 'ar x' then 'tar xf data.tar.*'. Copies pkg/usr/share/hiddify/ to /usr/lib/hiddify/ (a glibc-trusted path, so $ORIGIN RUNPATH resolves in AT_SECURE mode). Copies icons. Patches RUNPATH of /usr/lib/hiddify/hiddify with patchelf --set-rpath <dest>/lib. Applies setcap cap_net_raw,cap_net_admin,cap_net_bind_service+eip to both hiddify and HiddifyCli binaries."
+  - name: wrapper
+    type: @ShellScript
+    src: build_files/root/usr/bin/hiddify
+    functions:
+      - name: run
+        description: "Checks if hiddify is already running via 'pgrep -x hiddify'. If not running, exec /usr/lib/hiddify/hiddify with all arguments. Prevents duplicate Hiddify instances."
+  - name: polkit-rule
+    type: @ConfigFile
+    src: build_files/root/etc/polkit-1/rules.d/50-hiddify.rules
+    description: "Polkit rule that allows Hiddify to call resolvectl (systemd-resolved DNS configuration) without prompting the user for a password. Required because Hiddify needs to set per-interface DNS servers for its VPN connections."
+  - name: desktop-entry
+    type: @ConfigFile
+    src: build_files/root/usr/share/applications/Hiddify.desktop
+    description: "XDG desktop entry for Hiddify VPN client. Exec=hiddify (the wrapper script). Replaces the .desktop file from the Debian package, pointing at the wrapper instead of the binary directly."

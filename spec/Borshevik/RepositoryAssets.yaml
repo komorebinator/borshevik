@@ -8,16 +8,16 @@ components:
     src: assets/borshevik_logo.svg
     format: SVG
     role: logo
-    alt: Source SVG of the Borshevik distro logo; used as the header image in README.md
+    description: Source SVG for the Borshevik distro logo used in README.md documentation.
   - name: download-button
     type: @Graphic
     src: assets/download.svg
     format: SVG
     role: branding
-    alt: Download button graphic for the standard Borshevik variant; used in README.md
+    description: Download button graphic linking to the standard Borshevik ISO in README.md.
   - name: download-button-nvidia
     type: @Graphic
     src: assets/download-nvidia.svg
     format: SVG
     role: branding
-    alt: Download button graphic for the NVIDIA Borshevik variant; used in README.md
+    description: Download button graphic linking to the NVIDIA Borshevik ISO in README.md.

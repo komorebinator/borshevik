@@ -1,9 +1,0 @@
-name: CommandRunner
-description: Async subprocess runner that streams stdout and stderr line-by-line via callbacks and supports cancellation via force_exit(). Each instance manages one subprocess at a time.
-extends: @Singleton
-src: build_files/root/usr/share/borshevik-image-manager/command_runner.js
-functions:
-  - name: run
-    description: "If root:true, prepends pkexec to argv. Creates Gio.SubprocessLauncher with STDOUT_PIPE|STDERR_PIPE; sets TERM=xterm env var. Spawns the process. Wraps stdout and stderr in Gio.DataInputStream. Runs two concurrent read loops (readLoop): each calls read_line_async via an explicit async/finish wrapper (avoids GJS implicit promisification differences across versions) until null is returned; calls onStdout/onStderr per decoded line. Waits for process exit via explicit wait_async/finish wrapper (avoids the GJS race condition where get_exit_status() triggers 'pid == 0' assertion when using implicit promisification). After exit is confirmed, drains both read loops with Promise.allSettled. Calls onExit({success, status}) in finally. Returns {success, status}."
-  - name: cancel
-    description: "Calls proc.force_exit() on the current _proc if set. Errors during force_exit are logged to console but not propagated."

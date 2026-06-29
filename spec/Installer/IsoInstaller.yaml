@@ -5,23 +5,17 @@ platform: TOML (image-builder config) + lorax templates (Anaconda)
 src: installer/
 components:
   - name: borshevik-toml
-    type: @Singleton
+    type: @ConfigFile
     src: borshevik.toml
-    functions:
-      - name: configure
-        description: "image-builder (TOML) config for the standard borshevik ISO. Sets name='borshevik-installer', distro='fedora-43'. Kickstart post-install script: 'bootc switch --mutate-in-place --transport ostree ref=borshevik'. Disk layout: clearpart --all --initlabel, autopart --type=lvm --fstype=ext4. Anaconda modules: enables Storage only; disables Network, Security, Services, Users, Subscription, Timezone — producing a single-step (disk selection) installer."
+    description: "image-builder (TOML) config for the standard borshevik ISO. Sets name='borshevik-installer', distro='fedora-43'. Kickstart post-install script: 'bootc switch --mutate-in-place --transport ostree ref=borshevik'. Disk layout: clearpart --all --initlabel, autopart --type=lvm --fstype=ext4. Anaconda modules: enables Storage only; disables Network, Security, Services, Users, Subscription, Timezone — producing a single-step (disk selection) installer."
   - name: borshevik-nvidia-toml
-    type: @Singleton
+    type: @ConfigFile
     src: borshevik-nvidia.toml
-    functions:
-      - name: configure
-        description: "Same structure as borshevik.toml but targets ghcr.io/komorebinator/borshevik-nvidia:latest and sets ref='borshevik-nvidia' in the kickstart post-install."
+    description: "Same structure as borshevik.toml but targets ghcr.io/komorebinator/borshevik-nvidia:latest and sets ref='borshevik-nvidia' in the kickstart post-install."
   - name: image-toml
-    type: @Singleton
+    type: @ConfigFile
     src: image.toml
-    functions:
-      - name: configure
-        description: "Bootc Image Builder (BIB) filesystem config. Sets a single filesystem customization: mountpoint='/', minsize='20 GiB'. Used by the Justfile's build-qcow2/build-iso targets."
+    description: "Bootc Image Builder (BIB) filesystem config. Sets a single filesystem customization: mountpoint='/', minsize='20 GiB'. Used by the Justfile's build-qcow2/build-iso targets."
   - name: bootc-switch
     type: @Script
     src: installer/lorax_templates/bootc-switch.tmpl

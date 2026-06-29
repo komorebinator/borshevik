@@ -1,0 +1,10 @@
+name: Hiddify
+description: Hiddify VPN client — installation, launcher wrapper, polkit permissions, and desktop entry.
+extends: @DuckspecProject
+uses:
+  - ../duckspec/Duckspec.yaml
+settings:
+  terms_folder: Hiddify/
+  src: ..
+software:
+  - @HiddifyApp
