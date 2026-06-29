@@ -1,6 +1,12 @@
 name: Borshevik
 description: An immutable, laptop-first desktop image built on Fedora Atomic and the uBlue ecosystem, designed to be simple to use and ready to go right after installation.
 extends: @DuckspecProject
+goals:
+  - Provide a ready-to-use Fedora Atomic desktop that requires no post-install configuration
+  - Keep the base system immutable and reproducible via OCI image builds
+  - Make OS updates and rollbacks safe and visible through the Image Manager
+  - Curate a minimal set of useful applications installable on first login via the App Manager
+  - Support both standard and NVIDIA hardware variants from the same build pipeline
 uses:
   - ../duckspec/Duckspec.yaml
   - Fedora.yaml
@@ -21,6 +27,9 @@ startup:
   - load
 workflow:
   type: @GitHubWorkflow
+versioning:
+  type: @CalVer
+  format: YYYY.MM.DD
 settings:
   terms_folder: Borshevik/
   readme: ../README.md

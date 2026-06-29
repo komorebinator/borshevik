@@ -29,14 +29,10 @@ components:
       - name: run
         description: "Triggered by workflow_dispatch with required inputs: variant (borshevik or borshevik-nvidia) and digest (sha256:... hex string). Validates digest format with regex ^sha256:[0-9a-f]{64}$. Logs into GHCR. Runs 'docker buildx imagetools create --tag ghcr.io/<owner>/<variant>:stable ghcr.io/<owner>/<variant>@<digest>' to create/update the :stable tag pointing to the given digest (no data copy, manifest-only). Fetches the resulting stable tag's manifest digest. Signs that manifest digest with cosign using SIGNING_SECRET. Triggered by borshevik-promote-to-stable CLI script."
   - name: dependabot
-    type: @Script
+    type: @ConfigFile
     src: .github/dependabot.yml
-    functions:
-      - name: configure
-        description: "Configures GitHub Dependabot for additional dependency monitoring across the repository."
+    description: "Configures Dependabot to check the github-actions ecosystem weekly and open PRs for outdated action versions."
   - name: renovate
-    type: @Script
+    type: @ConfigFile
     src: .github/renovate.json5
-    functions:
-      - name: configure
-        description: "Configures Renovate bot to automatically update SHA-pinned GitHub Actions versions in workflow files (e.g. actions/checkout@<sha>)."
+    description: "Configures Renovate bot using config:best-practices. Auto-merges pin/pinDigest updates. Disables digest/pin updates for container refs in workflow files (to avoid interfering with manually pinned base images). Never rebases open PRs."

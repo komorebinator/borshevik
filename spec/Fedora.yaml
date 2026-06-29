@@ -1,5 +1,5 @@
 name: Fedora
-description: Fedora Linux platform terms — D-Bus, Flatpak, RPM, and other Fedora-specific concepts used in Borshevik.
+description: Fedora Linux platform terms — D-Bus interface model, GNOME Shell, and systemd concepts used in Borshevik.
 extends: @DuckspecProject
 uses:
   - ../duckspec/Duckspec.yaml

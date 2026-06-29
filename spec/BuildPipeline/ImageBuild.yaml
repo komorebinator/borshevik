@@ -1,5 +1,5 @@
 name: ImageBuild
-description: OCI container image build pipeline — multi-stage Containerfile, a Justfile for local development, and bash build scripts that run inside rootful Podman during docker build.
+description: OCI container image build pipeline — multi-stage Containerfile and bash build scripts that run inside rootful Podman during image build.
 extends: @Software
 platform: bash + Containerfile (BuildKit) + just
 src: build_files/scripts/

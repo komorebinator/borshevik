@@ -14,6 +14,7 @@ components:
   - name: window
     type: @View
     src: build_files/root/usr/share/borshevik-app-manager/window.js
+    description: Main application window. Manages a stack of pages (loading, load-error, main, installing, results) and coordinates the install flow.
     signals:
       - name: mode-changed
         description: Emitted internally when _setMode() switches the visible stack page. Affects window deletability and header button visibility.
