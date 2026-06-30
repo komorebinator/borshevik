@@ -4,6 +4,8 @@ extends: @DuckspecProject
 uses:
   - ../duckspec/Duckspec.yaml
   - Fedora.yaml
+  - https://github.com/komorebinator/borshevik-workspace-manager
+  - https://github.com/komorebinator/borshevik-app-search
 settings:
   terms_folder: BorshevikShellExtensions/
   src: ..
