@@ -60,7 +60,8 @@
     },
     {
         "repo": "https://github.com/felipeftn/emoji-copy",
-        "asset": "emoji-copy@felipeftn.zip"
+        "asset": "emoji-copy@felipeftn.zip",
+        "schemas": "schemas"
     },
     {
         "repo": "https://github.com/komorebinator/borshevik-workspace-manager.git",
