@@ -1,10 +1,12 @@
-name: GoogleChrome
 description: Google Chrome browser — RPM installation and system-wide managed policy for Borshevik.
 extends: @DuckspecProject
+terms_folder: GoogleChrome/
+goals:
+  - Ship a working browser on first login instead of leaving the user to install one
+  - Enforce the intended browser policy system-wide, so defaults do not depend on when the profile was created
 uses:
-  - ../duckspec/Duckspec.yaml
+  - https://github.com/komorebinator/duckspec
 settings:
-  terms_folder: GoogleChrome/
   src: ..
 software:
   - @GoogleChromeApp

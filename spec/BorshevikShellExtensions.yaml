@@ -1,13 +1,18 @@
-name: BorshevikShellExtensions
 description: GNOME Shell extensions installed in Borshevik at image build time — the installer script, extension manifest, patches, and custom build scripts.
 extends: @DuckspecProject
+terms_folder: BorshevikShellExtensions/
+goals:
+  - Ship the GNOME Shell extensions that make the desktop usable out of the box, preconfigured rather than merely installed
+  - Pin each extension to a known-good source and patch its defaults at build time, so a first login never lands on upstream defaults
 uses:
-  - ../duckspec/Duckspec.yaml
+  - https://github.com/komorebinator/duckspec
   - Fedora.yaml
-  - https://github.com/komorebinator/borshevik-workspace-manager
-  - https://github.com/komorebinator/borshevik-app-search
+references:
+  - repository: https://github.com/komorebinator/borshevik-workspace-manager
+    description: Installed as a GNOME Shell extension via list.json; developed as its own Duckspec-managed project.
+  - repository: https://github.com/komorebinator/borshevik-app-search
+    description: Installed as a GNOME Shell extension via list.json; developed as its own Duckspec-managed project.
 settings:
-  terms_folder: BorshevikShellExtensions/
   src: ..
 software:
   - @GnomeExtensions

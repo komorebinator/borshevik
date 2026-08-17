@@ -1,0 +1,7 @@
+description: "The final standard Borshevik image — what users actually install/rebase to. Built by the borshevik stage of @ImageBuild#containerfile, which FROMs ghcr.io/komorebinator/borshevik-base:latest — the *published* BorshevikBaseImage tag, pulled fresh from the registry rather than a local Containerfile stage reference, so this stage always builds on whatever base was most recently published, not necessarily the base built in the same Containerfile run. COPYs build_files/root/ to /, runs build-addons.sh (@HiddifyApp#installer, @GnomeExtensions#installer, @ShellCustomizations#apply-schemas/#apply-dconf, @Services#enable-services, rebuild-initramfs.sh), then `ostree container commit`. Rebuilds only as a consequence of the base layer: build-base.yml invokes build-borshevik.yml via workflow_call once its own matrix succeeds. There is no push trigger — merging to main ships nothing until the next scheduled base build or a manual dispatch picks the change up."
+extends: @BorshevikBaseImage
+registry: ghcr.io/komorebinator
+tags:
+  - "latest — pushed on every successful build-borshevik.yml run"
+  - "DD.MM.YYYY — same builds, dated tag"
+  - "stable — applied later, manifest-only retag, by promote-image-to-stable.yml; not produced by build-borshevik.yml itself"

@@ -1,0 +1,9 @@
+description: Universal Blue (uBlue) platform terms — the upstream Fedora Atomic base images and ecosystem Borshevik is built on top of. uBlue itself builds on Fedora Atomic (rpm-ostree/bootc, GNOME Shell, systemd), so this project uses Fedora.yaml's terms directly.
+extends: @ExternalProject
+terms_folder: UBlue/
+uses:
+  - https://github.com/komorebinator/duckspec
+  - Fedora.yaml
+software:
+  - @UniversalBlueGnome
+  - @UBlueAkmodsNvidiaOpen

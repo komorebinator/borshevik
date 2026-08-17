@@ -1,10 +1,12 @@
-name: AppManager
 description: GJS/GTK4+libadwaita application for installing curated Flatpak apps from Flathub. Opens automatically on first login via a systemd user service.
 extends: @DuckspecProject
+terms_folder: AppManager/
+goals:
+  - Get a curated set of useful applications onto a fresh install without the user hunting through Flathub
+  - Run once, on first login, and then stay out of the way
 uses:
-  - ../duckspec/Duckspec.yaml
+  - https://github.com/komorebinator/duckspec
 settings:
-  terms_folder: AppManager/
   src: ..
   readme: ../README.md
 software:

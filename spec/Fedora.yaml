@@ -1,13 +1,11 @@
-name: Fedora
-description: Fedora Linux platform terms — D-Bus interface model, GNOME Shell, and systemd concepts used in Borshevik.
-extends: @DuckspecProject
+description: Fedora Linux platform terms — D-Bus, GNOME Shell, and systemd concepts used in Borshevik.
+extends: @ExternalProject
+terms_folder: Fedora/
 uses:
-  - ../duckspec/Duckspec.yaml
+  - https://github.com/komorebinator/duckspec
 software:
   - @DBus
   - @GnomeShell
   - @SystemdManager
   - @SystemdUnit
-settings:
-  terms_folder: Fedora/
-  src: ..
+  - @FedoraSilverblue

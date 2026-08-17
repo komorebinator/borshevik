@@ -1,16 +1,16 @@
-name: GoogleChromeApp
 description: Google Chrome browser as integrated in Borshevik — installed from the official Google RPM repository at image build time, with a system-wide managed policy enforced via Chrome's JSON policy mechanism.
 extends: @Software
 platform: RPM / JSON
 src: build_files/scripts/install-google-chrome.sh
 components:
-  - name: installer
+  - id: installer
     type: @ShellScript
+    description: Makes /opt writable by symlink, layers google-chrome-stable from Google's repository, then makes it the default browser and patches its launcher for Wayland.
     src: build_files/scripts/install-google-chrome.sh
     functions:
-      - name: run
-        description: "Adds the official Google Chrome RPM repository and installs google-chrome-stable via rpm-ostree."
-  - name: policy
+      - id: run
+        description: "Chrome installs into /opt, which is not writable on an ostree system, so the script first makes /opt a directory, creates /usr/lib/opt/google, drops any real /opt/google directory and symlinks /opt/google to it — without this the layering fails outright. It then writes /etc/yum.repos.d/google-chrome.repo pointing at Google's stable x86_64 channel (with gpgcheck=0, though the signing key is imported from dl.google.com immediately after) and layers google-chrome-stable via rpm-ostree. Finally it makes Chrome the default handler for http, https and text/html through /etc/xdg/mimeapps.list, patches the launcher's exec line to add --ozone-platform=wayland and --enable-features=TouchpadOverscrollHistoryNavigation (the native Wayland and touchpad-gesture behaviour the README advertises), and deletes the duplicate com.google.Chrome.desktop entry."
+  - id: policy
     type: @ConfigFile
     src: build_files/root/usr/etc/opt/chrome/policies/managed/borshevik.json
-    description: "Chrome managed policy JSON applied system-wide. Configures Chrome settings that are enforced for all users (e.g. sync, telemetry, or update settings appropriate for an immutable OS)."
+    description: "Chrome managed policy JSON, applied system-wide to every user. Sets exactly one key — PromotionsEnabled: false — which suppresses Google's in-browser promotional content."

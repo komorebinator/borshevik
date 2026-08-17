@@ -1,0 +1,7 @@
+description: "Prebuilt NVIDIA open-kernel-module akmod content, published by uBlue. Not an OS base image — its filesystem is pulled into BorshevikBaseNvidiaImage's build via COPY --from into /tmp/akmods-nvidia, then installed by build-base-nvidia.sh. Avoids compiling NVIDIA kernel modules during Borshevik's own build. External dependency — not built by this project."
+extends: @ContainerImage
+platform: OCI container image, published to ghcr.io/ublue-os
+repository: https://github.com/ublue-os/akmods
+registry: ghcr.io/ublue-os
+tags:
+  - "main-<FEDORA_MAJOR_VERSION> — e.g. main-44"

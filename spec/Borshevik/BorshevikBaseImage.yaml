@@ -1,0 +1,6 @@
+description: "Base layer for the standard (non-NVIDIA) Borshevik variant. Built by the borshevik-base stage of @ImageBuild#containerfile: COPYs cosign.pub to /etc/pki/containers/cosign.pub, runs build-base.sh (bind-mounted from the ctx stage) — installs RPM packages, Google Chrome, Steam, enables podman.socket — then `ostree container commit`. Rebuilds daily via cron (build-base.yml) to pick up upstream RPM updates, independently of Borshevik's own final-layer changes."
+extends: @UniversalBlueGnome
+registry: ghcr.io/komorebinator
+tags:
+  - "latest — pushed on every successful build-base.yml run"
+  - "DD.MM.YYYY — same builds, dated tag"

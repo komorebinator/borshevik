@@ -1,10 +1,12 @@
-name: Hiddify
 description: Hiddify VPN client — installation, launcher wrapper, polkit permissions, and desktop entry.
 extends: @DuckspecProject
+terms_folder: Hiddify/
+goals:
+  - Make a VPN client that ships as a Debian package work on an immutable, RPM-based system
+  - Grant it exactly the privileges it needs for DNS configuration, and no more
 uses:
-  - ../duckspec/Duckspec.yaml
+  - https://github.com/komorebinator/duckspec
 settings:
-  terms_folder: Hiddify/
   src: ..
 software:
   - @HiddifyApp

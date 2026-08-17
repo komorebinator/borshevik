@@ -1,18 +1,20 @@
-name: Borshevik
 description: An immutable, laptop-first desktop image built on Fedora Atomic and the uBlue ecosystem, designed to be simple to use and ready to go right after installation.
 extends: @DuckspecProject
+terms_folder: Borshevik/
+repository: https://github.com/komorebinator/borshevik
 goals:
   - Provide a ready-to-use Fedora Atomic desktop that requires no post-install configuration
   - Keep the base system immutable and reproducible via OCI image builds
   - Make OS updates and rollbacks safe and visible through the Image Manager
   - Curate a minimal set of useful applications installable on first login via the App Manager
   - Support both standard and NVIDIA hardware variants from the same build pipeline
+guidelines:
+  - "The build is split into two layers. Base layer (@BorshevikBaseImage, @BorshevikBaseNvidiaImage): installs RPM packages, Chrome, Steam, and NVIDIA drivers. Final layer (@BorshevikImage, @BorshevikNvidiaImage): installs Hiddify, GNOME extensions, config files, and the GJS apps. See @CiCd for the full trigger chain — there is no push-to-main trigger; the base layer rebuilds on a daily cron schedule, and the final layer only rebuilds as a consequence of that (workflow_call), not independently."
 uses:
-  - ../duckspec/Duckspec.yaml
-  - Fedora.yaml
+  - https://github.com/komorebinator/duckspec
+  - UBlue.yaml
   - AppManager.yaml
   - ImageManager.yaml
-  - BuildPipeline.yaml
   - BorshevikShellExtensions.yaml
   - BorshevikShellCustomizations.yaml
   - Hiddify.yaml
@@ -23,15 +25,21 @@ uses:
 software:
   - @SystemConfig
   - @RepositoryAssets
+  - @BorshevikBaseImage
+  - @BorshevikBaseNvidiaImage
+  - @BorshevikImage
+  - @BorshevikNvidiaImage
+  - @ImageBuild
+  - @CiCd
 startup:
   - load
 workflow:
   type: @GitHubWorkflow
+  main_branch: experimental
 versioning:
   type: @CalVer
   format: YYYY.MM.DD
 settings:
-  terms_folder: Borshevik/
   readme: ../README.md
   src: ..
   agents: AGENTS.md
