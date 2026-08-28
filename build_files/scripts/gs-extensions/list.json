@@ -42,7 +42,7 @@
         "repo": "https://github.com/CleoMenezesJr/weather-oclock",
         "dir": "weatheroclock@CleoMenezesJr.github.io",
         "schemas": "schemas",
-        "branch": "v50.0",
+        "branch": "v50.5",
         "forceGnomeVersion": true
     },
     {
@@ -71,7 +71,7 @@
     },
     {
         "repo": "https://github.com/tuberry/color-picker.git",
-        "branch": "50.1",
+        "branch": "50.2",
         "script": "color-picker.sh"
     },
     {
@@ -99,7 +99,7 @@
     },
     {
         "repo": "https://github.com/ubuntu/gnome-shell-extension-appindicator",
-        "branch": "v64",
+        "branch": "v65",
         "script": "appindicator.sh"
     }
 ]
