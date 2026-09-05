@@ -5,9 +5,6 @@ set -ouex pipefail
 echo "Remove redundant PRMs"
 rpm-ostree override remove firefox firefox-langpacks toolbox gnome-classic-session nvtop
 
-echo "Remove monochrome emoji fonts that outrank Noto Color Emoji in fontconfig fallback"
-rpm-ostree override remove gdouros-symbola-fonts google-noto-emoji-fonts
-
 echo "Removing GNOME Shell extension RPMs"
 mapfile -t EXT_PKGS < <(rpm -qa --qf '%{NAME}\n' 'gnome-shell-extension-*' | sort -u)
 
