@@ -1,0 +1,12 @@
+description: System-wide GNOME Shell customizations applied at image build time — dconf profiles, GSettings schema overrides, and GDM configuration.
+extends: @DuckspecProject
+terms_folder: BorshevikShellCustomizations/
+goals:
+  - Make the desktop look and behave the intended way on first login, with no per-user setup step
+  - Apply appearance and behaviour system-wide at image build time, so the settings survive a rebase and apply to every account including GDM
+uses:
+  - https://github.com/komorebinator/duckspec
+settings:
+  src: ..
+software:
+  - @ShellCustomizations

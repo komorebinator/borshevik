@@ -1,0 +1,11 @@
+description: Fedora Linux platform terms — the Fedora Silverblue base image, D-Bus, GNOME Shell, and the systemd concepts used in Borshevik.
+extends: @ExternalProject
+terms_folder: Fedora/
+uses:
+  - https://github.com/komorebinator/duckspec
+software:
+  - @DBus
+  - @GnomeShell
+  - @SystemdManager
+  - @SystemdUnit
+  - @FedoraSilverblue

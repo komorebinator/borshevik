@@ -1,0 +1,7 @@
+description: Fedora Silverblue — the official Fedora Atomic desktop spin (immutable, rpm-ostree-based, GNOME). Published by the Fedora project. The base image uBlue's UniversalBlueGnome builds FROM. External dependency — not built by this project.
+extends: @ContainerImage
+platform: OCI container image (Fedora Atomic / rpm-ostree), published by the Fedora project
+repository: https://docs.fedoraproject.org/en-US/fedora-silverblue/
+registry: quay.io/fedora-ostree-desktops
+tags:
+  - "<FEDORA_MAJOR_VERSION> — e.g. 44; tracks the current Fedora release"

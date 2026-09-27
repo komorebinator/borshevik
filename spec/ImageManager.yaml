@@ -1,0 +1,13 @@
+description: GJS/GTK4+libadwaita application for managing the Borshevik OS image — checking for updates, applying updates, rolling back, rebasing to a different channel or variant, and toggling automatic updates.
+extends: @DuckspecProject
+terms_folder: ImageManager/
+goals:
+  - Make OS updates, rollbacks, and channel switches something a user can do from a window rather than a terminal
+  - Show plainly which image is running and whether a newer one exists, so the immutable base stops being opaque
+uses:
+  - https://github.com/komorebinator/duckspec
+settings:
+  src: ..
+  readme: ../README.md
+software:
+  - @ImageManagerApp

@@ -1,0 +1,22 @@
+description: Graphic assets stored in assets/ and used in README.md and project documentation. Not installed into the image.
+extends: @Software
+src: assets/
+components:
+  - id: borshevik-logo-src
+    type: @Graphic
+    src: assets/borshevik_logo.svg
+    format: SVG
+    role: logo
+    description: Source SVG for the Borshevik distro logo used in README.md documentation.
+  - id: download-button
+    type: @Graphic
+    src: assets/download.svg
+    format: SVG
+    role: branding
+    description: Download button graphic linking to the standard Borshevik ISO in README.md.
+  - id: download-button-nvidia
+    type: @Graphic
+    src: assets/download-nvidia.svg
+    format: SVG
+    role: branding
+    description: Download button graphic linking to the NVIDIA Borshevik ISO in README.md.

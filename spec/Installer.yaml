@@ -1,0 +1,12 @@
+description: ISO installer configuration — lorax templates, image-builder TOML configs, and kickstart post-install scripts.
+extends: @DuckspecProject
+terms_folder: Installer/
+goals:
+  - Produce a bootable ISO that installs Borshevik with as few questions as an install can be reduced to
+  - End installation on the correct image and variant for the hardware, so no post-install rebase is needed
+uses:
+  - https://github.com/komorebinator/duckspec
+settings:
+  src: ..
+software:
+  - @IsoInstaller

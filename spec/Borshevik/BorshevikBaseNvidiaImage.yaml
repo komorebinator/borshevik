@@ -1,0 +1,6 @@
+description: "Base layer for the NVIDIA Borshevik variant. Built by the borshevik-base-nvidia stage of @ImageBuild#containerfile, which FROMs this image's own borshevik-base stage directly (a true local multi-stage FROM, not a pull of the published tag): COPY --from=@UBlueAkmodsNvidiaOpen / /tmp/akmods-nvidia, runs build-base-nvidia.sh (adds the negativo17 repository and installs the NVIDIA proprietary driver and CUDA stack from /tmp/akmods-nvidia — it runs no cleanup step of its own, the base layer having already done that), then `ostree container commit`. The akmods image must be the same kernel flavour @ImageBuild#install-kernel takes the kernel from, currently coreos-stable: these modules are built against one specific kernel version, so the two tags move together or NVIDIA stops loading. Rebuilds daily via cron alongside BorshevikBaseImage."
+extends: @BorshevikBaseImage
+registry: ghcr.io/komorebinator
+tags:
+  - "latest — pushed on every successful build-base.yml run"
+  - "DD.MM.YYYY — same builds, dated tag"

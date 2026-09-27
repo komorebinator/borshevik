@@ -1,0 +1,7 @@
+description: "Prebuilt NVIDIA open-kernel-module akmod content, published by uBlue. Not an OS base image — its filesystem is pulled into BorshevikBaseNvidiaImage's build via COPY --from into /tmp/akmods-nvidia, then installed by build-base-nvidia.sh. Avoids compiling NVIDIA kernel modules during Borshevik's own build. Taken from the same kernel flavour as @UBlueAkmods, `coreos-stable`: these modules are built against one specific kernel, so a flavour or version mismatch with the kernel @ImageBuild#install-kernel installs leaves the NVIDIA modules unloadable. External dependency — not built by this project."
+extends: @ContainerImage
+platform: OCI container image, published to ghcr.io/ublue-os
+repository: https://github.com/ublue-os/akmods
+registry: ghcr.io/ublue-os
+tags:
+  - "coreos-stable-<FEDORA_MAJOR_VERSION> — e.g. coreos-stable-44; must be the same flavour @UBlueAkmods supplies the kernel from"

@@ -1,0 +1,103 @@
+description: "How work is done on Borshevik, from a request to an image users rebase onto. A change is tried on `experimental` first — pushed there, built into `:latest` by hand, run on a real machine — and goes to `main` by pull request only once it works. `main` is what the daily build reads; what it produces is still under test, and reaches users only when a chosen build is promoted to `:stable`, which is also what installers switch to and ISOs are cut from. Nothing is triggered by a push or a merge: builds run on a schedule or by hand."
+extends: @DuckWorkflow
+main_branch: main
+versioning:
+  type: @CalVer
+  format: DD.MM.YYYY
+src: .github/
+branches:
+  - id: main
+    description: "What ships. The default branch on GitHub, so the scheduled build checks it out and promote-image-to-stable runs from it. Changes arrive by pull request — from experimental once tested, from short-lived feature branches, and from dependabot."
+  - id: experimental
+    description: Where a change is tried on real hardware before it goes to main. Built into `:latest` by hand when there is something to test, never by the schedule.
+  - id: stable
+    description: "Abandoned. Untouched since 2025-09 and hundreds of commits behind, read by no workflow, and unrelated to the `:stable` image tag despite the name — pushing to it ships nothing."
+channels:
+  - id: latest
+    from: main, experimental
+    description: "The testing channel. Every build lands here, from whichever branch it was run on — daily from main, by hand from experimental — so anything on it is still under test, including what came from main. Each build is also tagged with its date, DD.MM.YYYY, which is what a digest is recognised by when choosing one to promote."
+  - id: stable
+    from: latest
+    description: "What users run. Installers switch to it and ISOs are cut from it. Moved by hand onto a chosen `:latest` digest — a manifest retag, no rebuild — and signed again; nothing reaches it on a schedule."
+steps:
+  - id: requested
+    description: Someone wants a change, in an issue or in the conversation. It is clarified until nothing is left to guess, then written into the terms.
+    when: a request exists that the project's terms do not yet reflect
+  - id: specified
+    description: The change is in the spec, which is consistent, but the sources do not implement it yet.
+    when: the change is present in the terms, verify_project is clean, and the sources do not yet implement it
+    operation: "@Software#build"
+  - id: implemented
+    description: The sources carry the change and the project validates — the spec through @DuckspecProject#validate, the repository through @BorshevikWorkflow#validate — but nothing is recorded.
+    when: the working tree carries the change, @DuckspecProject#validate passes, validate.sh exits 0, and it is not committed
+    operation: "@Git#commit"
+  - id: committed
+    description: The change is recorded locally and has reached no one.
+    when: local commits carry the change and are not on the remote
+    operation: "@Git#push(branch=experimental)"
+  - id: on_experimental
+    description: The change is on experimental but no image has been built from it.
+    when: experimental carries the change and no image built from experimental does
+    operation: "@GitHub#run_workflow(workflow=build-base.yml, ref=experimental)"
+  - id: testing
+    description: "An image carrying the change is on `:latest`, and the author runs it on a real machine — rebasing with the Image Manager — to see that it works. Only the author can say it does; nothing here checks it. Once it does, the change goes to main."
+    when: an image built from experimental carrying the change is on `:latest`, and the author has not yet confirmed it works on a machine running it
+    operation: "@GitHub#open_pull_request(head=experimental, base=main)"
+  - id: in_review
+    description: A pull request from experimental to main carries the tested change.
+    when: an open pull request into main carries the change
+    operation: "@GitHub#merge_pull_request(strategy=merge)"
+  - id: on_main
+    description: "The change is on main and waits for a build. The schedule does it daily at 10:00 UTC; running it by hand does not have to wait."
+    when: main carries the change and no image built from main does
+    operation: "@GitHub#run_workflow(workflow=build-base.yml)"
+  - id: built_from_main
+    description: "A build from main carrying the change is on `:latest` — still the testing channel — and waits to be chosen for users. On a machine running that build, the Image Manager's Promote to stable menu item starts the same workflow for the booted digest and variant."
+    when: an image built from main carrying the change is on `:latest`, and `:stable` does not carry the change
+    operation: "@GitHub#run_workflow(workflow=promote-image-to-stable.yml, ref=main, inputs=variant=<variant> digest=<digest>)"
+  - id: on_stable
+    description: The change reaches users through `:stable`. What follows only concerns fresh installs.
+    when: "`:stable` resolves to a digest that carries the change, and no ISO carrying it is downloadable"
+    operation: "@GitHub#run_workflow(workflow=build-iso.yml)"
+  - id: iso_built
+    description: "Installer media carrying the change exist as artifacts of a build-iso run, kept for no time at all. Moving them to borshevik.org, where the README download buttons point, is done by hand and nothing in this repository performs it."
+    when: a build-iso run produced media carrying the change and the README download links do not yet serve them
+  - id: iso_published
+    description: Fresh installs get the change.
+    when: the README download links serve installer media carrying the change
+components:
+  - id: build-base
+    type: @Pipeline
+    platform: GitHub Actions
+    description: "Workflow that builds, pushes and cosign-signs both base images, then invokes the final-layer workflow. Triggered by cron (daily 10:00 UTC) or workflow_dispatch. Runs a matrix build of borshevik-base and borshevik-base-nvidia targets in parallel (each cancels in-progress runs on the same ref). For each variant: creates /mnt/xdg-data for container storage (to avoid runner disk fill); builds the Containerfile target via redhat-actions/buildah-build with BUILD_DATE, IMAGE_TAG=latest, IMAGE_NAME args; logs into GHCR; normalizes registry/image names to lowercase; pushes with tags 'latest' and 'DD.MM.YYYY'; installs cosign; fetches the pushed image digest via skopeo inspect; signs the image by digest using SIGNING_SECRET as COSIGN_PRIVATE_KEY with cosign sign --key env://COSIGN_PRIVATE_KEY. On matrix completion, calls build-borshevik.yml as a reusable workflow (needs: build_and_push)."
+    src: .github/workflows/build-base.yml
+  - id: build-borshevik
+    type: @Pipeline
+    platform: GitHub Actions
+    description: "Reusable workflow that builds, pushes and cosign-signs both final images on top of the published base tags. Triggered by workflow_call (from build-base.yml after the base matrix succeeds) or workflow_dispatch. Matrix-builds the borshevik and borshevik-nvidia final targets in parallel, mirroring build-base's steps but against the final Containerfile stages, which pull FROM the published ghcr.io/komorebinator/borshevik-base tags. Signs each image by digest with cosign after push. Seven steps carry `if: github.event_name != 'pull_request'` inherited from the upstream uBlue template; since neither trigger can produce a pull_request event, those guards never fire as the workflow stands."
+    src: .github/workflows/build-borshevik.yml
+  - id: build-iso
+    type: @Pipeline
+    platform: GitHub Actions
+    description: "Manually triggered workflow that builds bootable ISOs from the :stable images. Triggered manually (workflow_dispatch) or via workflow_call. Builds ISO installer images for borshevik:stable and borshevik-nvidia:stable using build-container-installer. Uploads resulting ISOs (borshevik-stable.iso, borshevik-nvidia-stable.iso) as GitHub Actions artifacts with 0-day retention. The tag is hardcoded to `stable` in the workflow rather than taken as an input, so a build becomes installable from an ISO only after it has been promoted and this workflow is run again; nothing chains the two."
+    src: .github/workflows/build-iso.yml
+  - id: promote-image-to-stable
+    type: @Pipeline
+    platform: GitHub Actions
+    description: "Manually triggered workflow that moves the :stable tag onto a chosen digest and signs the result. Triggered by workflow_dispatch with required inputs: variant (borshevik or borshevik-nvidia) and digest (sha256:... hex string). Validates digest format with regex ^sha256:[0-9a-f]{64}$. Logs into GHCR. Runs 'docker buildx imagetools create --tag ghcr.io/<owner>/<variant>:stable ghcr.io/<owner>/<variant>@<digest>' to create/update the :stable tag pointing to the given digest (no data copy, manifest-only). Fetches the resulting stable tag's manifest digest. Signs that manifest digest with cosign using SIGNING_SECRET. Triggered by borshevik-promote-to-stable CLI script."
+    src: .github/workflows/promote-image-to-stable.yml
+  - id: dependabot
+    type: @ConfigFile
+    src: .github/dependabot.yml
+    description: "Configures Dependabot to check the github-actions ecosystem weekly and open PRs for outdated action versions."
+  - id: renovate
+    type: @ConfigFile
+    src: .github/renovate.json5
+    description: "Configures Renovate bot using config:best-practices. Auto-merges pin/pinDigest updates. Disables digest/pin updates for container refs in workflow files (to avoid interfering with manually pinned base images). Never rebases open PRs."
+  - id: validate
+    type: @ShellScript
+    src: validate.sh
+    description: "Static checks over the repository, run on a Borshevik machine before a change is committed. Not tests — nothing is built or booted; it catches what breaks silently before any build runs. Needs bash, python3 with PyYAML, jq, gjs and desktop-file-validate, all present on Borshevik."
+    functions:
+      - id: run
+        description: "Runs every check and reports each file or group as ok or FAIL, exiting 1 if anything failed: `bash -n` on every shell script under build_files/ and installer/ (by .sh suffix or an executable bit with a sh/bash shebang); `jq empty` on every JSON file under build_files/; PyYAML on the GitHub workflows and dependabot config; tomllib on the image-builder TOML files; desktop-file-validate on the desktop entries, any output counting as a failure; a gjs import of every module of both apps except their main.js, which would start the application — that parses each module and resolves its imports. Finally the translations: every language of @AppManagerApp's TRANSLATIONS and every JSON dictionary of @ImageManagerApp must carry exactly the keys of en, and every key the code passes to t() must exist in en. Both apps fall back quietly on a missing key — the Image Manager to English for the whole file when it does not parse, the App Manager to the key itself — so without this check a broken dictionary is visible only to the user who hits it."

@@ -1,0 +1,13 @@
+description: Borshevik-specific systemd services — kernel argument setup, MOK enrollment, App Manager first-run, and GNOME Shell watchdog.
+extends: @DuckspecProject
+terms_folder: BorshevikServices/
+goals:
+  - Handle the boot-time work an immutable system cannot do at install time — kernel arguments, MOK enrollment, first-run setup
+  - Keep each piece of that work a declared unit with a visible condition, rather than a script someone has to remember to run
+uses:
+  - https://github.com/komorebinator/duckspec
+  - Fedora.yaml
+settings:
+  src: ..
+software:
+  - @Services
