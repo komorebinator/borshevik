@@ -1,7 +1,7 @@
 name        = "borshevik-installer-nvidia"
 description = "Borshevik installer (nvidia)"
-version     = "43"
-distro      = "fedora-43"
+version     = "44"
+distro      = "fedora-44"
 
 [customizations.ostree]
 url = "registry:ghcr.io/komorebinator/borshevik-nvidia:latest"
