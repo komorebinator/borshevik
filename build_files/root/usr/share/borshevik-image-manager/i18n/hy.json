@@ -62,5 +62,8 @@
   "promote_to_stable_confirm_title": "stable դարձնե՞լ",
   "promote_to_stable_confirm_body": "Սա ընթացիկ պատկերը կտեղափոխի stable ալիք: Շարունակե՞լ:",
   "promoting_to_stable": "Stable ալիք տեղափոխում",
-  "promote_complete": "Պատկերը stable է նշված"
+  "promote_complete": "Պատկերը stable է նշված",
+  "uptime": "Աշխատանքի ժամանակ",
+  "uptime_days": "օր",
+  "report_issue": "Հաղորդել խնդրի մասին"
 }

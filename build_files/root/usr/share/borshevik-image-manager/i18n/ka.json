@@ -62,5 +62,8 @@
   "promote_to_stable_confirm_title": "stable-ად გადაყვანა?",
   "promote_to_stable_confirm_body": "ეს მიმდინარე სახეს stable არხზე გადაიყვანს. გაგრძელება?",
   "promoting_to_stable": "stable-ად გადაყვანა",
-  "promote_complete": "სახე stable-ად გადაიყვანეს"
+  "promote_complete": "სახე stable-ად გადაიყვანეს",
+  "uptime": "მუშაობის დრო",
+  "uptime_days": "დ",
+  "report_issue": "პრობლემის შეტყობინება"
 }

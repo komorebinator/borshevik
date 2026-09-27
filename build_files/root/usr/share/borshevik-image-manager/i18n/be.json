@@ -62,5 +62,8 @@
   "promote_to_stable_confirm_title": "Зрабіць вобраз stable?",
   "promote_to_stable_confirm_body": "Гэта перамесціць бягучы вобраз у канал stable. Працягнуць?",
   "promoting_to_stable": "Пераход да stable",
-  "promote_complete": "Вобраз пазначаны як stable"
+  "promote_complete": "Вобраз пазначаны як stable",
+  "uptime": "Час працы",
+  "uptime_days": "д",
+  "report_issue": "Паведаміць пра праблему"
 }

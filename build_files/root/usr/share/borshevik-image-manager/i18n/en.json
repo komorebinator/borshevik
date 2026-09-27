@@ -62,5 +62,8 @@
   "promote_to_stable_confirm_title": "Promote to stable?",
   "promote_to_stable_confirm_body": "This will promote the current image to the stable channel. Continue?",
   "promoting_to_stable": "Promoting to stable",
-  "promote_complete": "Promotion complete"
+  "promote_complete": "Promotion complete",
+  "uptime": "Uptime",
+  "uptime_days": "d",
+  "report_issue": "Report an issue"
 }

@@ -18,7 +18,7 @@ fields:
 components:
   - id: main-window
     type: @View
-    description: Main window — shows which image is running, checks for and applies updates, and hosts rollback, reboot and the entry points to settings and promotion. On construction it reads the status and then runs a non-interactive update check in the background, so the window opens already knowing whether an update exists; a failure of that check is shown in status-label rather than raised. Listens for settings-window's rebase-done and refreshes the status on it.
+    description: Main window — shows which image is running and how long the system has been up, checks for and applies updates, links to reporting an issue, and hosts rollback, reboot and the entry points to settings and promotion. On construction it reads the status and then runs a non-interactive update check in the background, so the window opens already knowing whether an update exists; a failure of that check is shown in status-label rather than raised. Listens for settings-window's rebase-done and refreshes the status on it.
     src: build_files/root/usr/share/borshevik-image-manager/main_window.js
     fields:
       - id: this._app
@@ -56,6 +56,14 @@ components:
       - id: this._autoUpdatesGroup
         type: Adw.PreferencesGroup
         description: Wraps auto-updates-row.
+      - id: ISSUE_NEW_URL
+        type: string
+        default: "'https://github.com/komorebinator/borshevik/issues/new'"
+        description: Module-level constant in main_window.js; the page report-issue-link opens, with a prefilled body appended as ?body=.
+      - id: this._uptimeTimerId
+        type: "number | null"
+        default: "null"
+        description: GLib source id of the 1-second timeout (GLib.timeout_add_seconds, returns SOURCE_CONTINUE) that calls _refreshUptime. Started in the constructor after _initUi; removed and reset to null on close-request so the source does not outlive the window.
     components:
       - id: header-bar
         type: @View
@@ -71,7 +79,7 @@ components:
                 description: The menu model behind menu-button, rebuilt by _rebuildMenu whenever the Promote-to-stable item's visibility needs to change.
       - id: header-section
         type: @View
-        description: Vertically stacked centered block showing the distro logo, name, build metadata, and digest.
+        description: Vertically stacked centered block showing the distro logo, name, build metadata, digest, system uptime, and the link to report an issue.
         components:
           - id: logo
             type: @Image
@@ -102,6 +110,27 @@ components:
             description: CSS classes caption + dim-label. Selectable. Updated by _refreshStatus().
             fields:
               - id: this._digestLabel
+          - id: uptime-label
+            type: @Label
+            label: "Uptime: <uptime>"
+            description: Directly below digest-label, same CSS classes caption + dim-label, margin_top 2. The prefix is i18n 'uptime'; <uptime> is util#formatUptime of util#readUptimeSeconds with the localized day suffix i18n 'uptime_days', or i18n 'unknown' when /proc/uptime cannot be read. Updated by _refreshUptime, which runs on every _refreshStatus and every second, so the seconds tick.
+            fields:
+              - id: this._uptimeLabel
+          - id: report-issue-link
+            type: @Label
+            label: "Report an issue"
+            visible: false
+            states:
+              - id: up-to-date
+                when: app-state#computeUiState returns showReportIssue (the last check found no updates and nothing is staged); applied by _applyUiState, which also keeps the link hidden while this._facts is null
+                property_changes:
+                  visible: true
+            description: "Last item of header-section, directly below uptime-label. CSS class caption, so it is the same small size as the lines above, but not dim-label, so it keeps the link color. A Gtk.Label with use_markup whose whole text is one `<a href=ISSUE_NEW_URL>` hyperlink around the markup-escaped i18n 'report_issue' — rendered as a real link (link color, underline on hover, pointer cursor). Deliberately not a Gtk.LinkButton: that carries a button's internal padding, which leaves a visible gap under uptime-label. Its activate-link handler calls _reportIssue and returns true, so the prefilled URL is built at click time instead of the static href being opened. Shown and hidden through a Gtk.Stack (this._reportIssueStack; margin_top 2, halign CENTER, no transition) holding two named children, 'link' (this label) and 'empty' (an empty Gtk.Box): a stack is sized by its largest child, so switching to 'empty' removes the link while keeping its row, and the content below does not jump up and down as checks start and finish. _applyUiState switches the visible child; 'empty' is the initial one."
+            fields:
+              - id: this._reportIssueLink
+              - id: this._reportIssueStack
+                type: Gtk.Stack
+                description: Wraps the link with an empty 'empty' sibling so hiding it keeps its space; the visible child is 'link' only in the up-to-date state.
       - id: primary-stack
         type: @View
         description: "Crossfade stack with two named children: 'button' (the primary action button) and 'spinner' (an indeterminate spinner shown while checking for updates)."
@@ -177,13 +206,17 @@ components:
           - id: this._autoUpdatesRow
     functions:
       - id: _refreshStatus
-        description: "Reads /etc/os-release via util#readOsRelease. Runs rpm-ostree#runStatusJson; on failure: sets error check state and updates UI. On success: calls rpm-ostree#parseStatusJson, then app-state#buildFacts. Updates distro-name, meta-label, digest-label labels. Shows/hides update-ready-row based on facts.needsReboot. Updates rollback-row subtitle and rollback-button sensitivity. Calls _updatePromoteMenuItem(). Calls _applyUiState(). Fires _refreshAutoUpdates() in background."
+        description: "Calls _refreshUptime() first, so uptime is current even when the status read fails. Reads /etc/os-release via util#readOsRelease. Runs rpm-ostree#runStatusJson; on failure: sets error check state and updates UI. On success: calls rpm-ostree#parseStatusJson, then app-state#buildFacts. Updates distro-name, meta-label, digest-label labels. Shows/hides update-ready-row based on facts.needsReboot. Updates rollback-row subtitle and rollback-button sensitivity. Calls _updatePromoteMenuItem(). Calls _applyUiState(). Fires _refreshAutoUpdates() in background."
       - id: _checkForUpdates
         description: "Calls _refreshStatus() first. Sets check to {phase:'checking'}; calls _applyUiState. Runs 'rpm-ostree update --check' (root:false) via command-runner collecting all output. Filters blank lines and 'Note:' lines; normalizes non-breaking spaces. Detects 'AvailableUpdate:' and 'No updates available' patterns. Extracts download size (prefers 'Added layers ... Size:' match over any 'Size:' match). On non-success exit: if hasNoUpdates or already-staged sets phase=no_updates; otherwise sets phase=error. On success with AvailableUpdate and staged deployment: fetches registry digest via rpm-ostree#getRegistryDigest (skopeo inspect); if it matches stagedDigest, sets phase=no_updates instead of available. Otherwise sets phase=available with size. Calls _applyUiState() and _refreshStatus()."
       - id: _runWithProgress
         description: "Creates progress-window (modal, transient_for this). Sets its command label and starts progress. Creates command-runner streaming to progress-window#appendOutput. Runs command (root:false). If withAuthRetry is true and result failed and collected output passes util#isAuthorizationError, retries with root:true (pkexec prepended). If result.success and onSuccess provided, awaits onSuccess(progressWin). Returns result."
       - id: _promoteToStable
         description: "Shows confirm dialog. On confirm: runs /usr/bin/borshevik-promote-to-stable <digest> <variant> via _runWithProgress (withAuthRetry:false). Shows info dialog on success."
+      - id: _refreshUptime
+        description: "Reads util#readUptimeSeconds(). If null, sets uptime-label to '<i18n uptime>: <i18n unknown>'. Otherwise sets it to '<i18n uptime>: ' + util#formatUptime(seconds, i18n uptime_days). Called at the end of _buildMainView, from _refreshStatus (whether or not the status read succeeded), and by the this._uptimeTimerId timer."
+      - id: _reportIssue
+        description: "Builds an English issue body regardless of UI language, since it is read by the maintainer: an HTML comment prompt '<!-- Describe what happened and what you expected. -->', two blank lines, a '---' separator, then one line each for Image (facts.currentOrigin), Variant, Channel, Build time, Digest and Uptime (util#formatUptime with the English day suffix 'd'); any value that is missing — including every facts value while this._facts is null — is written as 'unknown'. Opens ISSUE_NEW_URL + '?body=' + encodeURIComponent(body) with Gio.AppInfo.launch_default_for_uri(uri, null). On exception logs it and shows _showInfo('<i18n error>: <message>')."
   - id: progress-window
     type: @View
     description: Modal progress window with a live terminal view, used for every long-running rpm-ostree operation.
@@ -409,7 +442,7 @@ components:
       - id: buildFacts
         description: "Pure function. Arguments: {i18n, osRelease, parsed}. Extracts distroName from osRelease.NAME (fallback 'Borshevik'). Gets booted/staged/pending/rollback from parsed. Computes buildTime from rpm-ostree#extractBuildTime(booted) via rpm-ostree#formatTimestamp. Selects currentOrigin as the booted deployment field that has a tag (checks origin, container-image-reference, container_image_reference, and extractOrigin output). Extracts channel from tag or i18n.t('unknown'). Extracts and formats digest (prepends 'sha256:'). Infers variant name ('borshevik', 'borshevik-nvidia', or 'custom') via rpm-ostree#inferVariantAndChannelFromOrigin. Computes stagedDigest from staged deployment. Computes nextTime from staged/pending build time. Computes hasRollback (rollback exists and is not the booted deployment), rollbackTime. Returns flat facts object: {distroName, buildTime, channel, digest, variant, currentOrigin, needsReboot, stagedDigest, nextTime, hasRollback, rollbackTime}."
       - id: computeUiState
-        description: "Pure function. Arguments: {i18n, facts, check}. showCheckSpinner = check.phase==='checking'. primaryMode = 'update' only when check.phase==='available'; otherwise 'check'. statusText: 'updates available + size' when available; 'update pending reboot' when needsReboot and no new update; 'no new updates' when no_updates; 'error: <message>' when error phase; empty otherwise. Returns {showCheckSpinner, primaryMode, primaryLabel, statusText}."
+        description: "Pure function. Arguments: {i18n, facts, check}. showCheckSpinner = check.phase==='checking'. primaryMode = 'update' only when check.phase==='available'; otherwise 'check'. statusText: 'updates available + size' when available; 'update pending reboot' when needsReboot and no new update; 'no new updates' when no_updates; 'error: <message>' when error phase; empty otherwise. showReportIssue = check.phase==='no_updates' and not facts.needsReboot — an issue is worth reporting only against a system that is fully up to date, so the link stays hidden while an update is available, staged, being checked for, or the check failed. Returns {showCheckSpinner, primaryMode, primaryLabel, statusText, showReportIssue}."
   - id: command-runner
     type: @Singleton
     description: Runs a subprocess with streamed output, optional pkexec elevation, and cancellation.
@@ -435,7 +468,7 @@ components:
         description: "Calls proc.force_exit() on the current _proc if set. Errors during force_exit are logged to console but not propagated."
   - id: util
     type: @Singleton
-    description: Shared helpers — os-release parsing, logo lookup, reboot request over D-Bus, authorization-error detection, and command capture.
+    description: Shared helpers — os-release parsing, uptime reading and formatting, logo lookup, reboot request over D-Bus, authorization-error detection, and command capture.
     src: build_files/root/usr/share/borshevik-image-manager/util.js
     functions:
       - id: readOsRelease
@@ -450,6 +483,10 @@ components:
         description: "Returns true if text (lowercased) contains any of: 'not authorized', 'authentication is required', 'authentication required', 'polkit', 'permission denied'."
       - id: runCommandCapture
         description: "Spawns argv with STDOUT_PIPE|STDERR_PIPE, optionally feeding stdinText to the child. Awaits communicate_utf8_async through an explicit callback wrapper rather than implicit promisification. Returns {success, exitStatus, stdout, stderr} — success comes from get_successful(), so callers can distinguish a non-zero exit from a failed spawn."
+      - id: readUptimeSeconds
+        description: Reads /proc/uptime via GLib.file_get_contents, parses the first whitespace-separated field as a float and returns it floored to whole seconds. Returns null on any read or parse error, or when the value is not a finite non-negative number.
+      - id: formatUptime
+        description: "Pure function. Arguments: seconds, dayUnit (the day suffix, e.g. 'd'). Splits seconds into whole days, hours, minutes and seconds. Returns '<hours>:<minutes>:<seconds>' with hours unpadded and minutes and seconds zero-padded to two digits, prefixed by '<days><dayUnit> ' (no space between the number and the suffix) only when days > 0 — so '2d 3:14:05', '1d 0:05:00', '3:14:05', '0:14:59', '0:00:00'."
   - id: launcher
     type: @ShellScript
     description: On-PATH entry point; execs gjs on the app main.js.
@@ -492,6 +529,15 @@ components:
         description: "Reads en.json from baseDir. Detects locale via LANGUAGE > LC_ALL > LC_MESSAGES > LANG env var chain; takes the first colon-separated segment; extracts the two-letter language code via regex. If locale differs from 'en', loads <locale>.json; on read or parse failure falls back to {}."
       - id: t
         description: "Looks up key in _dict (locale-specific), falls back to _en, falls back to key itself as the default string."
+tests:
+  - id: format-uptime
+    description: util#formatUptime renders uptime as '[<days><suffix> ]<h>:<mm>:<ss>' — days only when non-zero, minutes and seconds zero-padded, the localized day suffix attached without a space.
+    command: gjs -m tests/image-manager.js format-uptime
+    expect: prints "ok" and exits 0; on failure prints one "FAIL <case>" line per wrong result and exits 1
+  - id: report-issue-visibility
+    description: app-state#computeUiState sets showReportIssue only when the last check found no updates and nothing is staged — hidden while an update is available, staged, being checked for, before the first check, and when the check failed.
+    command: gjs -m tests/image-manager.js report-issue-visibility
+    expect: prints "ok" and exits 0; on failure prints one "FAIL <case>" line per wrong result and exits 1
 recipes:
   - id: run
     description: Runs the Image Manager straight from the repository working tree, so a change can be tried on this machine without building an image

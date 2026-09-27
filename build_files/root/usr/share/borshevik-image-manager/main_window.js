@@ -13,7 +13,9 @@ import { buildFacts, computeUiState } from './app_state.js';
 import { CommandRunner } from './command_runner.js';
 import { SettingsWindow } from './settings_window.js';
 import { ProgressWindow } from './progress_window.js';
-import { readOsRelease, pickLogoCandidates, firstExistingPath, requestRebootInteractive, isAuthorizationError, runCommandCapture } from './util.js';
+import { readOsRelease, readUptimeSeconds, formatUptime, pickLogoCandidates, firstExistingPath, requestRebootInteractive, isAuthorizationError, runCommandCapture } from './util.js';
+
+const ISSUE_NEW_URL = 'https://github.com/komorebinator/borshevik/issues/new';
 
 export const MainWindow = GObject.registerClass(
 class MainWindow extends Adw.ApplicationWindow {
@@ -42,6 +44,20 @@ class MainWindow extends Adw.ApplicationWindow {
     this._autoUpdatesGuard = false;
 
     this._initUi();
+
+    // Keep the uptime line ticking while the window is open.
+    this._uptimeTimerId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 1, () => {
+      this._refreshUptime();
+      return GLib.SOURCE_CONTINUE;
+    });
+    this.connect('close-request', () => {
+      if (this._uptimeTimerId) {
+        GLib.source_remove(this._uptimeTimerId);
+        this._uptimeTimerId = null;
+      }
+      return false;
+    });
+
     this._refreshStatus().then(() => {
       // Best-effort update check without auth prompts.
       this._checkForUpdates({ interactive: false }).catch((e) => {
@@ -159,6 +175,39 @@ class MainWindow extends Adw.ApplicationWindow {
     });
     headerBox.append(this._digestLabel);
 
+    this._uptimeLabel = new Gtk.Label({
+      halign: Gtk.Align.CENTER,
+      margin_top: 2,
+      wrap: true,
+      selectable: true,
+      css_classes: ['caption', 'dim-label']
+    });
+    headerBox.append(this._uptimeLabel);
+
+    // Markup link rather than Gtk.LinkButton, whose button padding leaves a gap.
+    // The URL is built at click time so it carries the current facts.
+    this._reportIssueLink = new Gtk.Label({
+      label: `<a href="${ISSUE_NEW_URL}">${GLib.markup_escape_text(i18n.t('report_issue'), -1)}</a>`,
+      use_markup: true,
+      halign: Gtk.Align.CENTER,
+      css_classes: ['caption']
+    });
+    this._reportIssueLink.connect('activate-link', () => {
+      this._reportIssue();
+      return true;
+    });
+
+    // The stack is sized by its largest child, so switching to 'empty' hides
+    // the link while keeping its row and the content below does not jump.
+    this._reportIssueStack = new Gtk.Stack({
+      halign: Gtk.Align.CENTER,
+      margin_top: 2
+    });
+    this._reportIssueStack.add_named(this._reportIssueLink, 'link');
+    this._reportIssueStack.add_named(new Gtk.Box(), 'empty');
+    this._reportIssueStack.set_visible_child_name('empty');
+    headerBox.append(this._reportIssueStack);
+
     box.append(headerBox);
 
     // Primary action area (centered): Check/Update button OR spinner while checking.
@@ -243,12 +292,15 @@ class MainWindow extends Adw.ApplicationWindow {
     this._autoUpdatesGroup.add(this._autoUpdatesRow);
     box.append(this._autoUpdatesGroup);
 
+    this._refreshUptime();
+
     clamp.set_child(box);
     return clamp;
   }
 
   async _refreshStatus() {
     const i18n = this._app.i18n;
+    this._refreshUptime();
     const osr = readOsRelease();
 
     const res = await runStatusJson();
@@ -290,6 +342,15 @@ class MainWindow extends Adw.ApplicationWindow {
     this._refreshAutoUpdates().catch((e) => {
       logError(e, 'Failed to refresh automatic updates state');
     });
+  }
+
+  _refreshUptime() {
+    const i18n = this._app.i18n;
+    const seconds = readUptimeSeconds();
+    const value = seconds === null
+      ? i18n.t('unknown')
+      : formatUptime(seconds, i18n.t('uptime_days'));
+    this._uptimeLabel.set_label(`${i18n.t('uptime')}: ${value}`);
   }
 
   _setAutoUpdatesActive(value) {
@@ -397,6 +458,7 @@ class MainWindow extends Adw.ApplicationWindow {
     if (!this._facts) {
       this._primaryMode = 'check';
       this._primaryButton.set_label(i18n.t('primary_check'));
+      this._reportIssueStack.set_visible_child_name('empty');
       return;
     }
 
@@ -415,6 +477,7 @@ class MainWindow extends Adw.ApplicationWindow {
     }
 
     this._statusLabel.set_label(ui.statusText || '');
+    this._reportIssueStack.set_visible_child_name(ui.showReportIssue ? 'link' : 'empty');
   }
 
   async _onPrimaryAction() {
@@ -702,6 +765,36 @@ class MainWindow extends Adw.ApplicationWindow {
       withAuthRetry: false,
       onSuccess: async () => this._showInfo(i18n.t('promote_complete'))
     });
+  }
+
+  _reportIssue() {
+    // The body is read by the maintainer, so it is always in English.
+    const f = this._facts ?? {};
+    const seconds = readUptimeSeconds();
+    const uptime = seconds === null ? null : formatUptime(seconds, 'd');
+    const v = (x) => x || 'unknown';
+
+    const body = [
+      '<!-- Describe what happened and what you expected. -->',
+      '',
+      '',
+      '---',
+      `Image: ${v(f.currentOrigin)}`,
+      `Variant: ${v(f.variant)}`,
+      `Channel: ${v(f.channel)}`,
+      `Build time: ${v(f.buildTime)}`,
+      `Digest: ${v(f.digest)}`,
+      `Uptime: ${v(uptime)}`
+    ].join('\n');
+
+    const uri = `${ISSUE_NEW_URL}?body=${encodeURIComponent(body)}`;
+    try {
+      Gio.AppInfo.launch_default_for_uri(uri, null);
+    } catch (e) {
+      logError(e, 'Failed to open issue page');
+      const msg = e?.message ? e.message : String(e);
+      this._showInfo(`${this._app.i18n.t('error')}: ${msg}`);
+    }
   }
 
   _showAbout() {
