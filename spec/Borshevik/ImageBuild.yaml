@@ -64,7 +64,7 @@ components:
     src: build_files/scripts/install-rpm-packages.sh
     functions:
       - id: run
-        description: Layers the curated RPM set in one transaction; the list is in the script. Some of it is used by other parts of the image rather than directly by users: the compiler toolchain by @GnomeExtensions#own-builds, patchelf by @HiddifyApp#installer, gh by @ImageManagerApp#promote-to-stable, adw-gtk3-theme by the dark GTK3 default (@ShellCustomizations#defaults). mutter-devkit is what `gnome-shell --devkit` needs to run a nested shell in a window, so a GNOME Shell extension can be tried without logging out — on Wayland the session shell cannot be restarted in place, and a layered package would slow every image update, so it ships in the image instead. gnome-shell-extension-gsconnect is layered here by mistake: cleanup removes it again moments later, and the GSConnect that ships is built from source by @GnomeExtensions#own-builds.
+        description: Layers the curated RPM set in one transaction; the list is in the script. Some of it is used by other parts of the image rather than directly by users: the compiler toolchain by @GnomeExtensions#own-builds, patchelf by @HiddifyApp#installer, gh by @ImageManagerApp#promote-to-stable, adw-gtk3-theme by the dark GTK3 default (@ShellCustomizations#defaults), and gsound by GSConnect, which recommends it for its sounds. GSConnect itself is not among the RPMs — it is built from source by @GnomeExtensions#own-builds — so nothing else would bring gsound in. mutter-devkit is what `gnome-shell --devkit` needs to run a nested shell in a window, so a GNOME Shell extension can be tried without logging out — on Wayland the session shell cannot be restarted in place, and a layered package would slow every image update, so it ships in the image instead.
   - id: rebuild-initramfs
     type: @ShellScript
     description: Regenerates the initramfs so newly layered kernel modules and hooks are picked up.
@@ -78,7 +78,7 @@ components:
     src: build_files/scripts/cleanup.sh
     functions:
       - id: run
-        description: Removes Firefox, toolbox, GNOME Classic and nvtop; every GNOME Shell extension RPM, the image's extensions coming from @GnomeExtensions instead — including the gsconnect RPM install-rpm-packages layered moments before; GNOME Software's DKMS helper and DNF5 plugin; and disables flatpak-add-fedora-repos.service, leaving Flathub as the only Flatpak remote.
+        description: Removes Firefox, toolbox, GNOME Classic and nvtop; every GNOME Shell extension RPM the base image brings, the image's extensions coming from @GnomeExtensions instead; GNOME Software's DKMS helper and DNF5 plugin; and disables flatpak-add-fedora-repos.service, leaving Flathub as the only Flatpak remote.
   - id: os-info
     type: @ShellScript
     description: Appends per-build identity to /usr/lib/os-release; the branding itself comes from @SystemConfig#os-release.
