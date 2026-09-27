@@ -82,8 +82,27 @@ components:
     src: build_files/scripts/enable-services.sh
     functions:
       - id: run
-        description: "Enables setup-kargs.service system-wide, then applies `systemctl --global preset` to borshevik-app-manager-first-run.service and borshevik-kill-gnome-if-hung.timer — preset, not enable, so the decision comes from @Services#user-preset. The watchdog's .service is deliberately not preset; the timer pulls it in. setup-ublue-mok.service is enabled only when IMAGE_NAME is borshevik-nvidia, which is what keeps MOK enrollment out of the standard variant. Run at image build time from @ImageBuild#build-addons."
+        description: "Enables setup-kargs.service system-wide, then applies `systemctl --global preset` to borshevik-app-manager-first-run.service, borshevik-enable-new-extensions.service and borshevik-kill-gnome-if-hung.timer — preset, not enable, so the decision comes from @Services#user-preset. The watchdog's .service is deliberately not preset; the timer pulls it in. setup-ublue-mok.service is enabled only when IMAGE_NAME is borshevik-nvidia, which is what keeps MOK enrollment out of the standard variant. Run at image build time from @ImageBuild#build-addons."
   - id: user-preset
     type: @ConfigFile
     src: build_files/root/usr/lib/systemd/user-preset/90-borshevik.preset
-    description: "Preset file holding `enable` for app-manager-first-run and gnome-watchdog#timer. @Services#enable-services applies it per unit with `systemctl --global preset <unit>` at build time, so these two are on for every user account created later."
+    description: "Preset file holding `enable` for app-manager-first-run, extension-autoenable#service and gnome-watchdog#timer. @Services#enable-services applies it per unit with `systemctl --global preset <unit>` at build time, so these are on for every user account, including ones created later."
+  - id: extension-autoenable
+    type: @Singleton
+    description: "Enables every GNOME Shell extension the image ships, once per extension per user. The image's default enabled-extensions (written by @ShellCustomizations' apply-dconf step) is only a system-db default: the first time a user toggles any extension, their own user-db list takes over and a system default is never read again, so an extension added to the image later stayed off for everyone who had ever touched their extensions. This offers each system extension to each user exactly once and remembers it, so a later decision to switch one off is kept."
+    components:
+      - id: script
+        type: @ShellScript
+        description: Bash script, run as the user, that turns on system extensions this user has not been offered before.
+        src: build_files/root/usr/libexec/borshevik/borshevik-enable-new-extensions.sh
+        functions:
+          - id: run
+            description: "Under `set -uo pipefail`. The state file is ${XDG_STATE_HOME:-$HOME/.local/state}/borshevik/offered-extensions, one uuid per line; creates its directory and the file if missing. For each directory under /usr/share/gnome-shell/extensions — its name is the extension uuid — skips it when the state file already holds that exact line (`grep -qxF`). Otherwise runs `gnome-extensions enable <uuid>`, which asks the running GNOME Shell over D-Bus to enable it; the shell itself adds it to enabled-extensions and drops it from disabled-extensions (which would otherwise override it), so the script never edits either list, and the change applies in the running session. Only when that succeeds is the uuid appended to the state file, so an extension that could not be enabled — the shell not answering yet, say — is offered again at the next login. Failures are reported on stderr and make the script exit 1, so they show in the unit's journal; otherwise it exits 0. The first run for an existing user therefore enables every system extension once, including ones they had switched off before this service existed; every later run touches only extensions the image has gained since."
+      - id: service
+        type: @SystemdUnit
+        src: build_files/root/usr/lib/systemd/user/borshevik-enable-new-extensions.service
+        unit_type: service
+        scope: user
+        triggers: login — Wants/After graphical-session.target, WantedBy graphical-session.target; enabled globally via user-preset
+        executes: /usr/libexec/borshevik/borshevik-enable-new-extensions.sh
+        description: Oneshot service. Runs on every login rather than once, because the image can gain an extension with any update; the state file, not the unit, is what makes each extension a one-time offer. Ordered after graphical-session.target so GNOME Shell is already up to answer `gnome-extensions enable`.

@@ -1,4 +1,4 @@
-description: Borshevik-specific systemd services — kernel argument setup, MOK enrollment, App Manager first-run, and GNOME Shell watchdog.
+description: Borshevik-specific systemd services — kernel argument setup, MOK enrollment, App Manager first-run, enabling newly shipped GNOME Shell extensions, and GNOME Shell watchdog.
 extends: @DuckspecProject
 terms_folder: BorshevikServices/
 goals:

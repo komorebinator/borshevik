@@ -1,0 +1,11 @@
+[Unit]
+Description=Enable GNOME Shell extensions newly shipped by Borshevik
+Wants=graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/borshevik/borshevik-enable-new-extensions.sh
+
+[Install]
+WantedBy=graphical-session.target
