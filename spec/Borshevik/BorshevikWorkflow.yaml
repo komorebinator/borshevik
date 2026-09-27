@@ -62,7 +62,7 @@ steps:
   - id: on_stable
     description: The change reaches users through `:stable`. What follows only concerns fresh installs.
     when: "`:stable` resolves to a digest that carries the change, and no ISO carrying it is downloadable"
-    operation: "@GitHub#run_workflow(workflow=build-iso.yml)"
+    operation: "@GitHub#run_workflow(workflow=build-iso.yml, ref=main)"
   - id: iso_built
     description: "Installer media carrying the change exist as the artifacts of one build-iso run, under file names no other run shares, and nobody has installed from them yet. Nothing reaches borshevik.org before a person has: an ISO that fails to install is worse than an old one that works."
     when: a build-iso run produced media carrying the change, and the author has not yet confirmed both of its variants in a virtual machine
@@ -184,3 +184,4 @@ recipes:
       - "Load the project registered for https://github.com/komorebinator/borshevik-landing and, following that project's own workflow, change which ISOs it offers to these two. Its deploy refuses to switch to files that are not on the server, so a switch made before the upload finished fails there instead of breaking the download buttons"
 guidelines:
   - "Build only the layer the change touches. A change to the base layer — the borshevik-base and borshevik-base-nvidia stages of the Containerfile, cosign.pub, or the scripts they run (build-base.sh, build-base-nvidia.sh, install-kernel.sh, install-rpm-packages.sh, install-google-chrome.sh, install-steam.sh, cleanup.sh) — needs build-base.yml, which then builds the final layer on top by itself. Anything else — build_files/root/, build-addons.sh and the scripts it runs, the GNOME extensions, dconf, schemas, the final stages, or a new commit in an extension repository installed from its branch — needs build-borshevik.yml alone: the final stages build FROM the published borshevik-base tags, so rebuilding the base would only spend most of an hour producing what is already published. When a change touches both, build-base.yml."
+  - "Installer media are built from main, never from experimental — build-iso.yml, like promote-image-to-stable.yml, runs with ref=main. What an ISO installs comes from :stable either way, but the workflow file and installer/ templates it builds with come from the branch it runs on, and media that reach users must be built by what main holds, not by something still being tried. A change to how ISOs are built or published therefore reaches main before it is used: by pull request, and on its own branch cut from main when experimental carries other changes not yet tried."
