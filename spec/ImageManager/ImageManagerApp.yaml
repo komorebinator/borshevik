@@ -492,3 +492,10 @@ components:
         description: "Reads en.json from baseDir. Detects locale via LANGUAGE > LC_ALL > LC_MESSAGES > LANG env var chain; takes the first colon-separated segment; extracts the two-letter language code via regex. If locale differs from 'en', loads <locale>.json; on read or parse failure falls back to {}."
       - id: t
         description: "Looks up key in _dict (locale-specific), falls back to _en, falls back to key itself as the default string."
+recipes:
+  - id: run
+    description: Runs the Image Manager straight from the repository working tree, so a change can be tried on this machine without building an image
+    instructions:
+      - "If the installed Image Manager (application id org.borshevik.ImageManager) is already running, ask the user to close it first — GApplication is single-instance, so a second launch only presents the existing window of the installed version and the change is never seen"
+      - "Run `gjs -m build_files/root/usr/share/borshevik-image-manager/main.js` from the repository root in the host session, in the background so the window stays open; the app resolves its i18n dictionaries relative to its own main.js, so they come from the working tree too"
+      - "Watch its output for JS errors and report them, then let the user judge the window itself — how it looks and behaves is theirs to confirm"
