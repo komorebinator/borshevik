@@ -49,15 +49,15 @@ if [ -z "$iso" ]; then
 fi
 sha256sum -c "$iso-CHECKSUM"
 
-qemu() { flatpak run --filesystem="$dir" --command="$1" org.gnome.Boxes "${@:2}"; }
+boxes() { flatpak run --filesystem="$dir" --command="$1" org.gnome.Boxes "${@:2}"; }
 
 cdrom=()
 if [ "$boot_only" -eq 1 ]; then
     [ -f disk.qcow2 ] || { echo "no installed disk in $dir; run without --boot first" >&2; exit 1; }
 else
     rm -f disk.qcow2 vars.fd
-    qemu qemu-img create -q -f qcow2 "$dir/disk.qcow2" 40G
-    qemu cp /app/share/qemu/edk2-i386-vars.fd "$dir/vars.fd"
+    boxes qemu-img create -q -f qcow2 "$dir/disk.qcow2" 40G
+    boxes cp /app/share/qemu/edk2-i386-vars.fd "$dir/vars.fd"
     cdrom=(-drive "file=$dir/$iso,media=cdrom,readonly=on")
 fi
 
@@ -67,17 +67,43 @@ Trying $iso (run $run_id). Check that:
   1. the installer finishes$([ "$boot_only" -eq 1 ] && echo " (already done: booting the installed disk)")
   2. the installed system boots to GNOME and gets through first login
   3. \`rpm-ostree status\` shows ghcr.io/komorebinator/$variant:stable
-Close the window when done. Boot the installed system again with: $0 --boot $run_id $variant
+Close the viewer window when done; that powers the machine off. Boot the installed system again with: $0 --boot $run_id $variant
 
 EOF
 
-qemu qemu-system-x86_64 \
+# The screen is shown by spicy, the SPICE client Boxes itself uses: qemu's own GTK
+# window misplaces the guest pointer under Wayland fractional scaling.
+rm -f spice.sock qmp.sock
+boxes qemu-system-x86_64 \
     -name "$iso" \
     -enable-kvm -machine q35 -cpu host -smp 4 -m 6144 \
     -drive if=pflash,format=raw,readonly=on,file=/app/share/qemu/edk2-x86_64-code.fd \
     -drive "if=pflash,format=raw,file=$dir/vars.fd" \
     -drive "file=$dir/disk.qcow2,if=virtio" \
     "${cdrom[@]}" \
-    -device virtio-vga -display gtk \
+    -device virtio-vga -display none \
+    -spice "unix=on,addr=$dir/spice.sock,disable-ticketing=on" \
+    -device virtio-serial-pci \
+    -chardev spicevmc,id=vdagent,name=vdagent \
+    -device virtserialport,chardev=vdagent,name=com.redhat.spice.0 \
+    -qmp "unix:$dir/qmp.sock,server=on,wait=off" \
     -device qemu-xhci -device usb-tablet \
-    -nic user,model=virtio-net-pci
+    -nic user,model=virtio-net-pci &
+qemu_pid=$!
+
+power_off() {
+    python3 - "$dir/qmp.sock" <<'PY' 2>/dev/null || true
+import socket, sys
+s = socket.socket(socket.AF_UNIX)
+s.connect(sys.argv[1])
+s.recv(4096)
+s.sendall(b'{"execute":"qmp_capabilities"}')
+s.recv(4096)
+s.sendall(b'{"execute":"quit"}')
+PY
+    wait "$qemu_pid" 2>/dev/null || true
+}
+trap power_off EXIT
+
+for _ in $(seq 100); do [ -S spice.sock ] && break; kill -0 "$qemu_pid" 2>/dev/null || exit 1; sleep 0.1; done
+boxes spicy --uri="spice+unix://$dir/spice.sock"
