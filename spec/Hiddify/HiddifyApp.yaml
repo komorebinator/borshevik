@@ -9,7 +9,7 @@ components:
     src: build_files/scripts/install-hiddify.sh
     functions:
       - id: run
-        description: "Fetches Hiddify release metadata from api.github.com/repos/hiddify/hiddify-app/releases/latest (or a specific HIDDIFY_VERSION tag); authenticates with GITHUB_TOKEN if set. Finds the asset matching 'Debian-x64.deb'. Downloads to a temp dir (cleaned via EXIT trap). Extracts with 'ar x' then 'tar xf data.tar.*'. Copies pkg/usr/share/hiddify/ to /usr/lib/hiddify/ (a glibc-trusted path, so $ORIGIN RUNPATH resolves in AT_SECURE mode). Copies icons. Patches RUNPATH of /usr/lib/hiddify/hiddify with patchelf --set-rpath <dest>/lib. Applies setcap cap_net_raw,cap_net_admin,cap_net_bind_service+eip to both hiddify and HiddifyCli binaries."
+        description: Installs Hiddify from its GitHub release's Debian package (the latest, or HIDDIFY_VERSION) by unpacking it into the image, since a .deb cannot be layered on an rpm-ostree system — the .deb rather than the AppImage because it has a plain system layout without bundled system libraries. The app goes to /usr/lib/hiddify, and its binaries get the network capabilities a VPN needs (cap_net_admin, cap_net_raw, cap_net_bind_service). A binary with capabilities runs in secure mode, where the loader does not expand a relative RUNPATH outside trusted directories, so the app's RUNPATH is also made absolute; patchelf comes from @ImageBuild#install-rpm-packages. GITHUB_TOKEN, when set, avoids GitHub's rate limit in CI.
   - id: wrapper
     type: @ShellScript
     description: Launcher that refuses to start a second instance and otherwise execs the real binary.

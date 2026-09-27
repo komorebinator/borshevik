@@ -1,4 +1,4 @@
-description: OCI container image build pipeline — multi-stage Containerfile and bash build scripts that run inside rootful Podman during image build.
+description: The OCI image build — one multi-stage Containerfile and the bash scripts its stages run. Which image each stage produces and what it builds on is described on @BorshevikBaseImage, @BorshevikBaseNvidiaImage, @BorshevikImage and @BorshevikNvidiaImage; when each is built, on @BorshevikWorkflow.
 extends: @Software
 platform: bash + Containerfile (buildah)
 src: build_files/scripts/
@@ -6,7 +6,7 @@ components:
   - id: containerfile
     type: @ContainerImage
     src: Containerfile
-    description: "Single multi-stage Containerfile that builds all four Borshevik image variants — @BorshevikBaseImage, @BorshevikBaseNvidiaImage, @BorshevikImage, @BorshevikNvidiaImage — each built by buildah (redhat-actions/buildah-build in CI) with `--target <stage-name>`; see those terms for what each stage actually installs and which image it builds FROM. This component covers only the mechanics shared by all stages, not image identity/lineage. A global `ARG FEDORA_MAJOR_VERSION=44` is declared before the first FROM; each stage that needs it redeclares `ARG FEDORA_MAJOR_VERSION` (plus per-stage ARG IMAGE_NAME, ARG IMAGE_TAG=latest, ARG BUILD_DATE) to bring it into scope. Every stage except `ctx` sets `LABEL org.opencontainers.image.title=$IMAGE_NAME` and, notably, `LABEL org.opencontainers.image.version=$IMAGE_NAME` (the version label is set from IMAGE_NAME, not IMAGE_TAG or BUILD_DATE — this looks like it may be a copy-paste artifact rather than intentional, worth confirming with upstream before relying on the version label). The four build stages each run their build script via `RUN --mount=type=bind,from=ctx,source=/build_scripts,target=/build_scripts` — a bind-mount of the `ctx` stage's /build_scripts, not a COPY, so the scripts never end up as a layer in the final image — followed by `ostree container commit` to finalize the ostree commit for that layer."
+    description: One stage per published image, plus `ctx`, a scratch stage holding build_files/scripts that every build stage bind-mounts rather than copies, so no script ends up in an image. Every build stage ends with `ostree container commit`. CI builds one target at a time and applies the tags itself. Each stage labels the image with its name as both the OCI title and the OCI version.
     stages:
       - id: ctx
         from: scratch
@@ -22,35 +22,35 @@ components:
     build_args:
       - id: FEDORA_MAJOR_VERSION
         default: 44
-        description: Declared globally before the first FROM; selects the Fedora major version tag used throughout the @UniversalBlueGnome/@FedoraSilverblue lineage and both akmods images, @UBlueAkmods and @UBlueAkmodsNvidiaOpen.
+        description: The Fedora release of the whole lineage — the base image and both akmods images — and PLATFORM_ID and VERSION_ID in os-release (os-info).
       - id: IMAGE_NAME
-        description: No default — must be supplied by the caller (CI sets it per matrix variant). Used only for the OCI title/version labels, not for tagging.
+        description: No default; CI sets it to the target's name. Becomes the OCI labels and VARIANT_ID in os-release (os-info), and decides whether MOK enrollment is enabled (@Services#enable-services).
       - id: IMAGE_TAG
         default: latest
-        description: Declared per-stage; not otherwise referenced inside the Containerfile itself (actual push tags are applied by the calling CI workflow, not by this file).
+        description: Declared, but nothing in the build reads it; CI applies the tags.
       - id: BUILD_DATE
-        description: No default — supplied by the caller. Declared per-stage but not referenced in any LABEL or RUN in the current Containerfile.
+        description: No default; CI sets it to the build's date, DD.MM.YYYY. Becomes VERSION in os-release (os-info).
   - id: build-base
     type: @ShellScript
     description: Orchestrates the base layer — RPM packages, Chrome, Steam, podman.socket.
     src: build_files/scripts/build-base.sh
     functions:
       - id: run
-        description: "Orchestrates borshevik-base layer (set -ouex pipefail): runs install-kernel.sh → install-rpm-packages.sh → @GoogleChromeApp#installer → @SteamApp#installer → cleanup.sh. Enables podman.socket via systemctl enable. install-kernel.sh goes first so everything layered afterwards is built and resolved against the kernel the image will actually ship, not the newer one the base image arrived with."
+        description: The base layer's steps, in order: install-kernel first, so everything layered afterwards resolves against the kernel the image will actually ship; then install-rpm-packages, @GoogleChromeApp#installer, @SteamApp#installer and cleanup; finally enables podman.socket.
   - id: build-base-nvidia
     type: @ShellScript
-    description: Installs the NVIDIA driver and CUDA stack from the prebuilt akmods content, adding the negativo17 repository for the userspace half.
+    description: Installs the NVIDIA driver on the base layer.
     src: build_files/scripts/build-base-nvidia.sh
     functions:
       - id: run
-        description: "Sources NVIDIA_AKMOD_VERSION from /tmp/akmods-nvidia/rpms/kmods/nvidia-vars (content of @UBlueAkmodsNvidiaOpen, COPYed in by the Containerfile) and strips it to the base version. Adds the negativo17 fedora-nvidia repository, then installs the prebuilt kmod RPMs from /tmp/akmods-nvidia together with nvidia-kmod-common and nvidia-modprobe at that version, followed by the userspace stack — nvidia-driver with its 64- and 32-bit libs, nvidia-settings, nvidia-driver-cuda with its 32-bit libs, and libva-nvidia-driver. Does not run cleanup.sh."
+        description: Installs the prebuilt kernel modules from @UBlueAkmodsNvidiaOpen together with the userspace driver, settings tool, CUDA and VA-API libraries (64- and 32-bit) from the negativo17 repository, at the version read from the akmods content itself, so modules and userspace always match. Runs no cleanup of its own; the base layer already did.
   - id: build-addons
     type: @ShellScript
     description: Orchestrates the final layer — Hiddify, GNOME extensions, shell customizations, services, initramfs.
     src: build_files/scripts/build-addons.sh
     functions:
       - id: run
-        description: "Orchestrates the final borshevik/borshevik-nvidia layer (set -ouex pipefail): os-info.sh → @HiddifyApp#installer → @GnomeExtensions#installer → @ShellCustomizations#apply-schemas → @ShellCustomizations#apply-dconf → @Services#enable-services → rebuild-initramfs.sh."
+        description: The final layer's steps, in order: os-info, @HiddifyApp#installer, @GnomeExtensions#installer, @ShellCustomizations#apply-schemas and #apply-dconf — the latter after the extensions, since it enables whatever extensions are installed at that moment — @Services#enable-services, and rebuild-initramfs last.
   - id: install-kernel
     type: @ShellScript
     description: "Temporary (added 2026-09): replaces the base image's kernel with the one @UBlueAkmods ships, holding Borshevik a few releases behind Fedora's newest. Exists only to avoid the amdgpu HDMI 4:2:0 regression in Fedora's 7.2 kernels, not as a kernel policy — remove it, its call in build-base.sh, the akmods COPY in @ImageBuild#containerfile and the coreos-stable tag on @UBlueAkmodsNvidiaOpen once Fedora ships a kernel carrying the fix."
@@ -64,21 +64,21 @@ components:
     src: build_files/scripts/install-rpm-packages.sh
     functions:
       - id: run
-        description: "A single `rpm-ostree install -y` of the curated set: htop, mc, gnome-tweaks, gnome-disk-utility, pwgen, openssl, distrobox, zsh, gh, patch, nautilus-python, gnome-shell-extension-gsconnect, adw-gtk3-theme, translate-shell, util-linux, libxcrypt-compat, libayatana-appindicator-gtk3, patchelf, mutter-devkit, plus the toolchain @GnomeExtensions builds against — meson, ninja-build, cmake, make, gcc, pkgconf-pkg-config, glib2-devel, sassc, xcb-util-cursor and xcb-util-cursor-devel. mutter-devkit is what `gnome-shell --devkit` needs to run a nested shell in a window, so a GNOME Shell extension can be tried without logging out — on Wayland the session shell cannot be restarted in place, and a layered package would slow every image update, so it ships in the image instead."
+        description: Layers the curated RPM set in one transaction; the list is in the script. Some of it is used by other parts of the image rather than directly by users: the compiler toolchain by @GnomeExtensions#own-builds, patchelf by @HiddifyApp#installer, gh by @ImageManagerApp#promote-to-stable, adw-gtk3-theme by the dark GTK3 default (@ShellCustomizations#defaults). mutter-devkit is what `gnome-shell --devkit` needs to run a nested shell in a window, so a GNOME Shell extension can be tried without logging out — on Wayland the session shell cannot be restarted in place, and a layered package would slow every image update, so it ships in the image instead. gnome-shell-extension-gsconnect is layered here by mistake: cleanup removes it again moments later, and the GSConnect that ships is built from source by @GnomeExtensions#own-builds.
   - id: rebuild-initramfs
     type: @ShellScript
     description: Regenerates the initramfs so newly layered kernel modules and hooks are picked up.
     src: build_files/scripts/rebuild-initramfs.sh
     functions:
       - id: run
-        description: "Resolves the installed kernel's full evr.arch via `dnf5 repoquery --installed`, querying `kernel-surface` instead of `kernel` when KERNEL_FLAVOR is surface. Regenerates that one kernel's initramfs with `dracut --no-hostonly --kver <resolved> --reproducible --zstd --add ostree -f`, writing to /usr/lib/modules/<resolved>/initramfs.img, then chmods the image 0600."
+        description: Regenerates the initramfs of the installed kernel — reproducibly, not host-only, with ostree support — so it matches what the final layer ships.
   - id: cleanup
     type: @ShellScript
     description: Removes preinstalled software the image is not meant to ship — despite the name, nothing here cleans caches.
     src: build_files/scripts/cleanup.sh
     functions:
       - id: run
-        description: "Drops firefox, firefox-langpacks, toolbox, gnome-classic-session and nvtop via `rpm-ostree override remove`. Then removes every installed `gnome-shell-extension-*` RPM the same way, skipping when the query matches none — this includes gsconnect, which @ImageBuild#install-rpm-packages layers moments earlier in the same build-base.sh run. Deletes GNOME Software's DKMS helper (plugin, libexec binary and polkit policy) and its DNF5 plugin. Disables flatpak-add-fedora-repos.service, leaving Flathub as the only configured remote. Ends by printing `df -h`."
+        description: Removes Firefox, toolbox, GNOME Classic and nvtop; every GNOME Shell extension RPM, the image's extensions coming from @GnomeExtensions instead — including the gsconnect RPM install-rpm-packages layered moments before; GNOME Software's DKMS helper and DNF5 plugin; and disables flatpak-add-fedora-repos.service, leaving Flathub as the only Flatpak remote.
   - id: os-info
     type: @ShellScript
     description: Appends per-build identity to /usr/lib/os-release; the branding itself comes from @SystemConfig#os-release.

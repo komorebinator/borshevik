@@ -1,4 +1,4 @@
-description: "The final NVIDIA Borshevik image. Built by the borshevik-nvidia stage of @ImageBuild#containerfile, which FROMs ghcr.io/komorebinator/borshevik-base-nvidia:latest — the *published* BorshevikBaseNvidiaImage tag, pulled from the registry, same cross-image pattern as BorshevikImage's FROM of borshevik-base. Same build steps as BorshevikImage (COPYs build_files/root/, runs build-addons.sh, `ostree container commit`) layered on the NVIDIA base instead. Rebuilds on the same trigger as BorshevikImage — workflow_call from build-base.yml, or manual dispatch; never on push."
+description: The final NVIDIA image: the same final layer as @BorshevikImage, built the same way on the published borshevik-base-nvidia tag.
 extends: @BorshevikBaseNvidiaImage
 registry: ghcr.io/komorebinator
 tags:

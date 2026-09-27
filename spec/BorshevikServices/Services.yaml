@@ -13,15 +13,15 @@ components:
         src: build_files/root/usr/libexec/borshevik/setup-kargs.sh
         functions:
           - id: run
-            description: "NEEDED_ARGS starts with 'preempt=full'. If nvidia-driver RPM is installed (rpm -q), appends nvidia-drm.modeset=1, modprobe.blacklist=nouveau, modprobe.blacklist=nova_core, rd.driver.blacklist=nova_core. Reads /proc/cmdline into CMDLINE_ARGS array. Computes MISSING_ARGS = NEEDED_ARGS not in CMDLINE_ARGS. If both MISSING_ARGS and REMOVE_ARGS are empty, exits 0. Otherwise shows a plymouth message, calls rpm-ostree kargs with all --append=<arg> and --delete=<arg> in a single invocation, then calls systemctl reboot."
+            description: Adds preempt=full, and on the NVIDIA image — detected by the nvidia-driver package — the arguments that give the proprietary driver kernel modesetting and keep the nouveau and nova_core drivers from loading. Does nothing when all of them are already set; otherwise sets the missing ones in a single rpm-ostree call, shows a message on the boot splash, and reboots, so a boot that had to set any reboots once.
       - id: service
         type: @SystemdUnit
         src: build_files/root/usr/lib/systemd/system/setup-kargs.service
         unit_type: service
         scope: system
-        triggers: boot — WantedBy=graphical.target, After=plymouth-start.service and setup-ublue-mok.service, Before=graphical.target/display-manager.service/plymouth-quit.service, ConditionKernelCommandLine=!recovery
+        triggers: every boot, before the display manager and after setup-ublue-mok; not in recovery mode
         executes: /usr/libexec/borshevik/setup-kargs.sh
-        description: "Oneshot service. Reboots the system if kernel args were changed. Runs once per boot via systemd's exec/reboot cycle."
+        description: Oneshot service running the script on every boot.
   - id: mok-enrollment
     type: @Singleton
     description: Enrolls the uBlue MOK key for NVIDIA Secure Boot on first boot.
@@ -59,7 +59,7 @@ components:
         src: build_files/root/usr/libexec/borshevik/borshevik-kill-gnome-if-hung.sh
         functions:
           - id: run
-            description: "Calls gdbus to query org.gnome.Shell ShellVersion with a 10s timeout. If the call times out or fails: uses pgrep -u $USER -x gnome-shell to find GNOME Shell PIDs. If any found: sends SIGTERM; waits 2s (GRACE period); if still running, sends SIGKILL. Runs every 1 minute via the watchdog timer."
+            description: Asks GNOME Shell over D-Bus for its version; if no answer comes within 10 seconds, terminates the user's gnome-shell and kills it if it is still there two seconds later.
       - id: service
         type: @SystemdUnit
         src: build_files/root/usr/lib/systemd/user/borshevik-kill-gnome-if-hung.service
