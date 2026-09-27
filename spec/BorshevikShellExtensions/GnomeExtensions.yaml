@@ -13,7 +13,7 @@ components:
     type: @ConfigFile
     format: JSON
     src: build_files/scripts/gs-extensions/list.json
-    description: Which extensions ship and where each comes from — a release, a tag or a branch of its upstream repository, including Borshevik's own extensions, which are separate projects. An entry pinned to a tag stays put; one that follows a branch or the latest release changes with every image build, so a new upstream commit reaches users without any change in this repository.
+    description: Which extensions ship and where each comes from — a release, a tag or a branch of its upstream repository, including Borshevik's own extensions, which are separate projects worked on as @BorshevikExtensionWorkflow describes. An entry pinned to a tag stays put; one that follows a branch or the latest release changes with every image build, so a new upstream commit reaches users without any change in this repository.
   - id: default-patches
     type: @Patch
     src:

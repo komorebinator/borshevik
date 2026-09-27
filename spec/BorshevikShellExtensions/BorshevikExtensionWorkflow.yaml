@@ -1,0 +1,43 @@
+description: "How work is done on each of Borshevik's own GNOME Shell extensions — App Search, Update Indicator and Workspace Manager, each in a repository of its own. There is one branch, `main`, and the maintainer works on it directly — no pull requests and no pipelines of the extension's own. A change is tried on the author's machine first: the extension is installed per user as a link into the repository's working tree, so a fresh GNOME Shell session runs exactly what is on disk. Only then is it committed and pushed. The fact that shapes the rest is that a push to `main` is a delivery: @GnomeExtensions clones each of these repositories' `main` (list.json names the branch) at every final-layer build of @BorshevikImage and @BorshevikNvidiaImage, so whatever `main` carries at that moment goes into the next Borshevik `:latest`, with no tag or release in between. Testing therefore happens before the push, not after it — Borshevik's own `experimental` builds read the extension's `main` too, so there is no way to try a change inside an image without having already delivered it. From `:latest` on, the change travels with Borshevik and reaches users the way @BorshevikWorkflow moves any change. There are no versions and no release notes: the extensions are not published on extensions.gnome.org, and nothing reads metadata.json's `version`."
+extends: @DuckWorkflow
+main_branch: main
+guidelines:
+  - "Never push to find out whether something works. `main` is read by every Borshevik build, `experimental` ones included, so a push is the moment the change reaches `:latest` and everyone following it; the only place to try a change without delivering it is a local session."
+  - "Borshevik installs the extension by copying its directory as it stands on `main` and compiling its GSettings schemas when list.json names them — nothing else is built. Whatever else has to be compiled, translations above all, is shipped as committed: a change to its source is not finished until the compiled file is regenerated and committed alongside it."
+  - "`shell-version` in metadata.json must name the GNOME version the current Borshevik image ships. list.json does not set `forceGnomeVersion` for Borshevik's own extensions, so when Borshevik moves to a new GNOME release an extension silently stops loading in the image until its metadata is updated and pushed — check this whenever Borshevik's base changes GNOME version, not only when the extension itself changes."
+branches:
+  - id: main
+    description: "The only branch, and what ships. The maintainer commits and pushes to it directly. Borshevik's final-layer build clones it at whatever commit it holds when the build runs — including builds of Borshevik's own `experimental` — so nothing reaches it that has not already been tried in a local session."
+channels:
+  - id: borshevik-image
+    from: main
+    description: "The only way the extension reaches anyone: installed system-wide into Borshevik images at build time. Not a channel the extension controls — it is Borshevik's `:latest` (testers; every build lands there) and then `:stable` (users; moved there by hand), as @BorshevikWorkflow declares them. The extension only feeds it, by what `main` carries when a Borshevik build runs."
+steps:
+  - id: requested
+    description: A change is wanted — a bug seen in daily use, or a request in the conversation. It is clarified, then written into the terms.
+    when: a request exists that the project's terms do not yet reflect
+  - id: specified
+    description: The change is in the spec, which is consistent, but the sources do not implement it yet.
+    when: the change is present in the terms, verify_project is clean, and the sources do not yet implement it
+    operation: "@Software#build"
+  - id: implemented
+    description: The working tree carries the change and the spec validates, but no GNOME Shell session has run it yet — the session in use loaded the extension before the change was made. The extension's own run recipe links the working tree in and asks the author to log in again.
+    when: the working tree carries the change, @DuckspecProject#validate passes, and the running gnome-shell process started before the change was last edited
+    operation: "@Software#run"
+  - id: testing_locally
+    description: "A fresh session runs the change from the working tree, and the author uses it to see that it works — the behaviour that was asked for, and nothing around it broken. Only the author can say it does; nothing here checks it. Errors the extension throws land in the user journal, which is worth reading before calling it done."
+    when: the running gnome-shell process started after the change was last edited, and the author has not yet confirmed it works
+    operation: "@Git#commit"
+  - id: committed
+    description: The change is recorded locally and has reached no one. Pushing it is delivering it to the next Borshevik build.
+    when: local commits carry the change and are not on the remote
+    operation: "@Git#push(branch=main)"
+  - id: on_main
+    description: "The change is on main and waits for a Borshevik build to pick it up. Nothing in the extension's repository starts one: Borshevik's daily schedule does, or a build started by hand in the Borshevik repository — from its `main` (@BorshevikWorkflow#steps#on_main) or its `experimental`, both of which clone the extension's `main`. Only the final layer needs rebuilding (@BorshevikWorkflow#build-borshevik)."
+    when: main carries the change and no Borshevik image on `:latest` was built after it was pushed
+  - id: on_latest
+    description: "A Borshevik image carrying the change is on `:latest`, where testers get it. It reaches users when that build, or a later one, is promoted to `:stable` — the step @BorshevikWorkflow#steps#built_from_main, performed in the Borshevik repository, not here."
+    when: a Borshevik image on `:latest` was built after the change was pushed, and `:stable` resolves to an image built before it
+  - id: on_stable
+    description: The change reaches users through Borshevik's `:stable`.
+    when: "`:stable` resolves to a Borshevik image built after the change was pushed"
