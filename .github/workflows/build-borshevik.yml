@@ -35,7 +35,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
 
       - name: Set build date
         run: echo "BUILD_DATE=$(date -u +%d.%m.%Y)" >> "$GITHUB_ENV"
@@ -48,7 +48,7 @@ jobs:
 
       - name: Build ${{ matrix.variant }} image
         id: build
-        uses: redhat-actions/buildah-build@7a95fa7ee0f02d552a32753e7414641a04307056 # v2
+        uses: redhat-actions/buildah-build@719e3c40d8af9790c23eca13f7daa339f2867034 # v3.1.0
         with:
           containerfiles: |
             ./Containerfile
@@ -105,7 +105,7 @@ jobs:
 
       - name: Push image
         if: github.event_name != 'pull_request'
-        uses: redhat-actions/push-to-registry@5ed88d269cf581ea9ef6dd6806d01562096bee9c # v2
+        uses: redhat-actions/push-to-registry@94ade333c38ecc0e60e94785125d9a52ca423b37 # v3.0.0
         with:
           registry: ${{ steps.registry_case.outputs.lowercase }}
           image: ${{ steps.build.outputs.image }}
