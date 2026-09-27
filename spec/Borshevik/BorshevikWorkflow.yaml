@@ -64,11 +64,20 @@ steps:
     when: "`:stable` resolves to a digest that carries the change, and no ISO carrying it is downloadable"
     operation: "@GitHub#run_workflow(workflow=build-iso.yml)"
   - id: iso_built
-    description: "Installer media carrying the change exist as artifacts of a build-iso run, kept for no time at all. Moving them to borshevik.org, where the README download buttons point, is done by hand and nothing in this repository performs it."
-    when: a build-iso run produced media carrying the change and the README download links do not yet serve them
+    description: "Installer media carrying the change exist as the artifacts of one build-iso run, under file names no other run shares, and nobody has installed from them yet. Nothing reaches borshevik.org before a person has: an ISO that fails to install is worse than an old one that works."
+    when: a build-iso run produced media carrying the change, and the author has not yet confirmed both of its variants in a virtual machine
+    operation: "@BorshevikWorkflow#try_iso(run_id=<run>)"
+  - id: iso_tried
+    description: "The author has installed both ISOs of the run in a virtual machine and confirmed each: the installer finishes, the installed system boots to GNOME and gets through first login, and `rpm-ostree status` shows it following ghcr.io/komorebinator/<variant>:stable. The NVIDIA variant can only be checked this far — no virtual machine has the GPU its drivers are for."
+    when: the author has confirmed both variants of the run in a virtual machine, and the run's media are not on borshevik.org
+    operation: "@GitHub#run_workflow(workflow=publish-iso.yml, inputs=run_id=<run>)"
+  - id: iso_uploaded
+    description: "Both ISOs of the run and their checksums sit in the site's iso/ folder under their own names, verified there, and nothing a visitor sees has changed: the site still offers the previous pair, and a download of it that was already running goes on undisturbed. Which pair the site offers is part of the website, so switching is a change to the website's repository, deployed the way any change to it is."
+    when: publish-iso.yml succeeded for the run, and the site does not yet offer the run's media
+    operation: "@BorshevikWorkflow#switch_iso(run_id=<run>)"
   - id: iso_published
-    description: Fresh installs get the change.
-    when: the README download links serve installer media carrying the change
+    description: "Fresh installs get the change. The site's download buttons lead to the run's media, and so do the permanent links https://borshevik.org/iso/borshevik-stable.iso and https://borshevik.org/iso/borshevik-nvidia-stable.iso that this README uses — the website redirects them to whatever it currently offers. The previous media stay on the server until someone removes them."
+    when: the site's download buttons lead to the run's media
 components:
   - id: build-base
     type: @Pipeline
@@ -83,8 +92,57 @@ components:
   - id: build-iso
     type: @Pipeline
     platform: GitHub Actions
-    description: "Manually triggered workflow that builds bootable ISOs from the :stable images. Triggered manually (workflow_dispatch) or via workflow_call. Builds ISO installer images for borshevik:stable and borshevik-nvidia:stable using build-container-installer. Uploads resulting ISOs (borshevik-stable.iso, borshevik-nvidia-stable.iso) as GitHub Actions artifacts with 0-day retention. The tag is hardcoded to `stable` in the workflow rather than taken as an input, so a build becomes installable from an ISO only after it has been promoted and this workflow is run again; nothing chains the two."
+    description: "Manually triggered workflow that builds bootable ISOs from the :stable images. Triggered manually (workflow_dispatch) or via workflow_call. Builds ISO installer images for borshevik:stable and borshevik-nvidia:stable using build-container-installer. A step before the build sets the ISO name to `<image_name>-<UTC build date as YYYYMMDD>-<github.run_number>.iso` (e.g. borshevik-nvidia-20260927-58.iso), so no two runs ever produce the same file name and published media never have to be overwritten in place; the installer writes `<iso name>-CHECKSUM` beside it, holding `<sha256>  <iso name>`. Uploads each variant's ISO and checksum as one artifact named `<image_name>-stable-<major_version>`; `retention-days: 0` means the repository's default retention (90 days unless changed), which is how long a run stays publishable. The tag is hardcoded to `stable` in the workflow rather than taken as an input, so a build becomes installable from an ISO only after it has been promoted and this workflow is run again; nothing chains the two."
     src: .github/workflows/build-iso.yml
+  - id: publish-iso
+    type: @Pipeline
+    platform: GitHub Actions
+    src: .github/workflows/publish-iso.yml
+    description: "Uploads the ISOs of one build-iso run, already tried by the author, to borshevik.org's iso/ folder, without changing what the site offers. Never run for media nobody has installed from."
+    triggers:
+      - "workflow_dispatch, with one required input: run_id, the database id of the build-iso run whose artifacts to publish"
+    jobs:
+      - "publish — one job on ubuntu-latest, `permissions: actions: read, contents: read`, concurrency group `publish-iso` with cancel-in-progress false. Steps: (1) make /mnt/iso owned by the runner user — /mnt, because the runner's root filesystem has too little free space for both ISOs. (2) `gh run download <run_id>` of this repository into /mnt/iso-download with the job's token, then move every *.iso and *.iso-CHECKSUM into /mnt/iso. (3) refuse to go on unless /mnt/iso holds exactly one ISO named `borshevik-<8 digits>-<digits>.iso` and one named `borshevik-nvidia-<8 digits>-<digits>.iso`, each with its -CHECKSUM — a run from before unique names, or a run missing a variant, is refused rather than published half or under a name the site could already be serving. (4) `sha256sum -c` of both checksum files, so what goes up is what the build produced. (5) SSH set up exactly as the website's deploy does it, from the DEPLOY_* secrets below. (6) `rsync -tv --ignore-existing --chmod=F644` of the four files into `<DEPLOY_PATH>/iso/`. rsync writes each file under a temporary name and renames it when complete, and no page links to these names yet, so a slow or interrupted upload is invisible to visitors; --ignore-existing makes a re-run skip whatever already arrived, which is safe only because no two runs share a name. (7) `sha256sum -c` of both checksum files on the server over SSH, so a truncated or corrupted upload fails the run. (8) write the two ISO names to the job summary, as what the switch step (@BorshevikWorkflow#switch_iso) needs. Every secret reaches the shell through `env:`."
+    outputs:
+      - the run's two ISOs and their checksums in the site's iso/ folder, verified on the server; the site itself unchanged
+    components:
+      - id: DEPLOY_HOST
+        type: @Secret
+        storage: GitHub Actions repository secret
+        used_by: publish-iso's SSH and rsync steps
+        description: "The website's server, borshevik.org. This and the other DEPLOY_* secrets hold the same values as the secrets of the same names in the borshevik-landing repository, which deploys the website to the same place with the same key; change them in both together."
+      - id: DEPLOY_PORT
+        type: @Secret
+        storage: GitHub Actions repository secret; optional
+        used_by: publish-iso's SSH and rsync steps
+        description: The server's SSH port. Empty or unset means 22.
+      - id: DEPLOY_USER
+        type: @Secret
+        storage: GitHub Actions repository secret
+        used_by: publish-iso's SSH and rsync steps
+        description: The hosting account the website's files belong to.
+      - id: DEPLOY_PATH
+        type: @Secret
+        storage: GitHub Actions repository secret
+        used_by: publish-iso's rsync and verification steps
+        description: Absolute path of the website's root on the server; the ISOs go into its iso/ folder.
+      - id: DEPLOY_SSH_KEY
+        type: @Secret
+        storage: GitHub Actions repository secret
+        used_by: publish-iso's SSH setup step
+        description: Private half of the ed25519 key made for deploying the website, and nothing else.
+      - id: DEPLOY_KNOWN_HOSTS
+        type: @Secret
+        storage: GitHub Actions repository secret
+        used_by: publish-iso's SSH setup step
+        description: The server's host key lines, recorded once and checked with StrictHostKeyChecking=yes, so the runner refuses any other host.
+  - id: try-iso
+    type: @ShellScript
+    src: tests/try-iso.sh
+    description: "Installs one ISO of a build-iso run into a fresh virtual machine on this machine, for the author to try (@BorshevikWorkflow#try_iso). Runs on the host, not in a sandbox. Needs gh, logged in, and the GNOME Boxes flatpak (org.gnome.Boxes), whose bundled qemu-system-x86_64, qemu-img and UEFI firmware it borrows — nothing is installed for it. Keeps everything under ${XDG_CACHE_HOME:-~/.cache}/borshevik-iso/<run id>/<variant>/, so a second try of the same run downloads nothing."
+    functions:
+      - id: run
+        description: "Arguments: `[--boot] <run id | latest> <borshevik | borshevik-nvidia>`. `latest` resolves, with gh, to the newest successful build-iso.yml run of komorebinator/borshevik. Unless the variant's directory already holds an ISO, downloads the run's artifact whose name starts with `<variant>-stable-` into it with `gh run download --pattern`. Runs `sha256sum -c` on the ISO's -CHECKSUM file and stops if it fails. Without --boot: creates a fresh 40G qcow2 disk and a fresh copy of the UEFI variable store, replacing any from an earlier try, and boots the ISO — the installer's reboot then comes up from the disk by itself, since the installer registers its boot entry first. With --boot: boots the existing disk alone, no ISO, and stops if there is none. The machine is started through `flatpak run --filesystem=<variant dir> --command=qemu-system-x86_64 org.gnome.Boxes`: KVM, q35, host CPU, 4 cores, 6 GiB, non-secure edk2-x86_64 firmware from the flatpak with the variable store as the second pflash, the disk on virtio, the ISO as a CD, virtio-vga in a GTK window, a USB tablet, user-mode networking on virtio-net. Blocks until the window is closed. Prints, before starting, what to check: that the installer finishes, the system boots to GNOME and gets through first login, and `rpm-ostree status` shows ghcr.io/komorebinator/<variant>:stable."
   - id: promote-image-to-stable
     type: @Pipeline
     platform: GitHub Actions
@@ -105,3 +163,22 @@ components:
     functions:
       - id: run
         description: "Runs every check and reports each file or group as ok or FAIL, exiting 1 if anything failed: `bash -n` on every shell script under build_files/, installer/ and tests/ (by .sh suffix or an executable bit with a sh/bash shebang); `jq empty` on every JSON file under build_files/; PyYAML on the GitHub workflows and dependabot config; tomllib on the image-builder TOML files; desktop-file-validate on the desktop entries, any output counting as a failure; a gjs import of every module of both apps except their main.js, which would start the application — that parses each module and resolves its imports. Finally the translations: every language of @AppManagerApp's TRANSLATIONS and every JSON dictionary of @ImageManagerApp must carry exactly the keys of en, and every key the code passes to t() must exist in en. Both apps fall back quietly on a missing key — the Image Manager to English for the whole file when it does not parse, the App Manager to the key itself — so without this check a broken dictionary is visible only to the user who hits it."
+recipes:
+  - id: try_iso
+    description: Has the author install both ISOs of one build-iso run in a virtual machine and say whether they work
+    arguments:
+      - id: run_id
+        description: the build-iso run to try; the newest successful one when not given
+    instructions:
+      - "Run @BorshevikWorkflow#try-iso for `borshevik` with <run_id>, on the host (through `flatpak-spawn --host` when the shell is sandboxed) and in the background, since it blocks until the author closes the window. The first run of a variant downloads its ISO, about 6 GB"
+      - Tell the author what to check, as the script prints it, and wait for them; ask whether the standard variant works
+      - Do the same for `borshevik-nvidia`, saying that without an NVIDIA GPU only installing, booting and following :stable can be judged
+      - "Report the verdict per variant. Only both confirmed moves the run on to publish-iso; a failure is a defect to look into, and the run is not published"
+  - id: switch_iso
+    description: Makes borshevik.org offer the ISOs publish-iso uploaded for one run
+    arguments:
+      - id: run_id
+        description: the build-iso run whose media publish-iso uploaded
+    instructions:
+      - Read the two ISO names from the job summary of the latest successful publish-iso.yml run for <run_id>
+      - "Load the project registered for https://github.com/komorebinator/borshevik-landing and, following that project's own workflow, change which ISOs it offers to these two. Its deploy refuses to switch to files that are not on the server, so a switch made before the upload finished fails there instead of breaking the download buttons"

@@ -1,0 +1,112 @@
+name: Publish ISOs
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "Database id of the build-iso run to publish (tried in a VM first)"
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: publish-iso
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      # The root filesystem has too little free space for both ISOs.
+      - name: Prepare download directory
+        run: |
+          sudo mkdir -p /mnt/iso /mnt/iso-download
+          sudo chown "$(id -u):$(id -g)" /mnt/iso /mnt/iso-download
+
+      - name: Download the run's artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ inputs.run_id }}
+        run: |
+          gh run download "$RUN_ID" -R "$GITHUB_REPOSITORY" -D /mnt/iso-download
+          find /mnt/iso-download -type f \( -name '*.iso' -o -name '*.iso-CHECKSUM' \) -exec mv -t /mnt/iso {} +
+          ls -l /mnt/iso
+
+      - name: Check names
+        id: names
+        working-directory: /mnt/iso
+        run: |
+          standard=$(ls | grep -E '^borshevik-[0-9]{8}-[0-9]+\.iso$' || true)
+          nvidia=$(ls | grep -E '^borshevik-nvidia-[0-9]{8}-[0-9]+\.iso$' || true)
+          for name in "$standard" "$nvidia"; do
+            if [ -z "$name" ] || [ "$(wc -l <<<"$name")" -ne 1 ] || [ ! -f "$name-CHECKSUM" ]; then
+              echo "::error::expected exactly one uniquely named standard ISO and one NVIDIA ISO, each with its -CHECKSUM; got: $(ls | tr '\n' ' ')"
+              exit 1
+            fi
+          done
+          echo "standard=$standard" >> "$GITHUB_OUTPUT"
+          echo "nvidia=$nvidia" >> "$GITHUB_OUTPUT"
+
+      - name: Verify checksums
+        working-directory: /mnt/iso
+        env:
+          STANDARD: ${{ steps.names.outputs.standard }}
+          NVIDIA: ${{ steps.names.outputs.nvidia }}
+        run: sha256sum -c "$STANDARD-CHECKSUM" "$NVIDIA-CHECKSUM"
+
+      - name: Configure SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      # No page links to these names yet, so the upload is invisible to visitors.
+      - name: Upload
+        working-directory: /mnt/iso
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          STANDARD: ${{ steps.names.outputs.standard }}
+          NVIDIA: ${{ steps.names.outputs.nvidia }}
+        run: |
+          rsync -tv --ignore-existing --chmod=F644 \
+            -e "ssh -i $HOME/.ssh/deploy_key -p ${DEPLOY_PORT:-22} -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes" \
+            "$STANDARD" "$STANDARD-CHECKSUM" "$NVIDIA" "$NVIDIA-CHECKSUM" \
+            "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH%/}/iso/"
+
+      - name: Verify on the server
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          STANDARD: ${{ steps.names.outputs.standard }}
+          NVIDIA: ${{ steps.names.outputs.nvidia }}
+        run: |
+          ssh -i "$HOME/.ssh/deploy_key" -p "${DEPLOY_PORT:-22}" -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "cd '${DEPLOY_PATH%/}/iso' && sha256sum -c '$STANDARD-CHECKSUM' '$NVIDIA-CHECKSUM'"
+
+      - name: Summary
+        env:
+          RUN_ID: ${{ inputs.run_id }}
+          STANDARD: ${{ steps.names.outputs.standard }}
+          NVIDIA: ${{ steps.names.outputs.nvidia }}
+        run: |
+          {
+            echo "## ISOs of build-iso run $RUN_ID are on borshevik.org"
+            echo
+            echo "The site still offers the previous pair. To switch, set these names in the website:"
+            echo
+            echo "- standard: \`$STANDARD\`"
+            echo "- nvidia: \`$NVIDIA\`"
+          } >> "$GITHUB_STEP_SUMMARY"

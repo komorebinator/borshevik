@@ -42,6 +42,12 @@ jobs:
         with:
           string: ${{ env.IMAGE_REGISTRY }}
 
+      - name: Set ISO name
+        id: iso-name
+        # Unique per run: published media are never overwritten in place.
+        run: |
+          echo "name=${{ matrix.image_name }}-$(date -u +%Y%m%d)-${{ github.run_number }}.iso" >> "$GITHUB_OUTPUT"
+
       - name: Pick bootc-switch template
         id: pick-templates
         run: |
@@ -63,7 +69,7 @@ jobs:
           image_tag: ${{ steps.generate-tag.outputs.tag }}
           version: ${{ matrix.major_version }}
           variant: ${{ matrix.image_name }}
-          iso_name: ${{ matrix.image_name }}-${{ steps.generate-tag.outputs.tag }}.iso
+          iso_name: ${{ steps.iso-name.outputs.name }}
           additional_templates: |
             /github/workspace/installer/lorax_templates/partitioning.tmpl
             ${{ env.SWITCH_TPL }}
