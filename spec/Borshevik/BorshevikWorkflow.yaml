@@ -42,7 +42,7 @@ steps:
   - id: on_experimental
     description: The change is on experimental but no image has been built from it.
     when: experimental carries the change and no image built from experimental does
-    operation: "@GitHub#run_workflow(workflow=build-base.yml, ref=experimental)"
+    operation: "@GitHub#run_workflow(workflow=<build-base.yml or build-borshevik.yml, by the layer the change touches>, ref=experimental)"
   - id: testing
     description: "An image carrying the change is on `:latest`, and the author runs it on a real machine — rebasing with the Image Manager — to see that it works. Only the author can say it does; nothing here checks it. Once it does, the change goes to main."
     when: an image built from experimental carrying the change is on `:latest`, and the author has not yet confirmed it works on a machine running it
@@ -54,7 +54,7 @@ steps:
   - id: on_main
     description: "The change is on main and waits for a build. The schedule does it daily at 10:00 UTC; running it by hand does not have to wait."
     when: main carries the change and no image built from main does
-    operation: "@GitHub#run_workflow(workflow=build-base.yml)"
+    operation: "@GitHub#run_workflow(workflow=<build-base.yml or build-borshevik.yml, by the layer the change touches>)"
   - id: built_from_main
     description: "A build from main carrying the change is on `:latest` — still the testing channel — and waits to be chosen for users. On a machine running that build, the Image Manager's Promote to stable menu item starts the same workflow for the booted digest and variant."
     when: an image built from main carrying the change is on `:latest`, and `:stable` does not carry the change
@@ -105,3 +105,5 @@ components:
     functions:
       - id: run
         description: "Runs every check and reports each file or group as ok or FAIL, exiting 1 if anything failed: `bash -n` on every shell script under build_files/, installer/ and tests/ (by .sh suffix or an executable bit with a sh/bash shebang); `jq empty` on every JSON file under build_files/; PyYAML on the GitHub workflows and dependabot config; tomllib on the image-builder TOML files; desktop-file-validate on the desktop entries, any output counting as a failure; a gjs import of every module of both apps except their main.js, which would start the application — that parses each module and resolves its imports. Finally the translations: every language of @AppManagerApp's TRANSLATIONS and every JSON dictionary of @ImageManagerApp must carry exactly the keys of en, and every key the code passes to t() must exist in en. Both apps fall back quietly on a missing key — the Image Manager to English for the whole file when it does not parse, the App Manager to the key itself — so without this check a broken dictionary is visible only to the user who hits it."
+guidelines:
+  - "Build only the layer the change touches. A change to the base layer — the borshevik-base and borshevik-base-nvidia stages of the Containerfile, cosign.pub, or the scripts they run (build-base.sh, build-base-nvidia.sh, install-kernel.sh, install-rpm-packages.sh, install-google-chrome.sh, install-steam.sh, cleanup.sh) — needs build-base.yml, which then builds the final layer on top by itself. Anything else — build_files/root/, build-addons.sh and the scripts it runs, the GNOME extensions, dconf, schemas, the final stages, or a new commit in an extension repository installed from its branch — needs build-borshevik.yml alone: the final stages build FROM the published borshevik-base tags, so rebuilding the base would only spend most of an hour producing what is already published. When a change touches both, build-base.yml."
