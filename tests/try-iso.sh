@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# Installs one ISO of a build-iso run into a fresh VM, for the author to try.
-# See @BorshevikWorkflow#try-iso in spec/. Runs on the host; needs gh and the
-# GNOME Boxes flatpak, whose qemu and UEFI firmware it uses.
+# Installs one ISO of a build-iso run, as borshevik.org serves it, into a fresh VM
+# for the author to try. See @BorshevikWorkflow#try-iso in spec/. Runs on the host;
+# needs gh, curl and the GNOME Boxes flatpak, whose qemu and UEFI firmware it uses.
 set -euo pipefail
 
 repo=komorebinator/borshevik
+site=https://borshevik.org/iso
 usage() { echo "usage: $0 [--boot] <run id | latest> <borshevik | borshevik-nvidia>" >&2; exit 2; }
 
 boot_only=0
@@ -15,6 +16,7 @@ variant=$2
 case "$variant" in borshevik|borshevik-nvidia) ;; *) usage ;; esac
 
 command -v gh >/dev/null || { echo "gh is not installed" >&2; exit 1; }
+command -v curl >/dev/null || { echo "curl is not installed" >&2; exit 1; }
 flatpak info org.gnome.Boxes >/dev/null 2>&1 || { echo "the GNOME Boxes flatpak (org.gnome.Boxes) is not installed" >&2; exit 1; }
 
 if [ "$run_id" = latest ]; then
@@ -27,17 +29,27 @@ dir="${XDG_CACHE_HOME:-$HOME/.cache}/borshevik-iso/$run_id/$variant"
 mkdir -p "$dir"
 cd "$dir"
 
-qemu() { flatpak run --filesystem="$dir" --command="$1" org.gnome.Boxes "${@:2}"; }
-
-iso=$(ls -- *.iso 2>/dev/null | head -1 || true)
+iso=$(ls -- "$variant"-[0-9]*.iso 2>/dev/null | grep -E "^$variant-[0-9]{8}-[0-9]+\.iso$" || true)
 if [ -z "$iso" ]; then
-    echo "downloading the $variant ISO of run $run_id..."
-    gh run download "$run_id" -R "$repo" --pattern "$variant-stable-*" -D "$dir/download"
-    find "$dir/download" -type f -exec mv -t "$dir" {} +
-    rm -rf "$dir/download"
-    iso=$(ls -- *.iso | head -1)
+    names=$(gh run view "$run_id" -R "$repo" --log 2>/dev/null \
+        | grep -oE "\b$variant-[0-9]{8}-[0-9]+\.iso\b" | sort -u || true)
+    if [ "$(printf '%s' "$names" | grep -c .)" -ne 1 ]; then
+        echo "expected exactly one $variant ISO name in the log of run $run_id, found: ${names:-none}" >&2
+        echo "(a run from before unique ISO names has none)" >&2
+        exit 1
+    fi
+    iso=$names
+    echo "downloading $iso from borshevik.org..."
+    if ! curl -fsS --retry 5 -o "$iso-CHECKSUM" "$site/$iso-CHECKSUM"; then
+        echo "$site/$iso-CHECKSUM is not there: run publish-iso.yml for run $run_id first" >&2
+        exit 1
+    fi
+    curl -fL --retry 5 --retry-all-errors -C - -o "$iso.part" "$site/$iso"
+    mv "$iso.part" "$iso"
 fi
 sha256sum -c "$iso-CHECKSUM"
+
+qemu() { flatpak run --filesystem="$dir" --command="$1" org.gnome.Boxes "${@:2}"; }
 
 cdrom=()
 if [ "$boot_only" -eq 1 ]; then
