@@ -62,5 +62,8 @@
   "promote_to_stable_confirm_title": "Зробити образ stable?",
   "promote_to_stable_confirm_body": "Це перемістить поточний образ до каналу stable. Продовжити?",
   "promoting_to_stable": "Переведення до stable",
-  "promote_complete": "Образ позначено як stable"
+  "promote_complete": "Образ позначено як stable",
+  "uptime": "Час роботи",
+  "uptime_days": "д",
+  "report_issue": "Повідомити про проблему"
 }

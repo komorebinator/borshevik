@@ -28,8 +28,12 @@ steps:
     when: the change is present in the terms, verify_project is clean, and the sources do not yet implement it
     operation: "@Software#build"
   - id: implemented
-    description: The sources carry the change and the project validates — the spec through @DuckspecProject#validate, the repository through @BorshevikWorkflow#validate — but nothing is recorded.
-    when: the working tree carries the change, @DuckspecProject#validate passes, tests/validate.sh exits 0, and it is not committed
+    description: "The sources carry the change and the project validates — the spec through @DuckspecProject#validate, the repository through @BorshevikWorkflow#validate — but nobody has seen it run and nothing is recorded. A change to one of the GJS applications (@ImageManagerApp, @AppManagerApp) is tried now, by running the new version straight from the working tree on this machine (@ImageManagerApp#recipes#run), which takes seconds where an image build takes the better part of an hour; the author looks at it and either confirms it or asks for more changes, which send it back to `requested`. A change that only exists once an image is built — packages, services, build scripts, dconf, the Containerfile — cannot be run this way and goes straight to commit, which the reading of the steps reports as this step skipped; it is first seen running at `testing`."
+    when: the working tree carries the change, @DuckspecProject#validate passes, tests/validate.sh exits 0, it is not committed, and the author has not yet confirmed it running from the working tree
+    operation: "@Software#run"
+  - id: tried_locally
+    description: The author has run the new version from the working tree and confirmed it works, but nothing is recorded yet.
+    when: the working tree carries the change, validates, and is not committed, and the author has confirmed it works running from the working tree
     operation: "@Git#commit"
   - id: committed
     description: The change is recorded locally and has reached no one.

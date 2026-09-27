@@ -62,5 +62,8 @@
   "promote_to_stable_confirm_title": "Сделать образ stable?",
   "promote_to_stable_confirm_body": "Это двигает текущий образ в stable канал. Продолжить?",
   "promoting_to_stable": "Обновление stable ветки",
-  "promote_complete": "Образ помечен как stable"
+  "promote_complete": "Образ помечен как stable",
+  "uptime": "Время работы",
+  "uptime_days": "д",
+  "report_issue": "Сообщить о проблеме"
 }

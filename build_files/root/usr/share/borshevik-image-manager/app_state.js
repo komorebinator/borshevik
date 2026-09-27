@@ -89,10 +89,14 @@ export function computeUiState({ i18n, facts, check }) {
     statusText = check?.message || '';
   }
 
+  // Issues are only worth reporting against a fully up-to-date system.
+  const showReportIssue = check?.phase === 'no_updates' && !facts.needsReboot;
+
   return {
     showCheckSpinner,
     primaryMode,
     primaryLabel: primaryMode === 'update' ? i18n.t('primary_update') : i18n.t('primary_check'),
-    statusText
+    statusText,
+    showReportIssue
   };
 }

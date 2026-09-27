@@ -46,6 +46,30 @@ export function readOsRelease() {
   }
 }
 
+export function readUptimeSeconds() {
+  try {
+    const bytes = GLib.file_get_contents('/proc/uptime')[1];
+    const text = new TextDecoder('utf-8').decode(bytes);
+    const value = parseFloat(text.trim().split(/\s+/)[0]);
+    if (!Number.isFinite(value) || value < 0)
+      return null;
+    return Math.floor(value);
+  } catch {
+    return null;
+  }
+}
+
+export function formatUptime(seconds, dayUnit) {
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+
+  const pad = (n) => String(n).padStart(2, '0');
+  const clock = `${hours}:${pad(minutes)}:${pad(secs)}`;
+  return days > 0 ? `${days}${dayUnit} ${clock}` : clock;
+}
+
 export function pickLogoCandidates() {
   // Prefer SVG/PNG paths that are common for distro branding.
   return [
