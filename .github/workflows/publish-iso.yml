@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       run_id:
-        description: "Database id of the build-iso run to publish (tried in a VM first)"
+        description: "Database id of the build-iso run to upload (not offered by the site until switched)"
         required: true
         type: string
 
@@ -105,7 +105,9 @@ jobs:
           {
             echo "## ISOs of build-iso run $RUN_ID are on borshevik.org"
             echo
-            echo "The site still offers the previous pair. To switch, set these names in the website:"
+            echo "The site still offers the previous pair, and nothing links to these yet."
+            echo "Try both first, from the site: \`tests/try-iso.sh $RUN_ID borshevik\` and \`tests/try-iso.sh $RUN_ID borshevik-nvidia\`."
+            echo "Only then switch the website (iso.php in borshevik-landing) to:"
             echo
             echo "- standard: \`$STANDARD\`"
             echo "- nvidia: \`$NVIDIA\`"
