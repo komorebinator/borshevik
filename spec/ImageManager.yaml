@@ -6,7 +6,6 @@ goals:
   - Show plainly which image is running and whether a newer one exists, so the immutable base stops being opaque
 uses:
   - https://github.com/komorebinator/duckspec
-  - ../Fedora.yaml
 settings:
   src: ..
   readme: ../README.md
