@@ -1,302 +1,104 @@
-description: GJS/GTK4+libadwaita application for installing curated Flatpak apps from Flathub. Parses the --lang CLI argument, constructs a translator, presents the main window, and opens automatically on first login via a systemd user service.
+description: GJS/GTK4+libadwaita application for installing curated Flatpak apps from Flathub. It replaces GNOME Software's first-login app suggestions: it opens once on a user's first login (first-run) and is also available from the app grid. The curated list is not part of this repository — it is fetched at run time from https://borshevik.org/share/applications.json, which is maintained in the Borshevik website's repository (https://github.com/komorebinator/borshevik-landing), so changing what is offered needs no image build. One process per session through its GApplication id, org.borshevik.AppManager, but every activation opens a new window in it, so launching it again while it is open gives a second window.
 extends: @Application
 platform: GJS
 src: build_files/root/usr/share/borshevik-app-manager/main.js
-functions:
-  - id: parseLangArg
-    description: "Scans ARGV for --lang=<code> or --lang <code> (two-token form). Iterates args left to right; returns the first matching language code string, or null if not found."
-  - id: _init
-    description: "GObject subclass constructor. Calls super._init with application_id='org.borshevik.AppManager' and flags=0."
-  - id: vfunc_activate
-    description: "GApplication vfunc_activate. Reads LANG, LC_ALL, LANGUAGE from GLib env. Calls parseLangArg(ARGV) for an optional override. Constructs makeTranslator(forcedLang, env) and window(app, i18n). Presents the window."
 components:
   - id: window
     type: @View
     src: build_files/root/usr/share/borshevik-app-manager/window.js
-    description: Main application window. Manages a stack of pages (loading, load-error, main, installing, results) and coordinates the install flow.
+    description: "Main window: a stack of pages — loading, load-error, main, installing, results — through which one install run passes. The title carries the build number."
     fields:
       - id: BUILD
         type: string
-        default: "'20'"
-        description: Build number appended to the window title as "(vN)"; bumped manually per release.
-      - id: this._i18n
-        type: "{t, lang}"
-        description: The translator passed in by the constructor; t(key, vars) is called throughout to localize every label.
+        description: Build number shown in the title as "(vN)"; bumped by hand for each release of the app.
       - id: this._categories
-        type: "Array<{name, applications, default}>"
+        type: Array<{name, applications, default}>
         default: "[]"
-        description: Parsed category list from the fetched applications.json, populated by _loadCategories and consumed by _renderCategories.
+        description: The categories from the fetched list, as the main page offers them.
       - id: this._categoryRows
-        type: "Array<{row, sw, cat}>"
+        type: Array<{row, sw, cat}>
         default: "[]"
-        description: One entry per rendered category row, rebuilt by _renderCategories; read by _collectSelectedApps to find which switches are active.
+        description: Each rendered category with its switch — what _collectSelectedApps reads to know what the user chose.
       - id: this._cancelCtl
         type: "{cancelled: boolean, currentProc: Gio.Subprocess|null}"
-        description: Shared cancellation handle passed into flatpak-service#installApps; _requestCancel sets cancelled=true and force_exits currentProc if set.
-      - id: this._cacheDir
-        type: string
-        description: "Icon cache directory path, ~/.cache/borshevik-app-manager/icons/, computed once by _initIconCache and created if missing."
+        description: Cancellation handle shared with flatpak-service#installApps — the window sets `cancelled` and kills `currentProc`; the service checks `cancelled` between apps.
       - id: this._mode
-        type: "'loading' | 'load_error' | 'main' | 'installing' | 'results'"
-        description: Name of the currently visible stack page, set by _setMode; also drives window deletability and header button visibility.
-      - id: this._headerBar
-        type: Adw.HeaderBar
-        description: The window's header bar; show/hide of its start/end title buttons is toggled by _setMode based on mode.
-      - id: this._toastOverlay
-        type: Adw.ToastOverlay
-        description: Wraps the page stack; _toast() pushes 3-second toast notifications onto it.
-      - id: this._stack
-        type: Gtk.Stack
-        description: Crossfade stack holding the five named pages (loading/load_error/main/installing/results); _setMode switches its visible child.
-      - id: this._toolbarView
-        type: Adw.ToolbarView
-        description: Top-level content wrapper pairing the header bar with the toast overlay.
-      - id: this._installBox
-        type: Gtk.Box
-        description: Wraps install-button below the scroll area; visibility toggled to match mode === 'main' by _setMode.
-      - id: this._customDetailRows
-        type: Adw.PreferencesRow[]
-        description: The three rows shown only when custom mode is enabled — custom-text's row, copy-command-hint row, copy-installed-button row.
-      - id: this._customAllRows
-        type: Adw.PreferencesRow[]
-        description: custom-toggle's field followed by this._customDetailRows; appended/removed from this._catGroup as one group by _renderCategories so custom rows always render after the fetched categories.
-      - id: this._catGroup
-        type: Adw.PreferencesGroup
-        description: Holds the category rows followed by the custom rows; rebuilt incrementally by _renderCategories on every (re)load.
+        type: 'loading' | 'load_error' | 'main' | 'installing' | 'results'
+        description: The page shown. While it is 'installing' the window cannot be closed and its title buttons are hidden, so an install run cannot be abandoned half-way by closing the window.
     components:
       - id: loading-page
         type: @View
-        description: Shown while category JSON is being fetched from the network.
-        components:
-          - id: spinner
-            type: @Spinner
-            description: Indeterminate spinner shown while the category list is being fetched.
-          - id: loading-title
-            type: @Label
-            label: "Loading…"
-            description: Primary status label shown while the category list is being fetched.
-          - id: loading-body
-            type: @Label
-            label: "Downloading the application list…"
-            description: Secondary label explaining what is being loaded.
+        description: Spinner and message while the list is fetched.
       - id: load-error-page
         type: @View
-        description: Error page offering a retry, which returns to loading-page.
+        description: The fetch failed or returned no usable category — the message, the raw error (selectable) and Retry, which goes back to loading-page.
         visible: false
         states:
           - id: fetch-failed
             when: the category fetch failed
             property_changes:
               visible: true
-        components:
-          - id: error-title
-            type: @Label
-            label: "Couldn't load application list"
-            description: Headline shown when the category fetch fails.
-          - id: error-body
-            type: @Label
-            label: "Check your internet connection and try again."
-            description: Instruction label shown below the error title.
-          - id: error-details
-            type: @Label
-            label: (error message string, selectable)
-            description: Selectable label showing the raw error message for debugging.
-            fields:
-              - id: this._errorDetailsLabel
-          - id: retry-button
-            type: @Button
-            description: Retries the category fetch after it failed.
-            label: "Retry"
-            functions:
-              - id: on_click
-                description: Switches to loading-page and re-invokes _loadCategories().
       - id: main-page
         type: @View
-        description: The primary selection page. Contains a scrollable Adw.PreferencesGroup listing categories followed by the custom-list section, and an Install button pinned below the scroll area.
+        description: One row per category — its name, a strip of its apps' icons and a switch, on by default when the list marks the category `default` — followed by the Custom section, and Install below.
         components:
-          - id: categories-list
-            type: @ListView
-            description: "One Adw.PreferencesRow per category. Each row: left side has a title Label and a horizontal scrollable icon strip (16×16 Flatpak app icons fetched from Flathub API and cached at ~/.cache/borshevik-app-manager/icons/); right side has a category-toggle (@Toggle). Toggle initial state = cat.default from the JSON."
-          - id: category-toggle
-            type: @Toggle
-            label: (category name, localized from JSON)
-            description: "Active state determines whether this category's apps are included in the install list. One instance per category row."
           - id: custom-toggle
             type: @Toggle
-            label: "Custom"
-            description: When turned on, shows the custom-text, copy-command-hint and copy-installed-button rows below all category rows; when off they are hidden, not merely disabled.
-            fields:
-              - id: this._customSwitchRow
-          - id: custom-text
-            type: @LongText
-            label: "Paste Flatpak app IDs here, one per line."
-            states:
-              - id: custom-list-off
-                when: custom-toggle is off
-                property_changes:
-                  visible: false
-                  disabled: true
-            description: Free-text input for a custom app ID list. Parsed by flatpak-service#parseCustomList.
-            fields:
-              - id: this._customTextView
-              - id: this._customBuffer
-                description: Backing Gtk.TextBuffer for this._customTextView; read by _getCustomText.
-          - id: copy-command-hint
-            type: @Label
-            label: "Command to get a compatible list on another machine:"
-            description: "Shows the command: flatpak list --app --columns=application,origin | awk 'NR>1 && $2==\"flathub\"{print $1}'. Selectable."
-            states:
-              - id: custom-list-off
-                when: custom-toggle is off
-                property_changes:
-                  visible: false
-          - id: copy-installed-button
-            type: @Button
-            description: Copies the user's installed Flathub app IDs to the clipboard, so the same set can be reproduced on another machine.
-            label: "Copy my installed Flathub apps"
-            states:
-              - id: custom-list-off
-                when: custom-toggle is off
-                property_changes:
-                  visible: false
-            functions:
-              - id: on_click
-                description: Calls flatpak-service#listInstalledFlathubApps(); toasts 'No apps from Flathub are installed' and stops when the list is empty; otherwise copies the newline-joined list to clipboard via _copyToClipboard() and toasts 'Copied to clipboard'. Any failure toasts the copy-failed message.
+            label: Custom
+            description: "Shows the Custom section's other rows when on and hides them when off: a text box for Flatpak app IDs (flatpak-service#parseCustomList), the command that lists a machine's Flathub apps in that format, and a button copying this machine's installed Flathub apps — together a way to carry one's app set to another machine."
           - id: install-button
             type: @Button
-            description: Starts installing the selected applications.
-            label: "Install"
-            fields:
-              - id: this._installBtn
-            functions:
-              - id: on_click
-                description: "Calls _collectSelectedApps(); toasts 'Nothing selected' and returns if empty. Otherwise transitions to installing-page and starts the install flow."
+            label: Install
+            description: Starts _onInstallClicked; with nothing selected it only says so.
       - id: installing-page
         type: @View
-        description: Progress page for a running install; while it is up the window is non-closable and the header buttons are hidden.
+        description: Which app is being installed or skipped, 'N of M', a progress bar, and Cancel — which stops after killing the app being installed, leaving the ones already done in place.
         visible: false
         states:
           - id: installing
             when: an install run is in progress
             property_changes:
               visible: true
-        components:
-          - id: installing-title
-            type: @Label
-            label: "Installing…"
-            description: Headline shown while installation is in progress.
-          - id: status-label
-            type: @Label
-            label: "Preparing…"
-            description: "Updated per app to 'Installing {app} ({idx} of {total})' or 'Already installed {app} ({idx} of {total})'. Selectable."
-            fields:
-              - id: this._installStatus
-          - id: progress-bar
-            type: @ProgressBar
-            description: "Fraction = (idx-1)/total during install; set to 1.0 when complete."
-            fields:
-              - id: this._progress
-          - id: cancel-button
-            type: @Button
-            description: Cancels an installation that is already running.
-            label: "Cancel"
-            fields:
-              - id: this._cancelBtn
-            functions:
-              - id: on_click
-                description: Sets cancelCtl.cancelled=true, disables the button, updates status-label to 'Cancelling…', and calls force_exit() on the current flatpak subprocess if running.
       - id: results-page
         type: @View
-        description: Shown after install completes (including cancelled or partially failed installs).
-        components:
-          - id: results-title
-            type: @Label
-            label: "Done"
-            description: Headline shown when installation completes (including cancelled or failed runs).
-          - id: results-body
-            type: @Label
-            label: "Installation finished."
-            description: Summary label shown below the results headline.
-            fields:
-              - id: this._resultsBody
-          - id: results-text
-            type: @LongText
-            description: "Monospace read-only text view showing the formatted report: 'Cancelled by user.' note (if cancelled); 'Already installed: N' section with '= <appId>' lines; 'Installed: N' section with '+ <appId>' lines; 'Failed: N' section with '- <appId>' and indented error message lines."
-            fields:
-              - id: this._resultsText
-              - id: this._resultsBuffer
-                description: Backing Gtk.TextBuffer for this._resultsText; populated by _onInstallClicked via _formatReport, and read by the copy-report button.
-          - id: copy-results-button
-            type: @Button
-            description: Copies the installation report to the clipboard.
-            label: "Copy report"
-            functions:
-              - id: on_click
-                description: Copies the full results-text content to clipboard; shows 'Report copied' toast.
-          - id: ok-button
-            type: @Button
-            description: Dismisses the results page and returns to the application list.
-            label: "OK"
-            functions:
-              - id: on_click
-                description: Re-enables install-button and switches back to main-page.
+        description: "The report of the run, cancelled or not: already installed, installed, and failed with each failure's message; Copy report, and OK back to the main page."
     functions:
       - id: _loadCategories
-        description: "Fetches https://borshevik.org/share/applications.json via net-service#fetchJson. Validates response is an array. Maps each entry to {name, applications, default}: localizes name by checking entry[i18n.lang], then entry.en, then entry.name. Filters entries with empty name or empty applications array. On error or empty result: sets error-details label and switches to load-error-page. On success: populates _categories, calls _renderCategories(), switches to main-page."
-      - id: _renderCategories
-        description: "Removes all existing category rows from the Adw.PreferencesGroup. Removes any previously appended custom rows. For each category: builds a row via _buildCategoryRow(), adds it to the group, stores {row, sw, cat} in _categoryRows, fires _loadIconsForCategory() in background. Appends custom-toggle and custom-detail rows at the end."
+        description: Fetches the curated list. Accepts only an array; each category's name is taken in the UI language, then English, then its plain `name`, and a category with no name or no apps is dropped. Anything else — a network error, bad JSON, nothing left — is shown on load-error-page.
       - id: _fetchAppIcon
-        description: "Checks cache at ~/.cache/borshevik-app-manager/icons/<appId>.png; returns path immediately if found. Otherwise fetches https://flathub.org/api/v2/appstream/<appId> (10s timeout), extracts .icon URL, fetches image bytes (10s), writes to cache via replace_contents_bytes_async. Returns cache path or null if no icon field."
+        description: An app's icon from Flathub's appstream API, cached under the user's cache directory so later runs fetch it only once.
       - id: _collectSelectedApps
-        description: "Iterates _categoryRows; for each whose switch is active, appends all cat.applications. If custom-toggle is active, also appends flatpak-service#parseCustomList of the custom-text content. Deduplicates with a Set in insertion order, skipping empty strings. Returns the deduplicated array."
+        description: The apps of every category switched on, plus the custom list when Custom is on, without duplicates and in the order first met.
       - id: _onInstallClicked
-        description: "Calls _collectSelectedApps(); returns with 'Nothing selected' toast if empty. Resets cancelCtl. Disables install-button, enables cancel-button, resets progress-bar to 0. Switches to installing-page. Pre-fetches flatpak-service#listInstalledApps() to build installedSet (continues on failure). Calls flatpak-service#installApps(apps, progressCallback, cancelCtl, installedSet). Progress callback: updates status-label, sets progress-bar fraction, drains GLib.MainContext with pending()/iteration(false) to keep UI responsive. After completion: sets progress-bar to 1.0, populates results-text with formatted report, switches to results-page."
+        description: "Runs one install: reads what is already installed first (and carries on without that knowledge if it cannot), then flatpak-service#installApps, updating the installing page for each app. The progress callback drains the GLib main loop so the page repaints between apps. Ends on results-page."
   - id: flatpak-service
     type: @Singleton
-    description: Flatpak operations for the app manager — parses a pasted app-ID list, queries what is already installed, and installs a selection sequentially with cancellation between apps.
+    description: Flatpak operations — parsing a pasted app-ID list, listing what is installed, and installing a selection.
     src: build_files/root/usr/share/borshevik-app-manager/flatpak.js
     functions:
       - id: parseCustomList
-        description: "Splits text on newlines. For each line: strips \\r and leading/trailing whitespace; skips blank lines and lines starting with '#'; takes the first whitespace-delimited token as the app ID. Returns array of non-empty IDs."
+        description: One app ID per line; blank lines and lines starting with '#' are skipped, and only the first word of a line counts, so the output of the hinted command can be pasted as is.
       - id: listInstalledFlathubApps
-        description: "Spawns flatpak list --app --columns=application,origin. Throws if exit status non-zero. Parses stdout line by line: splits on whitespace; skips header lines where first token is Application/ApplicationId/Id or last token is Origin; skips lines without a dot in the app ID. Returns IDs whose last token equals 'flathub'."
-      - id: listInstalledApps
-        description: "Spawns flatpak list --app --columns=application. Throws on non-zero exit. Skips header tokens (Application/ApplicationId/Id); skips entries without a dot. Returns all app IDs regardless of origin."
+        description: The installed apps whose origin is the flathub remote — what the copy button puts on the clipboard.
       - id: installApps
-        description: "Deduplicates appIds (trim + filter empty). Iterates sequentially. Before each app: checks cancelCtl.cancelled and breaks. If installedSet is a Set and has the app: adds to alreadyInstalled, calls onStep({skipped:true}), continues. Otherwise: calls onStep({skipped:false}), spawns flatpak install -y --noninteractive flathub <appId>, stores proc in cancelCtl.currentProc, awaits communicate_utf8_async. Rechecks cancelCtl.cancelled after communicate; if true, breaks. If exit 0: adds to installed. Otherwise: extracts error from stderr or stdout, adds {appId, error} to failed. Clears cancelCtl.currentProc in finally. Returns {installed, alreadyInstalled, failed, cancelled}."
+        description: Installs the apps one at a time from flathub, non-interactively, skipping the ones already installed. Cancellation is checked before each app and again after the running install ends, so a cancel never starts another install. Returns what was installed, already installed and failed (with the error), and whether the run was cancelled.
   - id: net-service
     type: @Singleton
-    description: HTTP helpers over libsoup — fetches JSON or raw bytes with a fixed timeout and user agent.
+    description: HTTP GET over libsoup with a timeout — JSON or raw bytes; any non-2xx status is an error.
     src: build_files/root/usr/share/borshevik-app-manager/net.js
-    functions:
-      - id: fetchJson
-        description: "Creates Soup.Session with timeout=ceil(timeoutMs/1000) and user_agent='borshevik-app-installer/1.0'. Sends GET to url via send_and_read_async. Checks HTTP status 200–299; rejects with 'HTTP <status>' otherwise. Decodes bytes as UTF-8 and JSON.parses. Returns the parsed value."
-      - id: fetchBytes
-        description: "Same as fetchJson but returns the raw GLib.Bytes without JSON parsing."
   - id: launcher
     type: @ShellScript
-    description: On-PATH entry point; execs gjs on the app main.js, passing arguments through.
+    description: On-PATH entry point; starts the app with `gjs -m`, passing its arguments through.
     src: build_files/root/usr/bin/borshevik-app-manager
-    functions:
-      - id: run
-        description: "Exec gjs -m /usr/share/borshevik-app-manager/main.js, passing all arguments through."
   - id: first-run
     type: @ShellScript
-    description: First-login guard — runs the app manager once and writes a stamp file so later logins skip it.
+    description: "Runs the App Manager once per user: started at login by @Services#app-manager-first-run, it does nothing when the user's stamp file exists, and otherwise runs the app and writes the stamp only if the app exits successfully. Closing the window is a successful exit, so a user who closes it without installing is not asked again; only a crash brings it back at the next login."
     src: build_files/root/usr/bin/borshevik-app-manager-first-run
-    functions:
-      - id: run
-        description: "Checks for stamp file at ~/.local/state/borshevik/app-manager-first-run.done. If stamp exists, exits 0. Otherwise runs /usr/bin/borshevik-app-manager; if it exits 0, creates the stamp file. Ensures the App Manager opens exactly once on first login."
   - id: i18n
     type: @Singleton
-    description: Locale detection and message lookup; picks a language from the environment and returns a translator.
+    description: Translations for en, ru, uk, ka, hy and be, held in the code itself rather than in files. The language is `--lang` when it names a supported one; otherwise it comes from the first non-empty of LC_ALL, LANG, LANGUAGE, and is English when that one names no supported language — a different order from @ImageManagerApp#i18n's; a missing key falls back to English and then to the key itself.
     src: build_files/root/usr/share/borshevik-app-manager/i18n.js
     fields:
       - id: TRANSLATIONS
         type: "{ [lang: 'en'|'ru'|'uk'|'ka'|'hy'|'be']: { [key: string]: string } }"
-        description: Static key→string translation dictionaries for all six supported languages; en is the fallback used by t() for any key missing in the selected language.
-    functions:
-      - id: detectLang
-        description: "Checks env.LC_ALL, env.LANG, env.LANGUAGE (lowercased, first non-empty wins) for known language prefixes ru/uk/ka/hy/be. Returns the matched code or 'en'."
-      - id: makeTranslator
-        description: "Calls normalizeLang(forcedLang) first; falls back to detectLang(env). Selects TRANSLATIONS[lang] or TRANSLATIONS.en. Returns {t, lang}. t(key, vars): looks up key in selected dict, falls back to TRANSLATIONS.en[key], then key itself; replaces {varName} placeholders from the vars object."
+        description: The dictionaries, one per language; @BorshevikWorkflow#validate checks that every language has exactly the keys of en.
