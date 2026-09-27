@@ -82,7 +82,7 @@ components:
     src: build_files/scripts/enable-services.sh
     functions:
       - id: run
-        description: "Enables setup-kargs.service system-wide, then applies `systemctl --global preset` to borshevik-app-manager-first-run.service and borshevik-kill-gnome-if-hung.timer — preset, not enable, so the decision comes from @Services#user-preset. The watchdog's .service is deliberately not presented; the timer pulls it in. setup-ublue-mok.service is enabled only when IMAGE_NAME is borshevik-nvidia, which is what keeps MOK enrollment out of the standard variant. Run at image build time from @ImageBuild#build-addons."
+        description: "Enables setup-kargs.service system-wide, then applies `systemctl --global preset` to borshevik-app-manager-first-run.service and borshevik-kill-gnome-if-hung.timer — preset, not enable, so the decision comes from @Services#user-preset. The watchdog's .service is deliberately not preset; the timer pulls it in. setup-ublue-mok.service is enabled only when IMAGE_NAME is borshevik-nvidia, which is what keeps MOK enrollment out of the standard variant. Run at image build time from @ImageBuild#build-addons."
   - id: user-preset
     type: @ConfigFile
     src: build_files/root/usr/lib/systemd/user-preset/90-borshevik.preset

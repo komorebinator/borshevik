@@ -65,4 +65,4 @@ components:
   - id: gnome-initial-setup
     type: @ConfigFile
     src: build_files/root/etc/gnome-initial-setup/vendor.conf
-    description: "Disables the GNOME Initial Setup 'Software' welcome page so that new users are not prompted to install apps via GNOME Software on first login (the App Manager replaces this flow)."
+    description: "GNOME Initial Setup vendor config: `skip=software` drops the 'Software' welcome page, so new users are not prompted to install apps via GNOME Software on first login (the App Manager replaces this flow), and `existing_user_only=language;keyboard` shows the language and keyboard pages only in the per-user run, not in the system-level one."

@@ -18,11 +18,8 @@ fields:
 components:
   - id: main-window
     type: @View
-    description: Main window — shows which image is running, checks for and applies updates, and hosts rollback, reboot and the entry points to settings and promotion.
+    description: Main window — shows which image is running, checks for and applies updates, and hosts rollback, reboot and the entry points to settings and promotion. On construction it reads the status and then runs a non-interactive update check in the background, so the window opens already knowing whether an update exists; a failure of that check is shown in status-label rather than raised. Listens for settings-window's rebase-done and refreshes the status on it.
     src: build_files/root/usr/share/borshevik-image-manager/main_window.js
-    signals:
-      - id: rebase-done
-        description: Emitted by settings-window after a successful rebase; triggers _refreshStatus() in main-window.
     fields:
       - id: this._app
         type: Application
@@ -193,7 +190,7 @@ components:
     src: build_files/root/usr/share/borshevik-image-manager/progress_window.js
     signals:
       - id: operation-complete
-        description: "Emitted by stopProgress(). Carries a boolean 'success' parameter. Received by the caller to know whether to proceed with onSuccess logic."
+        description: "Emitted by stopProgress() with a boolean 'success' parameter. As called it always carries true — both callers invoke stopProgress() from the runner's onExit without an argument — and nothing connects to it: whether onSuccess runs is decided from the runner's own result, not from this signal."
       - id: operation-cancelled
         description: Emitted when the cancel button is clicked, before force_exit() is called on the runner.
     fields:

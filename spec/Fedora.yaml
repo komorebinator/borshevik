@@ -1,4 +1,4 @@
-description: Fedora Linux platform terms — D-Bus, GNOME Shell, and systemd concepts used in Borshevik.
+description: Fedora Linux platform terms — the Fedora Silverblue base image, D-Bus, GNOME Shell, and the systemd concepts used in Borshevik.
 extends: @ExternalProject
 terms_folder: Fedora/
 uses:

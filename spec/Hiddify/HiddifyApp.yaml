@@ -20,7 +20,7 @@ components:
   - id: polkit-rule
     type: @ConfigFile
     src: build_files/root/etc/polkit-1/rules.d/50-hiddify.rules
-    description: "Polkit rule granting org.freedesktop.resolve1.set-dns-servers, set-domains and set-default-route without authentication, so Hiddify can point systemd-resolved at its own DNS while a tunnel is up. The rule is scoped by session, not by application: it returns YES for any subject with an active local session, so every locally logged-in user gains these three resolved privileges, not Hiddify alone."
+    description: "Polkit rule granting org.freedesktop.resolve1.set-dns-servers, set-domains and set-default-route without authentication, so Hiddify can point systemd-resolved at its own DNS while a tunnel is up. The rule is scoped by session, not by application: it returns YES for any subject whose session is active, and checks `subject.active` alone rather than `subject.local` as well, so every user with an active session gains these three resolved privileges, not Hiddify alone."
   - id: desktop-entry
     type: @ConfigFile
     src: build_files/root/usr/share/applications/Hiddify.desktop

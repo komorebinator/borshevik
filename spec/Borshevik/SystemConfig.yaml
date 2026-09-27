@@ -6,7 +6,7 @@ components:
   - id: container-policy
     type: @ConfigFile
     src: build_files/root/etc/containers/policy.json
-    description: "Container image signature verification policy for Podman/bootc. Configures the 'default' transport to require Sigstore signatures verified against /etc/pki/containers/cosign.pub. Enforces that every 'rpm-ostree rebase' or 'bootc switch' to ghcr.io/komorebinator/* must be signed by the Borshevik cosign key."
+    description: "Container image signature verification policy for Podman/bootc. The global default rejects everything; within the docker transport the default is insecureAcceptAnything, and signatures are required only per registry: ghcr.io/komorebinator must be sigstore-signed by /etc/pki/containers/cosign.pub (matchRepository), ghcr.io/ublue-os by uBlue's key or its backup, quay.io/toolbx-images by its own key, and the two Red Hat registries by the Red Hat GPG key; registry.fedoraproject.org is accepted unsigned. So every `rpm-ostree rebase` or `bootc switch` to a Borshevik image must carry the Borshevik cosign signature, while images from registries not listed are pulled without any check."
   - id: container-registry-sigstore
     type: @ConfigFile
     src: build_files/root/etc/containers/registries.d/borshevik.yaml
@@ -14,7 +14,7 @@ components:
   - id: wireplumber-no-autoswitch
     type: @ConfigFile
     src: build_files/root/etc/wireplumber/wireplumber.conf.d/50-disable-autoswitch.conf
-    description: "WirePlumber audio policy config. Disables automatic output device switching when a new audio device is plugged in, preventing headphone plug-in from interrupting ongoing playback."
+    description: "WirePlumber setting `bluetooth.autoswitch-to-headset-profile = false`: a Bluetooth headset stays on its high-quality playback profile when an application opens a microphone, instead of being switched to the low-quality headset (HSP/HFP) profile. The file's own comment cites problems with Sony headsets."
   - id: os-release
     type: @ConfigFile
     src: build_files/root/usr/lib/os-release
@@ -22,11 +22,11 @@ components:
   - id: app-manager-desktop
     type: @ConfigFile
     src: build_files/root/usr/share/applications/org.borshevik.AppManager.desktop
-    description: "XDG desktop entry for the App Manager. Name='Borshevik App Manager', Exec=borshevik-app-manager, Icon=org.borshevik.AppManager, Categories=System. Makes the app visible in GNOME application launcher."
+    description: "XDG desktop entry for the App Manager. Name='Borshevik App Manager' with a Russian translation, Exec=borshevik-app-manager, Icon=org.borshevik.AppManager, and search keywords. It sets no Categories — the app reaches the launcher's 'borshevik' folder because @ShellCustomizations#app-folders-dconf lists it there by file name, not by category."
   - id: image-manager-desktop
     type: @ConfigFile
     src: build_files/root/usr/share/applications/org.borshevik.ImageManager.desktop
-    description: "XDG desktop entry for the Image Manager. Name='Borshevik Image Manager', Exec=borshevik-image-manager, Icon=org.borshevik.ImageManager, Categories=System."
+    description: "XDG desktop entry for the Image Manager. Name='Borshevik Image Manager', Exec=borshevik-image-manager, Icon=org.borshevik.ImageManager, DBusActivatable=false, and search keywords. Like the App Manager entry it sets no Categories; @ShellCustomizations#app-folders-dconf places it in the 'borshevik' folder by file name."
   - id: app-manager-icon
     type: @Graphic
     src: build_files/root/usr/share/icons/hicolor/scalable/apps/org.borshevik.AppManager.svg

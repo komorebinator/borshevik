@@ -14,9 +14,6 @@ components:
     type: @View
     src: build_files/root/usr/share/borshevik-app-manager/window.js
     description: Main application window. Manages a stack of pages (loading, load-error, main, installing, results) and coordinates the install flow.
-    signals:
-      - id: mode-changed
-        description: Emitted internally when _setMode() switches the visible stack page. Affects window deletability and header button visibility.
     fields:
       - id: BUILD
         type: string
@@ -127,7 +124,7 @@ components:
           - id: custom-toggle
             type: @Toggle
             label: "Custom"
-            description: When turned on, shows custom-text, copy-command-hint, and copy-installed-button rows below all category rows.
+            description: When turned on, shows the custom-text, copy-command-hint and copy-installed-button rows below all category rows; when off they are hidden, not merely disabled.
             fields:
               - id: this._customSwitchRow
           - id: custom-text
@@ -137,6 +134,7 @@ components:
               - id: custom-list-off
                 when: custom-toggle is off
                 property_changes:
+                  visible: false
                   disabled: true
             description: Free-text input for a custom app ID list. Parsed by flatpak-service#parseCustomList.
             fields:
@@ -151,7 +149,7 @@ components:
               - id: custom-list-off
                 when: custom-toggle is off
                 property_changes:
-                  disabled: true
+                  visible: false
           - id: copy-installed-button
             type: @Button
             description: Copies the user's installed Flathub app IDs to the clipboard, so the same set can be reproduced on another machine.
@@ -160,10 +158,10 @@ components:
               - id: custom-list-off
                 when: custom-toggle is off
                 property_changes:
-                  disabled: true
+                  visible: false
             functions:
               - id: on_click
-                description: Calls flatpak-service#listInstalledFlathubApps(); copies the newline-joined list to clipboard via _copyToClipboard(); shows 'Copied to clipboard' or error toast.
+                description: Calls flatpak-service#listInstalledFlathubApps(); toasts 'No apps from Flathub are installed' and stops when the list is empty; otherwise copies the newline-joined list to clipboard via _copyToClipboard() and toasts 'Copied to clipboard'. Any failure toasts the copy-failed message.
           - id: install-button
             type: @Button
             description: Starts installing the selected applications.
