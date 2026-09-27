@@ -39,6 +39,11 @@
         "dir": "borshevik-app-search@komorebinator"
     },
     {
+        "repo": "https://github.com/komorebinator/borshevik-update-indicator",
+        "branch": "main",
+        "dir": "borshevik-update-indicator@komorebinator"
+    },
+    {
         "repo": "https://github.com/CleoMenezesJr/weather-oclock",
         "dir": "weatheroclock@CleoMenezesJr.github.io",
         "schemas": "schemas",

@@ -12,6 +12,8 @@ references:
     description: Installed as a GNOME Shell extension via list.json; developed as its own Duckspec-managed project.
   - repository: https://github.com/komorebinator/borshevik-app-search
     description: Installed as a GNOME Shell extension via list.json; developed as its own Duckspec-managed project.
+  - repository: https://github.com/komorebinator/borshevik-update-indicator
+    description: Installed as a GNOME Shell extension via list.json; developed as its own Duckspec-managed project. Shows a status icon while a downloaded image waits for a reboot — the in-session counterpart of @ImageManagerApp's "Reboot to apply update" row, using the same condition.
 settings:
   src: ..
 software:
