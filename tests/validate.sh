@@ -7,7 +7,7 @@
 # Needs bash, python3 (with PyYAML), jq, gjs and desktop-file-validate — all present on Borshevik.
 set -uo pipefail
 
-cd "$(dirname "$(readlink -f "$0")")"
+cd "$(dirname "$(readlink -f "$0")")/.."   # the repository root; every path below is relative to it
 
 FAILED=0
 pass() { printf '  ok    %s\n' "$1"; }
@@ -20,7 +20,7 @@ echo "shell syntax"
 while IFS= read -r f; do
     if out="$(bash -n "$f" 2>&1)"; then pass "$f"; else fail "$f: $out"; fi
 done < <(
-    find build_files installer -type f \( -name '*.sh' -o -perm -u+x \) 2>/dev/null |
+    find build_files installer tests -type f \( -name '*.sh' -o -perm -u+x \) 2>/dev/null |
         while IFS= read -r f; do
             head -n1 "$f" | grep -qE '^#!.*\b(ba)?sh\b' && echo "$f"
         done | sort
