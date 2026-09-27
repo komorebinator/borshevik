@@ -530,14 +530,14 @@ components:
       - id: t
         description: "Looks up key in _dict (locale-specific), falls back to _en, falls back to key itself as the default string."
 tests:
-  - id: format-uptime
-    description: util#formatUptime renders uptime as '[<days><suffix> ]<h>:<mm>:<ss>' — days only when non-zero, minutes and seconds zero-padded, the localized day suffix attached without a space.
-    command: gjs -m tests/image-manager.js format-uptime
-    expect: prints "ok" and exits 0; on failure prints one "FAIL <case>" line per wrong result and exits 1
-  - id: report-issue-visibility
-    description: app-state#computeUiState sets showReportIssue only when the last check found no updates and nothing is staged — hidden while an update is available, staged, being checked for, before the first check, and when the check failed.
-    command: gjs -m tests/image-manager.js report-issue-visibility
-    expect: prints "ok" and exits 0; on failure prints one "FAIL <case>" line per wrong result and exits 1
+  - id: static-checks
+    description: "The failures that stay silent until a user hits them: a module that no longer parses or imports, a dictionary that no longer parses (the app falls back to English for the whole file) or lacks a key the code asks for. Part of @BorshevikWorkflow#validate, which checks the whole repository, not only this app."
+    command: bash tests/validate.sh
+    expect: exits 0 and prints 'all checks pass'; the 'gjs modules' and 'translations' sections cover this app
+  - id: tried-by-the-author
+    description: Manual. The app's value is in how its window looks and behaves against the real rpm-ostree and the real session, which nothing automated here can judge, so the author runs the changed version and looks at it. This is the @BorshevikWorkflow `implemented` step; a unit test of helpers this small would only restate their code.
+    command: "@ImageManagerApp#recipes#run"
+    expect: no JS errors in the output, and the author confirms the changed behaviour works in the window
 recipes:
   - id: run
     description: Runs the Image Manager straight from the repository working tree, so a change can be tried on this machine without building an image
