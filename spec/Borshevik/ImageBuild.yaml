@@ -64,7 +64,7 @@ components:
     src: build_files/scripts/install-rpm-packages.sh
     functions:
       - id: run
-        description: "A single `rpm-ostree install -y` of the curated set: htop, mc, gnome-tweaks, gnome-disk-utility, pwgen, openssl, distrobox, zsh, gh, patch, nautilus-python, gnome-shell-extension-gsconnect, adw-gtk3-theme, translate-shell, util-linux, libxcrypt-compat, libayatana-appindicator-gtk3, patchelf, plus the toolchain @GnomeExtensions builds against — meson, ninja-build, cmake, make, gcc, pkgconf-pkg-config, glib2-devel, sassc, xcb-util-cursor and xcb-util-cursor-devel."
+        description: "A single `rpm-ostree install -y` of the curated set: htop, mc, gnome-tweaks, gnome-disk-utility, pwgen, openssl, distrobox, zsh, gh, patch, nautilus-python, gnome-shell-extension-gsconnect, adw-gtk3-theme, translate-shell, util-linux, libxcrypt-compat, libayatana-appindicator-gtk3, patchelf, mutter-devkit, plus the toolchain @GnomeExtensions builds against — meson, ninja-build, cmake, make, gcc, pkgconf-pkg-config, glib2-devel, sassc, xcb-util-cursor and xcb-util-cursor-devel. mutter-devkit is what `gnome-shell --devkit` needs to run a nested shell in a window, so a GNOME Shell extension can be tried without logging out — on Wayland the session shell cannot be restarted in place, and a layered package would slow every image update, so it ships in the image instead."
   - id: rebuild-initramfs
     type: @ShellScript
     description: Regenerates the initramfs so newly layered kernel modules and hooks are picked up.
