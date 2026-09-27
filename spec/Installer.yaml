@@ -1,5 +1,5 @@
-description: How a fresh machine gets Borshevik: installer media that ask as little as possible, wipe the chosen disk, and end on the right signed image (@IsoInstaller).
-extends: @DuckspecProject
+description: "How a fresh machine gets Borshevik: installer media that ask as little as possible, wipe the chosen disk, and end on the right signed image (@IsoInstaller)."
+extends: "@DuckspecProject"
 terms_folder: Installer/
 goals:
   - Produce a bootable ISO that installs Borshevik with as few questions as an install can be reduced to
@@ -9,4 +9,4 @@ uses:
 settings:
   src: ..
 software:
-  - @IsoInstaller
+  - "@IsoInstaller"

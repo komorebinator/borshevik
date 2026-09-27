@@ -1,12 +1,12 @@
 description: GJS/GTK4+libadwaita application for managing the Borshevik OS image — checking for updates, applying updates, rolling back, rebasing to a different channel or variant, promoting a build to stable, and toggling automatic updates. Single-instance through its GApplication id, org.borshevik.ImageManager, so launching it again only presents the open window. Everything it does to the system goes through rpm-ostree, systemd and GNOME's session manager; it holds no state of its own between runs.
-extends: @Application
+extends: "@Application"
 platform: GJS
 src:
   - build_files/root/usr/share/borshevik-image-manager/main.js
   - build_files/root/usr/share/borshevik-image-manager/application.js
 components:
   - id: main-window
-    type: @View
+    type: "@View"
     description: Main window — shows which image is running and how long the system has been up, checks for and applies updates, links to reporting an issue, and hosts rollback, reboot and the entry points to settings and promotion. On construction it reads the status and then runs a non-interactive update check in the background, so the window opens already knowing whether an update exists; a failure of that check is shown in status-label rather than raised. Refreshes the status when settings-window reports a finished rebase.
     src: build_files/root/usr/share/borshevik-image-manager/main_window.js
     fields:
@@ -32,14 +32,14 @@ components:
         description: The one-second timer that keeps uptime-label ticking; removed when the window closes so it does not outlive it.
     components:
       - id: header-bar
-        type: @View
+        type: "@View"
         description: Menu with Settings, About, and Promote to stable — the last shown only while the booted image is a Borshevik variant on the `latest` channel, since promotion moves `:stable` onto a build from `:latest` and has no meaning for anything else.
       - id: header-section
-        type: @View
+        type: "@View"
         description: The running system at a glance, centred at the top.
         components:
           - id: logo
-            type: @Image
+            type: "@Image"
             graphic: the first of util#pickLogoCandidates() that exists
             description: Distro logo.
             states:
@@ -48,23 +48,23 @@ components:
                 property_changes:
                   graphic: computer-symbolic
           - id: distro-name
-            type: @Label
+            type: "@Label"
             label: (NAME from /etc/os-release, typically 'Borshevik')
             description: The distro name.
           - id: meta-label
-            type: @Label
+            type: "@Label"
             label: <channel>, <build-time>
             description: Channel and build time of the booted image. Selectable.
           - id: digest-label
-            type: @Label
+            type: "@Label"
             label: sha256:<hex>
             description: Digest of the booted image — what identifies a build when choosing one to promote. Selectable.
           - id: uptime-label
-            type: @Label
+            type: "@Label"
             label: "Uptime: <uptime>"
             description: System uptime in util#formatUptime's form, ticking every second; 'unknown' when /proc/uptime cannot be read, and kept current even when the status read fails.
           - id: report-issue-link
-            type: @Label
+            type: "@Label"
             label: Report an issue
             visible: false
             states:
@@ -74,15 +74,15 @@ components:
                   visible: true
             description: Link styled as a link, not a button, sitting directly under uptime-label; opens _reportIssue. Showing and hiding it must not move the content below — its row keeps its height either way — since it appears and disappears as checks start and finish.
       - id: primary-button
-        type: @Button
-        label: "Check for updates" or "Update"
+        type: "@Button"
+        label: Check for updates / Update
         description: The one prominent action. 'Check for updates' runs _checkForUpdates interactively; once a check finds an update it becomes 'Update', which runs `rpm-ostree update` through _runWithProgress and, when that succeeds, asks GNOME for a reboot (util#requestRebootInteractive). Replaced by a spinner while a check runs. Label and state come from app-state#computeUiState.
       - id: status-label
-        type: @Label
+        type: "@Label"
         label: (check result message)
         description: Update availability with download size, 'no new updates', 'update pending reboot', or the error of the last check. Selectable.
       - id: update-ready-row
-        type: @View
+        type: "@View"
         description: "'Reboot to apply update' with the staged build's time, and a Reboot button that asks GNOME's session manager for its own reboot dialog (util#requestRebootInteractive). The button is disabled for only about a second after a click: the D-Bus call reports success even when the user cancels that dialog, so the app cannot tell a cancel from a reboot in progress, and a permanently disabled button would leave the user stuck after cancelling."
         visible: false
         states:
@@ -91,11 +91,11 @@ components:
             property_changes:
               visible: true
       - id: rollback-row
-        type: @View
-        description: 'Roll back to previous version' with the rollback deployment's build time, or 'Not available'. Its button asks for confirmation (a destructive dialog), then runs `rpm-ostree rollback` through _runWithProgress and, when that succeeds, asks GNOME for a reboot (util#requestRebootInteractive).
+        type: "@View"
+        description: "'Roll back to previous version' with the rollback deployment's build time, or 'Not available'. Its button asks for confirmation (a destructive dialog), then runs `rpm-ostree rollback` through _runWithProgress and, when that succeeds, asks GNOME for a reboot (util#requestRebootInteractive)."
         components:
           - id: rollback-button
-            type: @Button
+            type: "@Button"
             label: Roll back
             states:
               - id: no-rollback
@@ -103,7 +103,7 @@ components:
                 property_changes:
                   disabled: true
       - id: auto-updates-row
-        type: @Toggle
+        type: "@Toggle"
         label: Automatic updates
         description: Mirrors whether rpm-ostreed-automatic.timer is enabled — on by default, see @BorshevikWorkflow#channels#stable for what it does. Toggling enables or disables the timer at once (`systemctl enable/disable --now`) and puts the switch back if that fails. When the timer's state cannot be read the row is disabled, and marked unavailable when the unit does not exist.
     functions:
@@ -116,7 +116,7 @@ components:
       - id: _reportIssue
         description: "Opens a new GitHub issue for this repository with a prefilled body, built in English whatever the UI language since the maintainer reads it: a prompt to describe the problem, then the image, variant, channel, build time, digest and uptime, each written as 'unknown' when not known."
   - id: progress-window
-    type: @View
+    type: "@View"
     description: "Modal window for every long-running operation: the command being run, a live terminal with its output, a progress bar, Cancel and Close. The bar pulses until the output shows an `[N/M]` or `(N/M)` counter and then follows it. Cancel kills the process; Close is enabled only once the operation has ended. The terminal is a VTE widget with a plain scrollbar attached to its own adjustment: VTE implements scrolling itself (GtkScrollable) and must not be wrapped in a ScrolledWindow."
     src: build_files/root/usr/share/borshevik-image-manager/progress_window.js
     signals:
@@ -125,7 +125,7 @@ components:
       - id: operation-cancelled
         description: Emitted when Cancel is clicked, before the process is killed.
   - id: settings-window
-    type: @View
+    type: "@View"
     description: Choosing a variant (standard or NVIDIA) and a channel (latest, stable, or a custom tag), with a read-only preview of the resulting image reference. The reference always uses the signed transport (`ostree-image-signed:`), so a rebase from here is refused unless the image carries the Borshevik signature. The state it opens with is inferred from the booted origin; an origin that is not a Borshevik image is shown as the standard variant, as there is no way to pick a foreign image here. Reset returns to that state. Apply runs `rpm-ostree rebase` through progress-window with the pkexec retry, and on success closes both windows, reports the rebase to main-window and asks GNOME for a reboot.
     src: build_files/root/usr/share/borshevik-image-manager/settings_window.js
     signals:
@@ -133,7 +133,7 @@ components:
         description: Emitted after a successful rebase; main-window refreshes its status on it.
     components:
       - id: custom-tag-input
-        type: @Input
+        type: "@Input"
         label: Custom tag
         description: Free-text image tag, such as a build date.
         states:
@@ -142,7 +142,7 @@ components:
             property_changes:
               disabled: true
       - id: apply-button
-        type: @Button
+        type: "@Button"
         label: Apply
         states:
           - id: nothing-to-apply
@@ -150,7 +150,7 @@ components:
             property_changes:
               disabled: true
   - id: rpm-ostree
-    type: @Singleton
+    type: "@Singleton"
     description: Reads `rpm-ostree status --json` and turns deployments into what the app shows — origin, digest, build time, tag — and builds the reference a rebase targets.
     src: build_files/root/usr/share/borshevik-image-manager/rpm_ostree.js
     functions:
@@ -165,7 +165,7 @@ components:
       - id: needsReboot
         description: "Whether a reboot would change the running system: a deployment is staged or pending. This is the condition behind update-ready-row, and the Update Indicator extension shows its panel icon on the same condition, so the two never disagree about whether an update is waiting."
   - id: app-state
-    type: @Singleton
+    type: "@Singleton"
     description: Pure derivation of what the window shows from the parsed status and the last check, with no GTK in it.
     src: build_files/root/usr/share/borshevik-image-manager/app_state.js
     functions:
@@ -174,11 +174,11 @@ components:
       - id: computeUiState
         description: Spinner while checking; 'Update' only when a check found an update, otherwise 'Check for updates'; status text for each phase, with 'update pending reboot' when something is staged and nothing newer was found. showReportIssue only when the last check found no updates and nothing is staged — an issue is worth reporting only against a system that is fully up to date.
   - id: command-runner
-    type: @Singleton
+    type: "@Singleton"
     description: Runs a subprocess with its stdout and stderr streamed line by line, optionally under pkexec, and cancellable by killing it. It waits for the process to exit, then lets both output streams drain before reading the exit status and reporting it.
     src: build_files/root/usr/share/borshevik-image-manager/command_runner.js
   - id: util
-    type: @Singleton
+    type: "@Singleton"
     description: Shared helpers — os-release parsing, uptime reading and formatting, logo lookup, reboot request, authorization-error detection, command capture.
     src: build_files/root/usr/share/borshevik-image-manager/util.js
     functions:
@@ -189,15 +189,15 @@ components:
       - id: formatUptime
         description: Uptime as hours:minutes:seconds, prefixed with days only when there are any — '2d 3:14:05', '0:14:59' — the day suffix coming from the translation.
   - id: launcher
-    type: @ShellScript
+    type: "@ShellScript"
     description: On-PATH entry point. Starts the app with `gjs -m`, which it cannot do without — the app is written as ES modules.
     src: build_files/root/usr/bin/borshevik-image-manager
   - id: promote-to-stable
-    type: @ShellScript
+    type: "@ShellScript"
     description: "CLI that moves `:stable` onto a given build: starts the @BorshevikWorkflow#promote-image-to-stable workflow on main with the digest and variant, then follows that run to its end so its progress shows in progress-window. Needs `gh` signed in with rights to run workflows on the repository; the menu item offers it to anyone, so for everyone else it fails there."
     src: build_files/root/usr/bin/borshevik-promote-to-stable
   - id: i18n
-    type: @Singleton
+    type: "@Singleton"
     description: Message catalogue — one JSON dictionary per language in i18n/, English always loaded as the fallback. The language comes from the first of LANGUAGE, LC_ALL, LC_MESSAGES, LANG; a key missing from it falls back to English, and a dictionary that is missing or does not parse falls back to English as a whole. Dictionaries are found next to main.js, so a run from the working tree uses the working tree's.
     src:
       - build_files/root/usr/share/borshevik-image-manager/i18n.js

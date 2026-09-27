@@ -1,10 +1,10 @@
 description: Steam gaming client as integrated in Borshevik — layered via rpm-ostree at image build time from the RPM Fusion nonfree repository the @UniversalBlueGnome base already provides.
-extends: @Software
+extends: "@Software"
 platform: RPM
 src: build_files/scripts/install-steam.sh
 components:
   - id: installer
-    type: @ShellScript
+    type: "@ShellScript"
     description: Layers steam and steam-devices. Enables no repository of its own — RPM Fusion nonfree comes with the base image.
     src: build_files/scripts/install-steam.sh
     functions:

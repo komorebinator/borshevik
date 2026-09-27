@@ -1,5 +1,5 @@
 description: The final standard image — what users install and rebase to. Its stage copies build_files/root/ into the image and runs @ImageBuild#build-addons on top of ghcr.io/komorebinator/borshevik-base:latest — the published base tag pulled from the registry, not the base stage of the same Containerfile run. So a final build always sits on the most recently published base, and a change to the final layer alone needs no base rebuild (@BorshevikWorkflow).
-extends: @BorshevikBaseImage
+extends: "@BorshevikBaseImage"
 registry: ghcr.io/komorebinator
 tags:
   - "latest — pushed on every successful build-borshevik.yml run"

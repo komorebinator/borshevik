@@ -1,53 +1,53 @@
-description: Files copied into the image as they are (COPY build_files/root/ /) that belong to no other part: container signature policy, audio, branding, launcher entries and icons. Most of build_files/root/ is described with the part that uses it — the apps, the services, Hiddify, Chrome's policy.
-extends: @Software
+description: "Files copied into the image as they are (COPY build_files/root/ /) that belong to no other part: container signature policy, audio, branding, launcher entries and icons. Most of build_files/root/ is described with the part that uses it — the apps, the services, Hiddify, Chrome's policy."
+extends: "@Software"
 platform: Podman / WirePlumber / GNOME
 src: build_files/root/
 components:
   - id: wireplumber-no-autoswitch
-    type: @ConfigFile
+    type: "@ConfigFile"
     src: build_files/root/etc/wireplumber/wireplumber.conf.d/50-disable-autoswitch.conf
     description: A Bluetooth headset stays on its high-quality playback profile when an app opens the microphone, instead of dropping to the low-quality headset profile; the file's comment cites problems with Sony headsets.
   - id: os-release
-    type: @ConfigFile
+    type: "@ConfigFile"
     src: build_files/root/usr/lib/os-release
     description: Branding half of /usr/lib/os-release — the name, ID, logo and project URLs; @ImageBuild#os-info appends the per-build fields, so both halves reach the system.
   - id: borshevik-logo
-    type: @Graphic
+    type: "@Graphic"
     src: build_files/root/usr/share/pixmaps/borshevik_logo.svg
     format: SVG
     role: logo
     description: Primary distro logo shown in the Image Manager header and GDM login screen.
   - id: borshevik-logo-dark
-    type: @Graphic
+    type: "@Graphic"
     src: build_files/root/usr/share/pixmaps/borshevik_logo_dark.svg
     format: SVG
     role: logo
     description: Dark-background variant of the distro logo, used by GNOME itself.
   - id: plymouth-watermark
-    type: @Graphic
+    type: "@Graphic"
     src: build_files/root/usr/share/plymouth/themes/spinner/watermark.png
     format: PNG
     role: splash
     description: Watermark shown by Plymouth during boot splash.
   - id: container-policy
-    type: @ConfigFile
+    type: "@ConfigFile"
     src:
       - build_files/root/etc/containers/policy.json
       - build_files/root/etc/containers/registries.d/borshevik.yaml
     description: "Borshevik images must carry the Borshevik signature: anything from ghcr.io/komorebinator is accepted only with a sigstore signature by cosign-key, looked up as a sigstore attachment on the registry. That is what makes every rebase or `bootc switch` to a Borshevik image — the installer's, the Image Manager's, one typed by hand — refuse an unsigned or foreign-signed one. uBlue's and toolbx's registries are checked against their own keys, Red Hat's against its GPG key; any registry not listed is accepted unsigned."
   - id: cosign-key
-    type: @PublicKey
+    type: "@PublicKey"
     src: cosign.pub
     path: /etc/pki/containers/cosign.pub
     description: Public half of the key CI signs every Borshevik image with (@BorshevikWorkflow#build-base), copied into the base layer by the Containerfile. A new key pair would make every installed system refuse the next update, since the key it checks against is the one it already has.
   - id: desktop-entries
-    type: @ConfigFile
+    type: "@ConfigFile"
     src:
       - build_files/root/usr/share/applications/org.borshevik.AppManager.desktop
       - build_files/root/usr/share/applications/org.borshevik.ImageManager.desktop
     description: "Launcher entries of the two apps. Neither sets Categories: @ShellCustomizations#defaults puts both in the Borshevik app folder by file name."
   - id: app-icons
-    type: @Graphic
+    type: "@Graphic"
     src:
       - build_files/root/usr/share/icons/hicolor/scalable/apps/org.borshevik.AppManager.svg
       - build_files/root/usr/share/icons/hicolor/scalable/apps/org.borshevik.ImageManager.svg
@@ -55,7 +55,7 @@ components:
     role: app-icon
     description: Icons of the two apps.
   - id: fedora-logo-overrides
-    type: @Graphic
+    type: "@Graphic"
     src:
       - build_files/root/usr/share/pixmaps/fedora_logo_med.png
       - build_files/root/usr/share/pixmaps/fedora_whitelogo_med.png

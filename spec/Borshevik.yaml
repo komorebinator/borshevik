@@ -1,5 +1,5 @@
 description: An immutable, laptop-first desktop image built on Fedora Atomic and the uBlue ecosystem, designed to be simple to use and ready to go right after installation.
-extends: @DuckspecProject
+extends: "@DuckspecProject"
 terms_folder: Borshevik/
 repository: https://github.com/komorebinator/borshevik
 goals:
@@ -23,17 +23,17 @@ uses:
   - Steam.yaml
   - Installer.yaml
 software:
-  - @SystemConfig
-  - @RepositoryAssets
-  - @BorshevikBaseImage
-  - @BorshevikBaseNvidiaImage
-  - @BorshevikImage
-  - @BorshevikNvidiaImage
-  - @ImageBuild
+  - "@SystemConfig"
+  - "@RepositoryAssets"
+  - "@BorshevikBaseImage"
+  - "@BorshevikBaseNvidiaImage"
+  - "@BorshevikImage"
+  - "@BorshevikNvidiaImage"
+  - "@ImageBuild"
 startup:
   - load
 workflow:
-  type: @BorshevikWorkflow
+  type: "@BorshevikWorkflow"
 settings:
   readme: ../README.md
   src: ..

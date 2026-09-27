@@ -1,33 +1,33 @@
 description: System-wide GNOME defaults set at image build time, so every account — and the login screen — starts from Borshevik's setup with nothing to configure. They are defaults only; a user's own changes take precedence.
-extends: @Software
+extends: "@Software"
 platform: bash + dconf + GSettings
 src: build_files/scripts/
 components:
   - id: apply-schemas
-    type: @ShellScript
+    type: "@ShellScript"
     description: Installs GSettings schema overrides and recompiles the schema cache.
     src: build_files/scripts/apply-schemas.sh
     functions:
       - id: run
         description: Installs the GSettings overrides among the defaults and recompiles the schema cache.
   - id: apply-dconf
-    type: @ShellScript
+    type: "@ShellScript"
     description: Installs dconf profiles and system defaults, then runs dconf update.
     src: build_files/scripts/apply-dconf.sh
     functions:
       - id: run
         description: Installs the login screen's dconf profile and gdm-dconf, and the dconf files among the defaults, then runs `dconf update`. It also writes the default list of enabled extensions from whatever @GnomeExtensions installed moments earlier — what switches extensions on for a fresh account; @Services#extension-autoenable covers accounts that already have a list of their own.
   - id: gdm-dconf
-    type: @ConfigFile
+    type: "@ConfigFile"
     format: dconf
     src: build_files/scripts/dconf/gdm.d/gdm
-    description: The login screen: Borshevik's logo, and the same accent colour and touchpad behaviour as user sessions.
+    description: "The login screen: Borshevik's logo, and the same accent colour and touchpad behaviour as user sessions."
   - id: gnome-initial-setup
-    type: @ConfigFile
+    type: "@ConfigFile"
     src: build_files/root/etc/gnome-initial-setup/vendor.conf
     description: "GNOME Initial Setup vendor config: `skip=software` drops the 'Software' welcome page, so new users are not prompted to install apps via GNOME Software on first login (the App Manager replaces this flow), and `existing_user_only=language;keyboard` shows the language and keyboard pages only in the per-user run, not in the system-level one."
   - id: defaults
-    type: @ConfigFile
+    type: "@ConfigFile"
     src:
       - build_files/scripts/schemas/
       - build_files/scripts/dconf/local.d/

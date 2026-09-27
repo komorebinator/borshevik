@@ -1,8 +1,8 @@
 description: "How work is done on Borshevik, from a request to an image users rebase onto. A change is tried on `experimental` first — pushed there, built into `:latest` by hand, run on a real machine — and goes to `main` by pull request only once it works. `main` is what the daily build reads; what it produces is still under test, and reaches users only when a chosen build is promoted to `:stable`, which is also what installers switch to and ISOs are cut from. Nothing is triggered by a push or a merge: builds run on a schedule or by hand."
-extends: @DuckWorkflow
+extends: "@DuckWorkflow"
 main_branch: main
 versioning:
-  type: @CalVer
+  type: "@CalVer"
   format: DD.MM.YYYY
 src: .github/
 branches:
@@ -18,7 +18,7 @@ channels:
     description: "The testing channel. Every build lands here, from whichever branch it was run on — daily from main, by hand from experimental — so anything on it is still under test, including what came from main. Each build is also tagged with its date, DD.MM.YYYY, which is what a digest is recognised by when choosing one to promote."
   - id: stable
     from: latest
-    description: What users run. Installers switch to it and ISOs are cut from it. Moved by hand onto a chosen `:latest` digest — a manifest retag, no rebuild — and signed again; nothing reaches it on a schedule. Installed machines then pick the move up by themselves: the image ships rpm-ostreed-automatic.timer enabled with AutomaticUpdatePolicy=stage, both from the base image rather than set by Borshevik, so each machine downloads and stages the new build of its channel about once a day and boots into it at its next reboot. Users can switch that off with the Image Manager's automatic-updates switch (@ImageManagerApp#auto-updates-row), and the Update Indicator extension shows while a staged build waits (@ImageManagerApp#rpm-ostree#needsReboot).
+    description: "What users run. Installers switch to it and ISOs are cut from it. Moved by hand onto a chosen `:latest` digest — a manifest retag, no rebuild — and signed again; nothing reaches it on a schedule. Installed machines then pick the move up by themselves: the image ships rpm-ostreed-automatic.timer enabled with AutomaticUpdatePolicy=stage, both from the base image rather than set by Borshevik, so each machine downloads and stages the new build of its channel about once a day and boots into it at its next reboot. Users can switch that off with the Image Manager's automatic-updates switch (@ImageManagerApp#auto-updates-row), and the Update Indicator extension shows while a staged build waits (@ImageManagerApp#rpm-ostree#needsReboot)."
 steps:
   - id: requested
     description: Someone wants a change, in an issue or in the conversation. It is clarified until nothing is left to guess, then written into the terms.
@@ -80,22 +80,22 @@ steps:
     when: the site's download buttons lead to the run's media
 components:
   - id: build-base
-    type: @Pipeline
+    type: "@Pipeline"
     platform: GitHub Actions
     description: Builds, pushes and signs both base images, then runs build-borshevik for the final layer on top. Daily at 10:00 UTC, or by hand. Both variants build in parallel, each tagged `latest` and with the build date, DD.MM.YYYY, and each signed by digest with the SIGNING_SECRET key (@SystemConfig#cosign-key is its public half). Container storage is moved to /mnt, where the runner has the disk space an image build needs.
     src: .github/workflows/build-base.yml
   - id: build-borshevik
-    type: @Pipeline
+    type: "@Pipeline"
     platform: GitHub Actions
-    description: Builds, pushes and signs both final images the same way, on the published base tags. Run by build-base, or by hand when only the final layer changed. Seven of its steps carry `if: github.event_name != 'pull_request'` guards inherited from the uBlue template; neither of its triggers produces that event, so they never take effect.
+    description: "Builds, pushes and signs both final images the same way, on the published base tags. Run by build-base, or by hand when only the final layer changed. Seven of its steps carry `if: github.event_name != 'pull_request'` guards inherited from the uBlue template; neither of its triggers produces that event, so they never take effect."
     src: .github/workflows/build-borshevik.yml
   - id: build-iso
-    type: @Pipeline
+    type: "@Pipeline"
     platform: GitHub Actions
     description: Builds the installer media of both variants from their :stable images, by hand — the tag is fixed in the workflow, so media follow a promotion only when this is run again; nothing chains the two. File names are unique per run (`<variant>-<YYYYMMDD>-<run number>.iso`, with a -CHECKSUM beside it), so published media are never overwritten in place. The media stay as the run's artifacts for the repository's default retention (90 days unless changed), which is how long a run stays publishable.
     src: .github/workflows/build-iso.yml
   - id: publish-iso
-    type: @Pipeline
+    type: "@Pipeline"
     platform: GitHub Actions
     src: .github/workflows/publish-iso.yml
     description: "Uploads the ISOs of one build-iso run to borshevik.org's iso/ folder, without changing what the site offers: nothing links to the new names until the website is switched to them, which happens only after the author has tried them (@BorshevikWorkflow#try_iso) — from the server, since that is far faster than from GitHub. Runs with ref=main."
@@ -107,64 +107,64 @@ components:
       - the run's two ISOs and their checksums in the site's iso/ folder, verified on the server; the site itself unchanged
     components:
       - id: DEPLOY_HOST
-        type: @Secret
+        type: "@Secret"
         storage: GitHub Actions repository secret
         used_by: publish-iso's SSH and rsync steps
         description: "The website's server, borshevik.org. This and the other DEPLOY_* secrets hold the same values as the secrets of the same names in the borshevik-landing repository, which deploys the website to the same place with the same key; change them in both together."
       - id: DEPLOY_PORT
-        type: @Secret
+        type: "@Secret"
         storage: GitHub Actions repository secret; optional
         used_by: publish-iso's SSH and rsync steps
         description: The server's SSH port. Empty or unset means 22.
       - id: DEPLOY_USER
-        type: @Secret
+        type: "@Secret"
         storage: GitHub Actions repository secret
         used_by: publish-iso's SSH and rsync steps
         description: The hosting account the website's files belong to.
       - id: DEPLOY_PATH
-        type: @Secret
+        type: "@Secret"
         storage: GitHub Actions repository secret
         used_by: publish-iso's rsync and verification steps
         description: Absolute path of the website's root on the server; the ISOs go into its iso/ folder.
       - id: DEPLOY_SSH_KEY
-        type: @Secret
+        type: "@Secret"
         storage: GitHub Actions repository secret
         used_by: publish-iso's SSH setup step
         description: Private half of the ed25519 key made for deploying the website, and nothing else.
       - id: DEPLOY_KNOWN_HOSTS
-        type: @Secret
+        type: "@Secret"
         storage: GitHub Actions repository secret
         used_by: publish-iso's SSH setup step
         description: The server's host key lines, recorded once and checked with StrictHostKeyChecking=yes, so the runner refuses any other host.
   - id: try-iso
-    type: @ShellScript
+    type: "@ShellScript"
     src: tests/try-iso.sh
     description: "Installs one ISO of a build-iso run, as borshevik.org serves it, into a fresh virtual machine on this machine, for the author to try (@BorshevikWorkflow#try_iso). Downloads from the site, not from GitHub: the run must have gone through publish-iso first, and what gets tried is the very file users will download. Runs on the host, not in a sandbox. Needs gh, logged in, curl, and the GNOME Boxes flatpak (org.gnome.Boxes), whose bundled qemu-system-x86_64, qemu-img and UEFI firmware it borrows — nothing is installed for it. Keeps everything under ${XDG_CACHE_HOME:-~/.cache}/borshevik-iso/<run id>/<variant>/, so a second try of the same run downloads nothing."
     functions:
       - id: run
         description: "Arguments: `[--boot] <run id | latest> <borshevik | borshevik-nvidia>`, `latest` being the newest successful build-iso run. The ISO's name is read from that run's log — exactly one `<variant>-<8 digits>-<digits>.iso`, or it stops (a run from before unique names has none). Unless it is already cached, downloads the ISO and its -CHECKSUM from borshevik.org, resuming an interrupted download; a checksum missing from the site means publish-iso has not run for this build, and it says so. Stops unless the checksum matches. Without --boot it boots the ISO on a fresh disk and fresh UEFI variables, replacing any from an earlier try, and the installed system comes up from the disk after the installer reboots; with --boot it boots the existing disk alone. The machine runs on the GNOME Boxes flatpak's own qemu and UEFI firmware, shown through that flatpak's SPICE client rather than qemu's own window, which misplaces the guest pointer under GNOME's fractional scaling on Wayland. The script blocks until that window is closed, then powers the machine off, as it also does when interrupted. Before starting it prints what to check."
   - id: promote-image-to-stable
-    type: @Pipeline
+    type: "@Pipeline"
     platform: GitHub Actions
     description: Moves `:stable` of one variant onto a chosen digest and signs it again. Run by hand with the variant and a sha256 digest; the move is a manifest retag, no rebuild. The Image Manager's Promote to stable starts it for the booted build (@ImageManagerApp#promote-to-stable).
     src: .github/workflows/promote-image-to-stable.yml
   - id: dependabot
-    type: @ConfigFile
+    type: "@ConfigFile"
     src: .github/dependabot.yml
     description: "Configures Dependabot to check the github-actions ecosystem weekly and open PRs for outdated action versions."
   - id: renovate
-    type: @ConfigFile
+    type: "@ConfigFile"
     src: .github/renovate.json5
     description: "Configures Renovate bot using config:best-practices. Auto-merges pin/pinDigest updates. Disables digest/pin updates for container refs in workflow files (to avoid interfering with manually pinned base images). Never rebases open PRs."
   - id: validate
-    type: @ShellScript
+    type: "@ShellScript"
     src: tests/validate.sh
     description: "Static checks over the repository, run on a Borshevik machine before a change is committed. Not tests — nothing is built or booted; it catches what breaks silently before any build runs. Needs bash, python3 with PyYAML, jq, gjs and desktop-file-validate, all present on Borshevik."
     functions:
       - id: run
-        description: Checks, each reported as ok or FAIL, exiting 1 on any failure: the syntax of every shell script, the JSON files, the GitHub YAML, the TOML configs, the desktop entries, an import of every app module but main.js (which would start the app), and the translations — every language of each app must have exactly the keys of English, and every key the code asks for must exist. Both apps fall back quietly on a missing key — the Image Manager to English for the whole file when a dictionary does not parse, the App Manager to the key itself — so without this check a broken dictionary shows only to the user who hits it. Needs gjs, so from a sandboxed shell it runs on the host.
+        description: "Checks, each reported as ok or FAIL, exiting 1 on any failure: the syntax of every shell script, the JSON files, the GitHub YAML, the TOML configs, the desktop entries, an import of every app module but main.js (which would start the app), and the translations — every language of each app must have exactly the keys of English, and every key the code asks for must exist. Both apps fall back quietly on a missing key — the Image Manager to English for the whole file when a dictionary does not parse, the App Manager to the key itself — so without this check a broken dictionary shows only to the user who hits it. Needs gjs, so from a sandboxed shell it runs on the host."
   - id: SIGNING_SECRET
-    type: @Secret
+    type: "@Secret"
     storage: GitHub Actions repository secret
     used_by: build-base, build-borshevik and promote-image-to-stable, which sign every pushed image and every move of `:stable` with it
     description: Private half of @SystemConfig#cosign-key, in cosign's format. Installed systems accept only images signed with it, so losing it means no Borshevik image can be updated to again until every machine gets a new public key by hand.

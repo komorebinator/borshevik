@@ -1,5 +1,5 @@
-description: Base layer of the standard variant, built by the borshevik-base stage of @ImageBuild#containerfile on @UniversalBlueGnome: @ImageBuild#build-base (kernel, curated RPMs, Chrome, Steam, cleanup), plus the Borshevik signing key the whole lineage verifies with (@SystemConfig#cosign-key). Its kernel is normally whatever @UniversalBlueGnome ships; while @ImageBuild#install-kernel is in place it is the coreos-stable one instead.
-extends: @UniversalBlueGnome
+description: "Base layer of the standard variant, built by the borshevik-base stage of @ImageBuild#containerfile on @UniversalBlueGnome: @ImageBuild#build-base (kernel, curated RPMs, Chrome, Steam, cleanup), plus the Borshevik signing key the whole lineage verifies with (@SystemConfig#cosign-key). Its kernel is normally whatever @UniversalBlueGnome ships; while @ImageBuild#install-kernel is in place it is the coreos-stable one instead."
+extends: "@UniversalBlueGnome"
 registry: ghcr.io/komorebinator
 tags:
   - "latest — pushed on every successful build-base.yml run"

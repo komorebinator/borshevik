@@ -1,5 +1,5 @@
-description: Prebuilt NVIDIA open kernel modules, published by uBlue, so Borshevik's build never compiles them. Not an OS base image: its filesystem is copied into the NVIDIA base layer's build and installed by @ImageBuild#build-base-nvidia. Taken from the same `coreos-stable` flavour as @UBlueAkmods, because the modules only load against the exact kernel they were built for (@ImageBuild#install-kernel). External dependency — not built by this project.
-extends: @ContainerImage
+description: "Prebuilt NVIDIA open kernel modules, published by uBlue, so Borshevik's build never compiles them. Not an OS base image: its filesystem is copied into the NVIDIA base layer's build and installed by @ImageBuild#build-base-nvidia. Taken from the same `coreos-stable` flavour as @UBlueAkmods, because the modules only load against the exact kernel they were built for (@ImageBuild#install-kernel). External dependency — not built by this project."
+extends: "@ContainerImage"
 platform: OCI container image, published to ghcr.io/ublue-os
 repository: https://github.com/ublue-os/akmods
 registry: ghcr.io/ublue-os

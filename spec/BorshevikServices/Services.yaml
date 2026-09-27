@@ -1,21 +1,21 @@
-description: Borshevik's systemd units and the scripts they run, and how they are switched on in the image: boot-time units for kernel arguments and MOK enrollment, login-time user units for the App Manager's first run, newly shipped extensions and the GNOME Shell watchdog.
-extends: @Software
+description: "Borshevik's systemd units and the scripts they run, and how they are switched on in the image: boot-time units for kernel arguments and MOK enrollment, login-time user units for the App Manager's first run, newly shipped extensions and the GNOME Shell watchdog."
+extends: "@Software"
 platform: systemd / bash
 src: build_files/root/usr/lib/systemd/
 components:
   - id: kernel-args
-    type: @Singleton
+    type: "@Singleton"
     description: Keeps the kernel arguments Borshevik needs set. Checked on every boot; in practice it acts once, on the first boot of an install or after a rebase between variants, and reboots when it had to set any.
     components:
       - id: script
-        type: @ShellScript
+        type: "@ShellScript"
         description: Ensures the required kernel arguments are present on first boot, rebooting once if it had to add any.
         src: build_files/root/usr/libexec/borshevik/setup-kargs.sh
         functions:
           - id: run
             description: Adds preempt=full, and on the NVIDIA image — detected by the nvidia-driver package — the arguments that give the proprietary driver kernel modesetting and keep the nouveau and nova_core drivers from loading. Does nothing when all of them are already set; otherwise sets the missing ones in a single rpm-ostree call, shows a message on the boot splash, and reboots, so a boot that had to set any reboots once.
       - id: service
-        type: @SystemdUnit
+        type: "@SystemdUnit"
         src: build_files/root/usr/lib/systemd/system/setup-kargs.service
         unit_type: service
         scope: system
@@ -23,18 +23,18 @@ components:
         executes: /usr/libexec/borshevik/setup-kargs.sh
         description: Oneshot service running the script on every boot.
   - id: mok-enrollment
-    type: @Singleton
+    type: "@Singleton"
     description: Enrolls the uBlue MOK key for NVIDIA Secure Boot on first boot.
     components:
       - id: script
-        type: @ShellScript
+        type: "@ShellScript"
         description: Enrolls the uBlue Machine Owner Key so NVIDIA modules load under Secure Boot.
         src: build_files/root/usr/libexec/borshevik/setup-ublue-mok.sh
         functions:
           - id: run
             description: Exits immediately when `mokutil --sb-state` does not report Secure Boot as enabled, and again when `mokutil --test-key` shows /etc/pki/akmods/certs/akmods-ublue.der is already enrolled. Otherwise it prompts interactively via systemd-ask-password for a temporary PIN, looping until a non-empty one is given — this service blocks the boot on user input by design, since the same PIN must be typed into the UEFI MOK manager on the next start. Cancelling the prompt exits 130 and leaves the key unenrolled, so the prompt comes back on the next boot. With a PIN it clears any pending MOK timeout, sets the MOK password from the PIN's hash, imports the key with it, and reboots.
       - id: service
-        type: @SystemdUnit
+        type: "@SystemdUnit"
         src: build_files/root/usr/lib/systemd/system/setup-ublue-mok.service
         unit_type: service
         scope: system
@@ -42,26 +42,26 @@ components:
         executes: /usr/libexec/borshevik/setup-ublue-mok.sh
         description: "Oneshot service. Enrolls the uBlue MOK key for NVIDIA Secure Boot. Only active on borshevik-nvidia."
   - id: app-manager-first-run
-    type: @SystemdUnit
+    type: "@SystemdUnit"
     src: build_files/root/usr/lib/systemd/user/borshevik-app-manager-first-run.service
     unit_type: service
     scope: user
     triggers: login — enabled globally via user-preset
     executes: borshevik-app-manager-first-run
-    description: Runs borshevik-app-manager-first-run on login. Gated twice on the same stamp file, ~/.local/state/borshevik/app-manager-first-run.done: the unit carries ConditionPathExists=! on it, and @AppManagerApp#first-run checks it again before launching. The stamp is written whenever the App Manager exits successfully — which includes the user simply closing its window — so it opens again at the next login only after a crash.
+    description: "Runs borshevik-app-manager-first-run on login. Gated twice on the same stamp file, ~/.local/state/borshevik/app-manager-first-run.done: the unit carries ConditionPathExists=! on it, and @AppManagerApp#first-run checks it again before launching. The stamp is written whenever the App Manager exits successfully — which includes the user simply closing its window — so it opens again at the next login only after a crash."
   - id: gnome-watchdog
-    type: @Singleton
+    type: "@Singleton"
     description: Detects and restarts a hung GNOME Shell process. Runs every minute via a user-level timer.
     components:
       - id: script
-        type: @ShellScript
+        type: "@ShellScript"
         description: Watchdog that probes GNOME Shell over D-Bus and kills it when it stops responding.
         src: build_files/root/usr/libexec/borshevik/borshevik-kill-gnome-if-hung.sh
         functions:
           - id: run
             description: Asks GNOME Shell over D-Bus for its version; if no answer comes within 10 seconds, terminates the user's gnome-shell and kills it if it is still there two seconds later.
       - id: service
-        type: @SystemdUnit
+        type: "@SystemdUnit"
         src: build_files/root/usr/lib/systemd/user/borshevik-kill-gnome-if-hung.service
         unit_type: service
         scope: user
@@ -69,7 +69,7 @@ components:
         executes: /usr/libexec/borshevik/borshevik-kill-gnome-if-hung.sh
         description: "Oneshot service. Runs the GNOME Shell watchdog script when triggered by the timer."
       - id: timer
-        type: @SystemdUnit
+        type: "@SystemdUnit"
         src: build_files/root/usr/lib/systemd/user/borshevik-kill-gnome-if-hung.timer
         unit_type: timer
         scope: user
@@ -77,29 +77,29 @@ components:
         executes: ""
         description: "Fires gnome-watchdog#service every minute starting 1 minute after boot."
   - id: enable-services
-    type: @ShellScript
+    type: "@ShellScript"
     description: Enables Borshevik's system and user units at image build time.
     src: build_files/scripts/enable-services.sh
     functions:
       - id: run
         description: "Enables setup-kargs.service system-wide, then applies `systemctl --global preset` to borshevik-app-manager-first-run.service, borshevik-enable-new-extensions.service and borshevik-kill-gnome-if-hung.timer — preset, not enable, so the decision comes from @Services#user-preset. The watchdog's .service is deliberately not preset; the timer pulls it in. setup-ublue-mok.service is enabled only when IMAGE_NAME is borshevik-nvidia, which is what keeps MOK enrollment out of the standard variant. Run at image build time from @ImageBuild#build-addons."
   - id: user-preset
-    type: @ConfigFile
+    type: "@ConfigFile"
     src: build_files/root/usr/lib/systemd/user-preset/90-borshevik.preset
     description: "Preset file holding `enable` for app-manager-first-run, extension-autoenable#service and gnome-watchdog#timer. @Services#enable-services applies it per unit with `systemctl --global preset <unit>` at build time, so these are on for every user account, including ones created later."
   - id: extension-autoenable
-    type: @Singleton
+    type: "@Singleton"
     description: "Enables every GNOME Shell extension the image ships, once per extension per user. The image's default enabled-extensions (written by @ShellCustomizations' apply-dconf step) is only a system-db default: the first time a user toggles any extension, their own user-db list takes over and a system default is never read again, so an extension added to the image later stayed off for everyone who had ever touched their extensions. This offers each system extension to each user exactly once and remembers it, so a later decision to switch one off is kept."
     components:
       - id: script
-        type: @ShellScript
+        type: "@ShellScript"
         description: Bash script, run as the user, that turns on system extensions this user has not been offered before.
         src: build_files/root/usr/libexec/borshevik/borshevik-enable-new-extensions.sh
         functions:
           - id: run
             description: "Under `set -uo pipefail`. The state file is ${XDG_STATE_HOME:-$HOME/.local/state}/borshevik/offered-extensions, one uuid per line; creates its directory and the file if missing. For each directory under /usr/share/gnome-shell/extensions — its name is the extension uuid — skips it when the state file already holds that exact line (`grep -qxF`). Otherwise runs `gnome-extensions enable <uuid>`, which asks the running GNOME Shell over D-Bus to enable it; the shell itself adds it to enabled-extensions and drops it from disabled-extensions (which would otherwise override it), so the script never edits either list, and the change applies in the running session. Only when that succeeds is the uuid appended to the state file, so an extension that could not be enabled — the shell not answering yet, say — is offered again at the next login. Failures are reported on stderr and make the script exit 1, so they show in the unit's journal; otherwise it exits 0. The first run for an existing user therefore enables every system extension once, including ones they had switched off before this service existed; every later run touches only extensions the image has gained since."
       - id: service
-        type: @SystemdUnit
+        type: "@SystemdUnit"
         src: build_files/root/usr/lib/systemd/user/borshevik-enable-new-extensions.service
         unit_type: service
         scope: user

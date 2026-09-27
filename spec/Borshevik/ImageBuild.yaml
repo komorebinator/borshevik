@@ -1,10 +1,10 @@
 description: The OCI image build — one multi-stage Containerfile and the bash scripts its stages run. Which image each stage produces and what it builds on is described on @BorshevikBaseImage, @BorshevikBaseNvidiaImage, @BorshevikImage and @BorshevikNvidiaImage; when each is built, on @BorshevikWorkflow.
-extends: @Software
+extends: "@Software"
 platform: bash + Containerfile (buildah)
 src: build_files/scripts/
 components:
   - id: containerfile
-    type: @ContainerImage
+    type: "@ContainerImage"
     src: Containerfile
     description: One stage per published image, plus `ctx`, a scratch stage holding build_files/scripts that every build stage bind-mounts rather than copies, so no script ends up in an image. Every build stage ends with `ostree container commit`. CI builds one target at a time and applies the tags itself. Each stage labels the image with its name as both the OCI title and the OCI version.
     stages:
@@ -31,56 +31,56 @@ components:
       - id: BUILD_DATE
         description: No default; CI sets it to the build's date, DD.MM.YYYY. Becomes VERSION in os-release (os-info).
   - id: build-base
-    type: @ShellScript
+    type: "@ShellScript"
     description: Orchestrates the base layer — RPM packages, Chrome, Steam, podman.socket.
     src: build_files/scripts/build-base.sh
     functions:
       - id: run
-        description: The base layer's steps, in order: install-kernel first, so everything layered afterwards resolves against the kernel the image will actually ship; then install-rpm-packages, @GoogleChromeApp#installer, @SteamApp#installer and cleanup; finally enables podman.socket.
+        description: "The base layer's steps, in order: install-kernel first, so everything layered afterwards resolves against the kernel the image will actually ship; then install-rpm-packages, @GoogleChromeApp#installer, @SteamApp#installer and cleanup; finally enables podman.socket."
   - id: build-base-nvidia
-    type: @ShellScript
+    type: "@ShellScript"
     description: Installs the NVIDIA driver on the base layer.
     src: build_files/scripts/build-base-nvidia.sh
     functions:
       - id: run
         description: Installs the prebuilt kernel modules from @UBlueAkmodsNvidiaOpen together with the userspace driver, settings tool, CUDA and VA-API libraries (64- and 32-bit) from the negativo17 repository, at the version read from the akmods content itself, so modules and userspace always match. Runs no cleanup of its own; the base layer already did.
   - id: build-addons
-    type: @ShellScript
+    type: "@ShellScript"
     description: Orchestrates the final layer — Hiddify, GNOME extensions, shell customizations, services, initramfs.
     src: build_files/scripts/build-addons.sh
     functions:
       - id: run
-        description: The final layer's steps, in order: os-info, @HiddifyApp#installer, @GnomeExtensions#installer, @ShellCustomizations#apply-schemas and #apply-dconf — the latter after the extensions, since it enables whatever extensions are installed at that moment — @Services#enable-services, and rebuild-initramfs last.
+        description: "The final layer's steps, in order: os-info, @HiddifyApp#installer, @GnomeExtensions#installer, @ShellCustomizations#apply-schemas and #apply-dconf — the latter after the extensions, since it enables whatever extensions are installed at that moment — @Services#enable-services, and rebuild-initramfs last."
   - id: install-kernel
-    type: @ShellScript
-    description: Temporary (added 2026-09): replaces the base image's kernel with the one @UBlueAkmods ships, holding Borshevik a few releases behind Fedora's newest. Exists only to avoid the amdgpu HDMI 4:2:0 regression in Fedora's 7.2 kernels, not as a kernel policy. Once Fedora ships a kernel carrying the fix, four things go together: this script, its call in build-base.sh, the akmods COPY in @ImageBuild#containerfile, and the coreos-stable tag on @UBlueAkmodsNvidiaOpen, which returns to main-<FEDORA_MAJOR_VERSION> so the NVIDIA modules again match the base image's own kernel; @UBlueAkmods then leaves the build altogether.
+    type: "@ShellScript"
+    description: "Temporary (added 2026-09): replaces the base image's kernel with the one @UBlueAkmods ships, holding Borshevik a few releases behind Fedora's newest. Exists only to avoid the amdgpu HDMI 4:2:0 regression in Fedora's 7.2 kernels, not as a kernel policy. Once Fedora ships a kernel carrying the fix, four things go together: this script, its call in build-base.sh, the akmods COPY in @ImageBuild#containerfile, and the coreos-stable tag on @UBlueAkmodsNvidiaOpen, which returns to main-<FEDORA_MAJOR_VERSION> so the NVIDIA modules again match the base image's own kernel; @UBlueAkmods then leaves the build altogether."
     src: build_files/scripts/install-kernel.sh
     functions:
       - id: run
         description: "Replaces every installed kernel subpackage with the RPMs COPYed from @UBlueAkmods into /tmp/akmods-kernel, via `rpm-ostree override replace`. The set is read from what the base image actually has installed — kernel, kernel-core, kernel-modules, kernel-modules-core, kernel-modules-extra — rather than hardcoded, and the script exits non-zero when the cache lacks one of them instead of leaving a half-swapped kernel; uBlue's fetch-kernel.sh caches all five for the Fedora flavours. kernel-headers and kernel-tools are left at the base image's version, the akmods cache carrying neither. Runs first in build-base.sh so everything layered afterwards resolves against the kernel that ships. Why this exists: upstream commit 7e5760f084d0 in 7.2 made YCbCr 4:2:0 conditional on the force_yuv_pixel_format debugfs override, so a sink whose 4K@50/60 exists only as 4:2:0 — a 4K TV with an HDMI 1.4-class input — is sent RGB at 594 MHz it cannot accept and shows nothing, with no error logged. Upstream fixed it in 7.3 by rewriting the selection; there is no 7.2.x backport, which is why the kernel is held back rather than patched. The coreos-stable tag is rolling, so the kernel still advances when Fedora CoreOS promotes one — meaning this workaround can also expire on its own, and Borshevik would meet the same regression again if CoreOS reaches 7.2.x before Fedora ships the fix."
   - id: install-rpm-packages
-    type: @ShellScript
+    type: "@ShellScript"
     description: Layers the curated RPM package set via rpm-ostree.
     src: build_files/scripts/install-rpm-packages.sh
     functions:
       - id: run
-        description: Layers the curated RPM set in one transaction; the list is in the script. Some of it is used by other parts of the image rather than directly by users: the compiler toolchain by @GnomeExtensions#own-builds, patchelf by @HiddifyApp#installer, gh by @ImageManagerApp#promote-to-stable, adw-gtk3-theme by the dark GTK3 default (@ShellCustomizations#defaults), and gsound by GSConnect, which recommends it for its sounds. GSConnect itself is not among the RPMs — it is built from source by @GnomeExtensions#own-builds — so nothing else would bring gsound in. mutter-devkit is what `gnome-shell --devkit` needs to run a nested shell in a window, so a GNOME Shell extension can be tried without logging out — on Wayland the session shell cannot be restarted in place, and a layered package would slow every image update, so it ships in the image instead.
+        description: "Layers the curated RPM set in one transaction; the list is in the script. Some of it is used by other parts of the image rather than directly by users: the compiler toolchain by @GnomeExtensions#own-builds, patchelf by @HiddifyApp#installer, gh by @ImageManagerApp#promote-to-stable, adw-gtk3-theme by the dark GTK3 default (@ShellCustomizations#defaults), and gsound by GSConnect, which recommends it for its sounds. GSConnect itself is not among the RPMs — it is built from source by @GnomeExtensions#own-builds — so nothing else would bring gsound in. mutter-devkit is what `gnome-shell --devkit` needs to run a nested shell in a window, so a GNOME Shell extension can be tried without logging out — on Wayland the session shell cannot be restarted in place, and a layered package would slow every image update, so it ships in the image instead."
   - id: rebuild-initramfs
-    type: @ShellScript
+    type: "@ShellScript"
     description: Regenerates the initramfs so newly layered kernel modules and hooks are picked up.
     src: build_files/scripts/rebuild-initramfs.sh
     functions:
       - id: run
         description: Regenerates the initramfs of the installed kernel — reproducibly, not host-only, with ostree support — so it matches what the final layer ships.
   - id: cleanup
-    type: @ShellScript
+    type: "@ShellScript"
     description: Removes preinstalled software the image is not meant to ship — despite the name, nothing here cleans caches.
     src: build_files/scripts/cleanup.sh
     functions:
       - id: run
         description: Removes Firefox, toolbox, GNOME Classic and nvtop; every GNOME Shell extension RPM the base image brings, the image's extensions coming from @GnomeExtensions instead; GNOME Software's DKMS helper and DNF5 plugin; and disables flatpak-add-fedora-repos.service, leaving Flathub as the only Flatpak remote.
   - id: os-info
-    type: @ShellScript
+    type: "@ShellScript"
     description: Appends per-build identity to /usr/lib/os-release; the branding itself comes from @SystemConfig#os-release.
     src: build_files/scripts/os-info.sh
     functions:

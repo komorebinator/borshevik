@@ -1,9 +1,9 @@
 description: Graphic assets stored in assets/ and used in README.md and project documentation. Not installed into the image.
-extends: @Software
+extends: "@Software"
 src: assets/
 components:
   - id: readme-graphics
-    type: @Graphic
+    type: "@Graphic"
     src:
       - assets/borshevik_logo.svg
       - assets/download.svg

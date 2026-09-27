@@ -1,5 +1,5 @@
 description: "uBlue's GNOME base image — the ublue-os/main repository's build. FROMs @FedoraSilverblue (quay.io/fedora-ostree-desktops/silverblue:<FEDORA_MAJOR_VERSION>) and layers on uBlue's standard hardware enablement, akmods support, and tooling. Published as ghcr.io/ublue-os/silverblue-main. Borshevik's BorshevikBaseImage builds FROM this image."
-extends: @FedoraSilverblue
+extends: "@FedoraSilverblue"
 platform: OCI container image (Fedora Atomic / rpm-ostree), published to ghcr.io/ublue-os
 repository: https://github.com/ublue-os/main
 registry: ghcr.io/ublue-os

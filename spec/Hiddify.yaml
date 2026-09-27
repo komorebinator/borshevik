@@ -1,5 +1,5 @@
 description: The Hiddify VPN client, shipped in the image and made to work on an rpm-ostree system (@HiddifyApp).
-extends: @DuckspecProject
+extends: "@DuckspecProject"
 terms_folder: Hiddify/
 goals:
   - Make a VPN client that ships as a Debian package work on an immutable, RPM-based system
@@ -9,4 +9,4 @@ uses:
 settings:
   src: ..
 software:
-  - @HiddifyApp
+  - "@HiddifyApp"

@@ -1,5 +1,5 @@
-description: The Image Manager — the one window through which a user sees and changes the OS image: updates, rollback, switching variant or channel, automatic updates, and promoting a build to stable. The app is @ImageManagerApp.
-extends: @DuckspecProject
+description: "The Image Manager — the one window through which a user sees and changes the OS image: updates, rollback, switching variant or channel, automatic updates, and promoting a build to stable. The app is @ImageManagerApp."
+extends: "@DuckspecProject"
 terms_folder: ImageManager/
 goals:
   - Make OS updates, rollbacks, and channel switches something a user can do from a window rather than a terminal
@@ -10,4 +10,4 @@ settings:
   src: ..
   readme: ../README.md
 software:
-  - @ImageManagerApp
+  - "@ImageManagerApp"

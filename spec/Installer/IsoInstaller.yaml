@@ -1,10 +1,10 @@
-description: Configuration and lorax templates for building the Anaconda-based ISO installer; produces a minimal-UI install experience that ends with a bootc switch to the correct Borshevik image on GHCR. Two paths coexist: @BorshevikWorkflow#build-iso, which is what actually ships ISOs, and the image-builder TOML files, which only serve manual local builds.
-extends: @Software
+description: "Configuration and lorax templates for building the Anaconda-based ISO installer; produces a minimal-UI install experience that ends with a bootc switch to the correct Borshevik image on GHCR. Two paths coexist: @BorshevikWorkflow#build-iso, which is what actually ships ISOs, and the image-builder TOML files, which only serve manual local builds."
+extends: "@Software"
 platform: TOML (image-builder config) + lorax templates (Anaconda)
 src: installer/
 components:
   - id: partitioning
-    type: @Script
+    type: "@Script"
     description: Lorax template setting the installer's default disk partitioning.
     src: installer/lorax_templates/partitioning.tmpl
     interpreter: lorax template
@@ -12,7 +12,7 @@ components:
       - id: run
         description: "Appends `clearpart --all --initlabel` and `autopart --type=lvm --fstype=ext4` to usr/share/anaconda/interactive-defaults.ks, so the installer wipes the chosen disk and lays out LVM on ext4 without asking. Passed to the build action alongside one of the bootc-switch templates."
   - id: bootc-switch
-    type: @Script
+    type: "@Script"
     interpreter: lorax template
     src:
       - installer/lorax_templates/bootc-switch.tmpl
@@ -24,7 +24,7 @@ components:
       - id: run
         description: Adds a post-install step that switches the installed system to the template's image with the container signature policy enforced, so from its first boot it follows ghcr.io and accepts only Borshevik-signed updates (@SystemConfig#container-policy). @BorshevikWorkflow#build-iso uses only the two :stable ones; the :latest ones are not used by any workflow.
   - id: image-builder-configs
-    type: @ConfigFile
+    type: "@ConfigFile"
     src:
       - borshevik.toml
       - borshevik-nvidia.toml

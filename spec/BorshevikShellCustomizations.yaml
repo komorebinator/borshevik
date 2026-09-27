@@ -1,5 +1,5 @@
 description: How the GNOME desktop and the login screen look and behave out of the box — the system-wide defaults every account starts from (@ShellCustomizations).
-extends: @DuckspecProject
+extends: "@DuckspecProject"
 terms_folder: BorshevikShellCustomizations/
 goals:
   - Make the desktop look and behave the intended way on first login, with no per-user setup step
@@ -9,4 +9,4 @@ uses:
 settings:
   src: ..
 software:
-  - @ShellCustomizations
+  - "@ShellCustomizations"

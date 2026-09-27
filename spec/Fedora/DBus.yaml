@@ -1,4 +1,4 @@
 description: The D-Bus message bus daemon — a system for inter-process communication on Linux. Provides a session bus (per-user) and a system bus (system-wide). External dependency — not built by this project.
-extends: @Application
+extends: "@Application"
 platform: C (external dependency)
 repository: https://gitlab.freedesktop.org/dbus/dbus

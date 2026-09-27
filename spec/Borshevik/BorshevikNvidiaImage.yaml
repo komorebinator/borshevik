@@ -1,5 +1,5 @@
-description: The final NVIDIA image: the same final layer as @BorshevikImage, built the same way on the published borshevik-base-nvidia tag.
-extends: @BorshevikBaseNvidiaImage
+description: "The final NVIDIA image: the same final layer as @BorshevikImage, built the same way on the published borshevik-base-nvidia tag."
+extends: "@BorshevikBaseNvidiaImage"
 registry: ghcr.io/komorebinator
 tags:
   - "latest — pushed on every successful build-borshevik.yml run"

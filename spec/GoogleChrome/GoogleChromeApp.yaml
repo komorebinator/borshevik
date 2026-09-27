@@ -1,16 +1,16 @@
 description: Google Chrome browser as integrated in Borshevik — installed from the official Google RPM repository at image build time, with a system-wide managed policy enforced via Chrome's JSON policy mechanism.
-extends: @Software
+extends: "@Software"
 platform: RPM / JSON
 src: build_files/scripts/install-google-chrome.sh
 components:
   - id: installer
-    type: @ShellScript
+    type: "@ShellScript"
     description: Makes /opt writable by symlink, layers google-chrome-stable from Google's repository, then makes it the default browser and patches its launcher for Wayland.
     src: build_files/scripts/install-google-chrome.sh
     functions:
       - id: run
         description: Chrome installs into /opt, which is not writable on an ostree system, so /opt/google is first made a symlink into /usr/lib/opt — without that the layering fails. It then adds Google's repository and layers google-chrome-stable; the repository is configured with gpgcheck=0, so packages from it are not signature-checked even though Google's key is imported. Finally it makes Chrome the default browser, adds Wayland and touchpad-gesture flags to its launcher script (the native Wayland and gesture behaviour the README advertises), and deletes the duplicate com.google.Chrome.desktop entry.
   - id: policy
-    type: @ConfigFile
+    type: "@ConfigFile"
     src: build_files/root/usr/etc/opt/chrome/policies/managed/borshevik.json
     description: "Chrome managed policy JSON, applied system-wide to every user. Sets exactly one key — PromotionsEnabled: false — which suppresses Google's in-browser promotional content."

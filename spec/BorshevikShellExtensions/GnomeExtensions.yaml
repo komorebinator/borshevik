@@ -1,21 +1,21 @@
 description: GNOME Shell extensions installed in Borshevik at image build time, system-wide so every user has them, and preconfigured rather than left at upstream defaults. Installed by @ImageBuild#build-addons in the final layer; switched on for users by @ShellCustomizations#apply-dconf and @Services#extension-autoenable.
-extends: @Software
+extends: "@Software"
 platform: bash + GNOME Shell (GJS)
 src: build_files/scripts/gs-extensions/
 components:
   - id: installer
-    type: @ShellScript
+    type: "@ShellScript"
     src: build_files/scripts/install-gs-extensions.sh
     functions:
       - id: run
         description: Installs every extension in extensions-list into the system extensions folder, applying default-patches and handing over to own-builds where an extension has one. Some extensions declare an older GNOME Shell than the image ships but work on it; for those the installed metadata is rewritten to the image's gnome-shell version, since GNOME Shell refuses to load an extension that does not list its version.
   - id: extensions-list
-    type: @ConfigFile
+    type: "@ConfigFile"
     format: JSON
     src: build_files/scripts/gs-extensions/list.json
     description: Which extensions ship and where each comes from — a release, a tag or a branch of its upstream repository, including Borshevik's own extensions, which are separate projects worked on as @BorshevikExtensionWorkflow describes. An entry pinned to a tag stays put; one that follows a branch or the latest release changes with every image build, so a new upstream commit reaches users without any change in this repository.
   - id: default-patches
-    type: @Patch
+    type: "@Patch"
     src:
       - build_files/scripts/gs-extensions/blur-my-shell-defaults.patch
       - build_files/scripts/gs-extensions/twitch-live-defaults.patch
@@ -23,7 +23,7 @@ components:
       - build_files/scripts/gs-extensions/status-area-spacer-defaults.patch
     description: Change defaults in the extensions' own settings schemas, so a first login already looks like Borshevik — a darker Blur my Shell, a more compact status area and Twitch indicator, Bluetooth battery shown as text.
   - id: own-builds
-    type: @ShellScript
+    type: "@ShellScript"
     src:
       - build_files/scripts/gs-extensions/appindicator.sh
       - build_files/scripts/gs-extensions/gsconnect.sh
