@@ -1,16 +1,16 @@
 description: OCI container image build pipeline — multi-stage Containerfile and bash build scripts that run inside rootful Podman during image build.
 extends: @Software
-platform: bash + Containerfile (BuildKit) + just
+platform: bash + Containerfile (buildah)
 src: build_files/scripts/
 components:
   - id: containerfile
     type: @ContainerImage
     src: Containerfile
-    description: "Single multi-stage Containerfile (BuildKit) that builds all four Borshevik image variants — @BorshevikBaseImage, @BorshevikBaseNvidiaImage, @BorshevikImage, @BorshevikNvidiaImage — each via `docker build --target <stage-name>`; see those terms for what each stage actually installs and which image it builds FROM. This component covers only the mechanics shared by all stages, not image identity/lineage. A global `ARG FEDORA_MAJOR_VERSION=44` is declared before the first FROM; each stage that needs it redeclares `ARG FEDORA_MAJOR_VERSION` (plus per-stage ARG IMAGE_NAME, ARG IMAGE_TAG=latest, ARG BUILD_DATE) to bring it into scope. Every stage except `ctx` sets `LABEL org.opencontainers.image.title=$IMAGE_NAME` and, notably, `LABEL org.opencontainers.image.version=$IMAGE_NAME` (the version label is set from IMAGE_NAME, not IMAGE_TAG or BUILD_DATE — this looks like it may be a copy-paste artifact rather than intentional, worth confirming with upstream before relying on the version label). The four build stages each run their build script via `RUN --mount=type=bind,from=ctx,source=/build_scripts,target=/build_scripts` — a BuildKit bind-mount of the `ctx` stage's /build_scripts, not a COPY, so the scripts never end up as a layer in the final image — followed by `ostree container commit` to finalize the ostree commit for that layer."
+    description: "Single multi-stage Containerfile that builds all four Borshevik image variants — @BorshevikBaseImage, @BorshevikBaseNvidiaImage, @BorshevikImage, @BorshevikNvidiaImage — each built by buildah (redhat-actions/buildah-build in CI) with `--target <stage-name>`; see those terms for what each stage actually installs and which image it builds FROM. This component covers only the mechanics shared by all stages, not image identity/lineage. A global `ARG FEDORA_MAJOR_VERSION=44` is declared before the first FROM; each stage that needs it redeclares `ARG FEDORA_MAJOR_VERSION` (plus per-stage ARG IMAGE_NAME, ARG IMAGE_TAG=latest, ARG BUILD_DATE) to bring it into scope. Every stage except `ctx` sets `LABEL org.opencontainers.image.title=$IMAGE_NAME` and, notably, `LABEL org.opencontainers.image.version=$IMAGE_NAME` (the version label is set from IMAGE_NAME, not IMAGE_TAG or BUILD_DATE — this looks like it may be a copy-paste artifact rather than intentional, worth confirming with upstream before relying on the version label). The four build stages each run their build script via `RUN --mount=type=bind,from=ctx,source=/build_scripts,target=/build_scripts` — a bind-mount of the `ctx` stage's /build_scripts, not a COPY, so the scripts never end up as a layer in the final image — followed by `ostree container commit` to finalize the ostree commit for that layer."
     stages:
       - id: ctx
         from: scratch
-        description: "Throwaway BuildKit context stage. COPYs build_files/scripts/ to /build_scripts/ so later stages can bind-mount it via --mount=type=bind,from=ctx — the build scripts are never present in any of the published image layers."
+        description: "Throwaway context stage. COPYs build_files/scripts/ to /build_scripts/ so later stages can bind-mount it via --mount=type=bind,from=ctx — the build scripts are never present in any of the published image layers."
       - id: borshevik-base
         description: Builds @BorshevikBaseImage — see that term for FROM lineage and steps.
       - id: borshevik-base-nvidia
@@ -22,7 +22,7 @@ components:
     build_args:
       - id: FEDORA_MAJOR_VERSION
         default: 44
-        description: Declared globally before the first FROM; selects the Fedora major version tag used throughout the @UniversalBlueGnome/@FedoraSilverblue lineage and @UBlueAkmodsNvidiaOpen.
+        description: Declared globally before the first FROM; selects the Fedora major version tag used throughout the @UniversalBlueGnome/@FedoraSilverblue lineage and both akmods images, @UBlueAkmods and @UBlueAkmodsNvidiaOpen.
       - id: IMAGE_NAME
         description: No default — must be supplied by the caller (CI sets it per matrix variant). Used only for the OCI title/version labels, not for tagging.
       - id: IMAGE_TAG
@@ -36,7 +36,7 @@ components:
     src: build_files/scripts/build-base.sh
     functions:
       - id: run
-        description: "Orchestrates borshevik-base layer (set -ouex pipefail): runs install-rpm-packages.sh → @GoogleChromeApp#installer → @SteamApp#installer → cleanup.sh. Enables podman.socket via systemctl enable."
+        description: "Orchestrates borshevik-base layer (set -ouex pipefail): runs install-kernel.sh → install-rpm-packages.sh → @GoogleChromeApp#installer → @SteamApp#installer → cleanup.sh. Enables podman.socket via systemctl enable. install-kernel.sh goes first so everything layered afterwards is built and resolved against the kernel the image will actually ship, not the newer one the base image arrived with."
   - id: build-base-nvidia
     type: @ShellScript
     description: Installs the NVIDIA driver and CUDA stack from the prebuilt akmods content, adding the negativo17 repository for the userspace half.
@@ -51,6 +51,13 @@ components:
     functions:
       - id: run
         description: "Orchestrates the final borshevik/borshevik-nvidia layer (set -ouex pipefail): os-info.sh → @HiddifyApp#installer → @GnomeExtensions#installer → @ShellCustomizations#apply-schemas → @ShellCustomizations#apply-dconf → @Services#enable-services → rebuild-initramfs.sh."
+  - id: install-kernel
+    type: @ShellScript
+    description: "Temporary (added 2026-09): replaces the base image's kernel with the one @UBlueAkmods ships, holding Borshevik a few releases behind Fedora's newest. Exists only to avoid the amdgpu HDMI 4:2:0 regression in Fedora's 7.2 kernels, not as a kernel policy — remove it, its call in build-base.sh, the akmods COPY in @ImageBuild#containerfile and the coreos-stable tag on @UBlueAkmodsNvidiaOpen once Fedora ships a kernel carrying the fix."
+    src: build_files/scripts/install-kernel.sh
+    functions:
+      - id: run
+        description: "Replaces every installed kernel subpackage with the RPMs COPYed from @UBlueAkmods into /tmp/akmods-kernel, via `rpm-ostree override replace`. The set is read from what the base image actually has installed — kernel, kernel-core, kernel-modules, kernel-modules-core, kernel-modules-extra — rather than hardcoded, and the script exits non-zero when the cache lacks one of them instead of leaving a half-swapped kernel; uBlue's fetch-kernel.sh caches all five for the Fedora flavours. kernel-headers and kernel-tools are left at the base image's version, the akmods cache carrying neither. Runs first in build-base.sh so everything layered afterwards resolves against the kernel that ships. Why this exists: upstream commit 7e5760f084d0 in 7.2 made YCbCr 4:2:0 conditional on the force_yuv_pixel_format debugfs override, so a sink whose 4K@50/60 exists only as 4:2:0 — a 4K TV with an HDMI 1.4-class input — is sent RGB at 594 MHz it cannot accept and shows nothing, with no error logged. Upstream fixed it in 7.3 by rewriting the selection; there is no 7.2.x backport, which is why the kernel is held back rather than patched. The coreos-stable tag is rolling, so the kernel still advances when Fedora CoreOS promotes one — meaning this workaround can also expire on its own, and Borshevik would meet the same regression again if CoreOS reaches 7.2.x before Fedora ships the fix."
   - id: install-rpm-packages
     type: @ShellScript
     description: Layers the curated RPM package set via rpm-ostree.

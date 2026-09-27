@@ -1,0 +1,7 @@
+description: "Prebuilt kernel RPMs and kmod content, published by uBlue. Not an OS base image — its filesystem is pulled into BorshevikBaseImage's build via COPY --from into /tmp/akmods-kernel, and @ImageBuild#install-kernel replaces the base image's kernel with the RPMs found there. Borshevik consumes the `coreos-stable` flavour, the stock Fedora kernel as shipped by Fedora CoreOS, which trails Fedora's newest by a few releases; the flavour must match the one @UBlueAkmodsNvidiaOpen is taken from, or the NVIDIA modules will not load against the running kernel. This dependency is temporary: it exists only while @ImageBuild#install-kernel holds Borshevik off Fedora's 7.2 kernels, and goes away with it. External dependency — not built by this project."
+registry: ghcr.io/ublue-os
+repository: https://github.com/ublue-os/akmods
+platform: OCI container image, published to ghcr.io/ublue-os
+extends: @ContainerImage
+tags:
+  - "coreos-stable-<FEDORA_MAJOR_VERSION> — e.g. coreos-stable-44; rolling, follows whatever kernel Fedora CoreOS currently ships"
