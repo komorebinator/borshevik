@@ -48,7 +48,7 @@ components:
     scope: user
     triggers: login — enabled globally via user-preset
     executes: borshevik-app-manager-first-run
-    description: "Runs borshevik-app-manager-first-run on login. Gated twice on the same stamp file, ~/.local/state/borshevik/app-manager-first-run.done: the unit carries ConditionPathExists=! on it, and the wrapper checks it again before launching. The wrapper writes the stamp only if @AppManagerApp exits successfully, so a run the user cancels or one that crashes comes back at the next login."
+    description: Runs borshevik-app-manager-first-run on login. Gated twice on the same stamp file, ~/.local/state/borshevik/app-manager-first-run.done: the unit carries ConditionPathExists=! on it, and @AppManagerApp#first-run checks it again before launching. The stamp is written whenever the App Manager exits successfully — which includes the user simply closing its window — so it opens again at the next login only after a crash.
   - id: gnome-watchdog
     type: @Singleton
     description: Detects and restarts a hung GNOME Shell process. Runs every minute via a user-level timer.
