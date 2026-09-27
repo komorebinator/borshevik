@@ -1,11 +1,11 @@
-description: Borshevik systemd services and their associated scripts installed at image build time.
+description: Borshevik's systemd units and the scripts they run, and how they are switched on in the image: boot-time units for kernel arguments and MOK enrollment, login-time user units for the App Manager's first run, newly shipped extensions and the GNOME Shell watchdog.
 extends: @Software
 platform: systemd / bash
 src: build_files/root/usr/lib/systemd/
 components:
   - id: kernel-args
     type: @Singleton
-    description: Ensures required kernel arguments are set on first boot. Runs once per boot; reboots automatically if args were missing.
+    description: Keeps the kernel arguments Borshevik needs set. Checked on every boot; in practice it acts once, on the first boot of an install or after a rebase between variants, and reboots when it had to set any.
     components:
       - id: script
         type: @ShellScript
@@ -32,7 +32,7 @@ components:
         src: build_files/root/usr/libexec/borshevik/setup-ublue-mok.sh
         functions:
           - id: run
-            description: "Exits immediately when `mokutil --sb-state` does not report Secure Boot as enabled, and again when `mokutil --test-key` shows /etc/pki/akmods/certs/akmods-ublue.der is already enrolled. Otherwise it prompts interactively via systemd-ask-password for a temporary PIN, looping until a non-empty one is given and exiting 130 if the prompt is cancelled — this service blocks the boot on user input by design, since the same PIN must be typed into the UEFI MOK manager on the next start. Writes the PIN hash to /run/mok.pin.hash, clears any pending MOK timeout, sets the password from the hash file and imports the .der with it, then reboots via `systemctl --no-block reboot`."
+            description: Exits immediately when `mokutil --sb-state` does not report Secure Boot as enabled, and again when `mokutil --test-key` shows /etc/pki/akmods/certs/akmods-ublue.der is already enrolled. Otherwise it prompts interactively via systemd-ask-password for a temporary PIN, looping until a non-empty one is given — this service blocks the boot on user input by design, since the same PIN must be typed into the UEFI MOK manager on the next start. Cancelling the prompt exits 130 and leaves the key unenrolled, so the prompt comes back on the next boot. With a PIN it clears any pending MOK timeout, sets the MOK password from the PIN's hash, imports the key with it, and reboots.
       - id: service
         type: @SystemdUnit
         src: build_files/root/usr/lib/systemd/system/setup-ublue-mok.service

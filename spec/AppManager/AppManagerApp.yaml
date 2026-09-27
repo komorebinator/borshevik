@@ -92,7 +92,7 @@ components:
     src: build_files/root/usr/bin/borshevik-app-manager
   - id: first-run
     type: @ShellScript
-    description: "Runs the App Manager once per user: started at login by @Services#app-manager-first-run, it does nothing when the user's stamp file exists, and otherwise runs the app and writes the stamp only if the app exits successfully. Closing the window is a successful exit, so a user who closes it without installing is not asked again; only a crash brings it back at the next login."
+    description: Runs the App Manager once per user: started at login by @Services#app-manager-first-run, it does nothing when the user's stamp file exists, and otherwise runs the app and writes the stamp only if the app exits successfully. Closing the window is a successful exit — even when the list failed to load and nothing was offered — so a user who closes it is not asked again; only a crash brings it back at the next login.
     src: build_files/root/usr/bin/borshevik-app-manager-first-run
   - id: i18n
     type: @Singleton

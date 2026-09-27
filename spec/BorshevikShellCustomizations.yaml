@@ -1,4 +1,4 @@
-description: System-wide GNOME Shell customizations applied at image build time — dconf profiles, GSettings schema overrides, and GDM configuration.
+description: How the GNOME desktop and the login screen look and behave out of the box — the system-wide defaults every account starts from (@ShellCustomizations).
 extends: @DuckspecProject
 terms_folder: BorshevikShellCustomizations/
 goals:

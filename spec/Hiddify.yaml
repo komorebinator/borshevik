@@ -1,4 +1,4 @@
-description: Hiddify VPN client — installation, launcher wrapper, polkit permissions, and desktop entry.
+description: The Hiddify VPN client, shipped in the image and made to work on an rpm-ostree system (@HiddifyApp).
 extends: @DuckspecProject
 terms_folder: Hiddify/
 goals:

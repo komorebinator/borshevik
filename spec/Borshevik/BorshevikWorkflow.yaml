@@ -18,7 +18,7 @@ channels:
     description: "The testing channel. Every build lands here, from whichever branch it was run on — daily from main, by hand from experimental — so anything on it is still under test, including what came from main. Each build is also tagged with its date, DD.MM.YYYY, which is what a digest is recognised by when choosing one to promote."
   - id: stable
     from: latest
-    description: "What users run. Installers switch to it and ISOs are cut from it. Moved by hand onto a chosen `:latest` digest — a manifest retag, no rebuild — and signed again; nothing reaches it on a schedule."
+    description: What users run. Installers switch to it and ISOs are cut from it. Moved by hand onto a chosen `:latest` digest — a manifest retag, no rebuild — and signed again; nothing reaches it on a schedule. Installed machines then pick the move up by themselves: the image ships rpm-ostreed-automatic.timer enabled with AutomaticUpdatePolicy=stage, both from the base image rather than set by Borshevik, so each machine downloads and stages the new build of its channel about once a day and boots into it at its next reboot. Users can switch that off with the Image Manager's automatic-updates switch (@ImageManagerApp#auto-updates-row), and the Update Indicator extension shows while a staged build waits (@ImageManagerApp#rpm-ostree#needsReboot).
 steps:
   - id: requested
     description: Someone wants a change, in an issue or in the conversation. It is clarified until nothing is left to guess, then written into the terms.
@@ -76,7 +76,7 @@ steps:
     when: publish-iso.yml succeeded for the run, and the site does not yet offer the run's media
     operation: "@BorshevikWorkflow#switch_iso(run_id=<run>)"
   - id: iso_published
-    description: "Fresh installs get the change. The site's download buttons lead to the run's media, and so do the permanent links https://borshevik.org/iso/borshevik-stable.iso and https://borshevik.org/iso/borshevik-nvidia-stable.iso that this README uses — the website redirects them to whatever it currently offers. The previous media stay on the server until someone removes them."
+    description: Fresh installs get the change. The site's download buttons lead to the run's media, and so do the permanent links https://borshevik.org/iso/borshevik-stable.iso and https://borshevik.org/iso/borshevik-nvidia-stable.iso that the repository's README uses — the website redirects them to whatever it currently offers. The previous media stay on the server until someone removes them.
     when: the site's download buttons lead to the run's media
 components:
   - id: build-base
@@ -163,6 +163,11 @@ components:
     functions:
       - id: run
         description: Checks, each reported as ok or FAIL, exiting 1 on any failure: the syntax of every shell script, the JSON files, the GitHub YAML, the TOML configs, the desktop entries, an import of every app module but main.js (which would start the app), and the translations — every language of each app must have exactly the keys of English, and every key the code asks for must exist. Both apps fall back quietly on a missing key — the Image Manager to English for the whole file when a dictionary does not parse, the App Manager to the key itself — so without this check a broken dictionary shows only to the user who hits it. Needs gjs, so from a sandboxed shell it runs on the host.
+  - id: SIGNING_SECRET
+    type: @Secret
+    storage: GitHub Actions repository secret
+    used_by: build-base, build-borshevik and promote-image-to-stable, which sign every pushed image and every move of `:stable` with it
+    description: Private half of @SystemConfig#cosign-key, in cosign's format. Installed systems accept only images signed with it, so losing it means no Borshevik image can be updated to again until every machine gets a new public key by hand.
 recipes:
   - id: try_iso
     description: Has the author install both ISOs of one build-iso run in a virtual machine and say whether they work

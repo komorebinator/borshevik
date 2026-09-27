@@ -1,4 +1,4 @@
-description: GJS/GTK4+libadwaita application for managing the Borshevik OS image — checking for updates, applying updates, rolling back, rebasing to a different channel or variant, and toggling automatic updates.
+description: The Image Manager — the one window through which a user sees and changes the OS image: updates, rollback, switching variant or channel, automatic updates, and promoting a build to stable. The app is @ImageManagerApp.
 extends: @DuckspecProject
 terms_folder: ImageManager/
 goals:

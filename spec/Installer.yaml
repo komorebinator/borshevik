@@ -1,4 +1,4 @@
-description: ISO installer configuration — lorax templates, image-builder TOML configs, and kickstart post-install scripts.
+description: How a fresh machine gets Borshevik: installer media that ask as little as possible, wipe the chosen disk, and end on the right signed image (@IsoInstaller).
 extends: @DuckspecProject
 terms_folder: Installer/
 goals:

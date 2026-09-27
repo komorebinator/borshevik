@@ -1,4 +1,4 @@
-description: GNOME Shell extensions installed in Borshevik at image build time — the installer script, extension manifest, patches, and custom build scripts.
+description: The GNOME Shell extensions Borshevik ships preconfigured, including its own ones developed as separate projects (@GnomeExtensions).
 extends: @DuckspecProject
 terms_folder: BorshevikShellExtensions/
 goals:

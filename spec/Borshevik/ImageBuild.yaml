@@ -53,7 +53,7 @@ components:
         description: The final layer's steps, in order: os-info, @HiddifyApp#installer, @GnomeExtensions#installer, @ShellCustomizations#apply-schemas and #apply-dconf — the latter after the extensions, since it enables whatever extensions are installed at that moment — @Services#enable-services, and rebuild-initramfs last.
   - id: install-kernel
     type: @ShellScript
-    description: "Temporary (added 2026-09): replaces the base image's kernel with the one @UBlueAkmods ships, holding Borshevik a few releases behind Fedora's newest. Exists only to avoid the amdgpu HDMI 4:2:0 regression in Fedora's 7.2 kernels, not as a kernel policy — remove it, its call in build-base.sh, the akmods COPY in @ImageBuild#containerfile and the coreos-stable tag on @UBlueAkmodsNvidiaOpen once Fedora ships a kernel carrying the fix."
+    description: Temporary (added 2026-09): replaces the base image's kernel with the one @UBlueAkmods ships, holding Borshevik a few releases behind Fedora's newest. Exists only to avoid the amdgpu HDMI 4:2:0 regression in Fedora's 7.2 kernels, not as a kernel policy. Once Fedora ships a kernel carrying the fix, four things go together: this script, its call in build-base.sh, the akmods COPY in @ImageBuild#containerfile, and the coreos-stable tag on @UBlueAkmodsNvidiaOpen, which returns to main-<FEDORA_MAJOR_VERSION> so the NVIDIA modules again match the base image's own kernel; @UBlueAkmods then leaves the build altogether.
     src: build_files/scripts/install-kernel.sh
     functions:
       - id: run

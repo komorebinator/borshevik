@@ -1,4 +1,4 @@
-description: Google Chrome browser — RPM installation and system-wide managed policy for Borshevik.
+description: Google Chrome as Borshevik's default browser, shipped in the image with a system-wide policy (@GoogleChromeApp).
 extends: @DuckspecProject
 terms_folder: GoogleChrome/
 goals:
