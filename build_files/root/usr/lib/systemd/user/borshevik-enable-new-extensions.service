@@ -1,11 +1,13 @@
 [Unit]
 Description=Enable GNOME Shell extensions newly shipped by Borshevik
-Wants=graphical-session.target
-After=graphical-session.target
+# Only once GNOME Shell is up, and only in a regular GNOME session. Never on
+# graphical-session.target: holding it before gnome-session starts makes
+# gnome-session-init-worker abort the login ("A graphical session is already running").
+After=gnome-session@gnome.target
 
 [Service]
 Type=oneshot
 ExecStart=/usr/libexec/borshevik/borshevik-enable-new-extensions.sh
 
 [Install]
-WantedBy=graphical-session.target
+WantedBy=gnome-session@gnome.target
