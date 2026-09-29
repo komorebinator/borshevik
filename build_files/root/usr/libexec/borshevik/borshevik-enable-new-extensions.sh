@@ -18,7 +18,7 @@ touch "$STATE"
 enabled_list="$(gsettings get org.gnome.shell enabled-extensions)"
 disabled_list="$(gsettings get org.gnome.shell disabled-extensions)"
 
-failed=0
+new=()
 for dir in "$EXT_DIR"/*/; do
     [[ -d "$dir" ]] || continue
     uuid="$(basename "$dir")"
@@ -31,14 +31,28 @@ for dir in "$EXT_DIR"/*/; do
         # The shell puts an extension here when it is switched off.
         echo "$uuid" >> "$STATE"
         echo "kept disabled $uuid"
-    # The shell updates enabled-extensions and clears disabled-extensions itself.
-    elif gnome-extensions enable "$uuid"; then
-        echo "$uuid" >> "$STATE"
-        echo "enabled $uuid"
     else
-        echo "could not enable $uuid; will retry at next login" >&2
-        failed=1
+        new+=("$uuid")
     fi
 done
 
-exit "$failed"
+[[ ${#new[@]} -eq 0 ]] && exit 0
+
+# One write for all of them: the shell enables each newly listed extension once. Enabling them
+# one by one with `gnome-extensions enable` raced in the shell and enabled some twice.
+added="$(printf ", '%s'" "${new[@]}")"
+if [[ "$enabled_list" == "@as []" || "$enabled_list" == "[]" ]]; then
+    updated="[${added#, }]"
+else
+    updated="${enabled_list%]}$added]"
+fi
+
+if gsettings set org.gnome.shell enabled-extensions "$updated"; then
+    for uuid in "${new[@]}"; do
+        echo "$uuid" >> "$STATE"
+        echo "enabled $uuid"
+    done
+else
+    echo "could not enable ${new[*]}; will retry at next login" >&2
+    exit 1
+fi
