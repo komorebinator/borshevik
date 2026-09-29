@@ -21,7 +21,7 @@ components:
       - build_files/scripts/gs-extensions/twitch-live-defaults.patch
       - build_files/scripts/gs-extensions/bluetooth-battery-meter-defaults.patch
       - build_files/scripts/gs-extensions/status-area-spacer-defaults.patch
-    description: Change defaults in the extensions' own settings schemas, so a first login already looks like Borshevik — a darker Blur my Shell, a more compact status area and Twitch indicator, Bluetooth battery shown as text.
+    description: Change defaults in the extensions' own settings schemas, so a first login already looks like Borshevik — a darker Blur my Shell that leaves popup menus, notifications, switchers and dialogs unblurred (its popup blur, on by default since version 73, turned off), a more compact status area and Twitch indicator, Bluetooth battery shown as text.
   - id: own-builds
     type: "@ShellScript"
     src:
