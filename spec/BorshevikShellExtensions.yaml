@@ -1,5 +1,5 @@
-description: GNOME Shell extensions installed in Borshevik at image build time — the installer script, extension manifest, patches, and custom build scripts.
-extends: @DuckspecProject
+description: The GNOME Shell extensions Borshevik ships preconfigured, including its own ones developed as separate projects (@GnomeExtensions).
+extends: "@DuckspecProject"
 terms_folder: BorshevikShellExtensions/
 goals:
   - Ship the GNOME Shell extensions that make the desktop usable out of the box, preconfigured rather than merely installed
@@ -12,7 +12,9 @@ references:
     description: Installed as a GNOME Shell extension via list.json; developed as its own Duckspec-managed project.
   - repository: https://github.com/komorebinator/borshevik-app-search
     description: Installed as a GNOME Shell extension via list.json; developed as its own Duckspec-managed project.
+  - repository: https://github.com/komorebinator/borshevik-update-indicator
+    description: Installed as a GNOME Shell extension via list.json; developed as its own Duckspec-managed project. Shows a status icon while a downloaded image waits for a reboot — the in-session counterpart of @ImageManagerApp's "Reboot to apply update" row, using the same condition.
 settings:
   src: ..
 software:
-  - @GnomeExtensions
+  - "@GnomeExtensions"

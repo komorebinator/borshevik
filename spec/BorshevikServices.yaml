@@ -1,5 +1,5 @@
-description: Borshevik-specific systemd services — kernel argument setup, MOK enrollment, App Manager first-run, and GNOME Shell watchdog.
-extends: @DuckspecProject
+description: What Borshevik does on a running machine rather than at build time — kernel arguments and MOK enrollment at boot, the App Manager's first run and new extensions at login, and a watchdog for a hung GNOME Shell (@Services).
+extends: "@DuckspecProject"
 terms_folder: BorshevikServices/
 goals:
   - Handle the boot-time work an immutable system cannot do at install time — kernel arguments, MOK enrollment, first-run setup
@@ -10,4 +10,4 @@ uses:
 settings:
   src: ..
 software:
-  - @Services
+  - "@Services"

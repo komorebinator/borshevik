@@ -1,27 +1,27 @@
 description: Hiddify VPN client as integrated in Borshevik — installed from a Debian package at build time, launched via a wrapper script that prevents duplicate instances, with a polkit rule for DNS configuration.
-extends: @Software
+extends: "@Software"
 platform: Linux (binary)
 src: build_files/scripts/install-hiddify.sh
 components:
   - id: installer
-    type: @ShellScript
+    type: "@ShellScript"
     description: Fetches the Hiddify release, unpacks its Debian package and installs the contents into the image.
     src: build_files/scripts/install-hiddify.sh
     functions:
       - id: run
-        description: "Fetches Hiddify release metadata from api.github.com/repos/hiddify/hiddify-app/releases/latest (or a specific HIDDIFY_VERSION tag); authenticates with GITHUB_TOKEN if set. Finds the asset matching 'Debian-x64.deb'. Downloads to a temp dir (cleaned via EXIT trap). Extracts with 'ar x' then 'tar xf data.tar.*'. Copies pkg/usr/share/hiddify/ to /usr/lib/hiddify/ (a glibc-trusted path, so $ORIGIN RUNPATH resolves in AT_SECURE mode). Copies icons. Patches RUNPATH of /usr/lib/hiddify/hiddify with patchelf --set-rpath <dest>/lib. Applies setcap cap_net_raw,cap_net_admin,cap_net_bind_service+eip to both hiddify and HiddifyCli binaries."
+        description: Installs Hiddify from its GitHub release's Debian package (the latest, or HIDDIFY_VERSION) by unpacking it into the image, since a .deb cannot be layered on an rpm-ostree system — the .deb rather than the AppImage because it has a plain system layout without bundled system libraries. The app goes to /usr/lib/hiddify, and its binaries get the network capabilities a VPN needs (cap_net_admin, cap_net_raw, cap_net_bind_service). A binary with capabilities runs in secure mode, where the loader does not expand a relative RUNPATH outside trusted directories, so the app's RUNPATH is also made absolute; patchelf comes from @ImageBuild#install-rpm-packages. GITHUB_TOKEN, when set, avoids GitHub's rate limit in CI.
   - id: wrapper
-    type: @ShellScript
+    type: "@ShellScript"
     description: Launcher that refuses to start a second instance and otherwise execs the real binary.
     src: build_files/root/usr/bin/hiddify
     functions:
       - id: run
         description: "Checks if hiddify is already running via 'pgrep -x hiddify'. If not running, exec /usr/lib/hiddify/hiddify with all arguments. Prevents duplicate Hiddify instances."
   - id: polkit-rule
-    type: @ConfigFile
+    type: "@ConfigFile"
     src: build_files/root/etc/polkit-1/rules.d/50-hiddify.rules
     description: "Polkit rule granting org.freedesktop.resolve1.set-dns-servers, set-domains and set-default-route without authentication, so Hiddify can point systemd-resolved at its own DNS while a tunnel is up. The rule is scoped by session, not by application: it returns YES for any subject whose session is active, and checks `subject.active` alone rather than `subject.local` as well, so every user with an active session gains these three resolved privileges, not Hiddify alone."
   - id: desktop-entry
-    type: @ConfigFile
+    type: "@ConfigFile"
     src: build_files/root/usr/share/applications/Hiddify.desktop
     description: "XDG desktop entry replacing the one from the Debian package. Name 'Hiddify (VPN)' with a Russian translation, Icon=hiddify, StartupWMClass=app.hiddify.com, Categories=Network, and MimeType handlers for the hiddify, v2ray, clash and sing-box URI schemes. Exec is `/usr/lib/hiddify/hiddify %U` — the binary directly, bypassing @HiddifyApp#wrapper, so the single-instance guard does not apply to launches from the application grid."

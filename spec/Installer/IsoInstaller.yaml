@@ -1,57 +1,32 @@
-description: Configuration and lorax templates for building the Anaconda-based ISO installer; produces a minimal-UI install experience that ends with a bootc switch to the correct Borshevik image on GHCR. Two paths coexist: @BorshevikWorkflow#build-iso, which is what actually ships ISOs, and the image-builder TOML files, which only serve manual local builds.
-extends: @Software
+description: "Configuration and lorax templates for building the Anaconda-based ISO installer; produces a minimal-UI install experience that ends with a bootc switch to the correct Borshevik image on GHCR. Two paths coexist: @BorshevikWorkflow#build-iso, which is what actually ships ISOs, and the image-builder TOML files, which only serve manual local builds."
+extends: "@Software"
 platform: TOML (image-builder config) + lorax templates (Anaconda)
 src: installer/
 components:
-  - id: borshevik-toml
-    type: @ConfigFile
-    src: borshevik.toml
-    description: "image-builder (TOML) config for the standard borshevik ISO: name='borshevik-installer', version='44', distro='fedora-44', and an [customizations.ostree] source of registry:ghcr.io/komorebinator/borshevik:latest with ref='borshevik'. Its kickstart lays out the disk (clearpart --all --initlabel, autopart --type=lvm --fstype=ext4) and runs `bootc switch --mutate-in-place --transport ostree ref=borshevik` in %post. Anaconda modules: Storage enabled; Network, Security, Services, Users, Subscription and Timezone disabled, leaving a single disk-selection step. Like @IsoInstaller#image-toml this is a manual-build path — @BorshevikWorkflow#build-iso builds ISOs through the build-container-installer action and the lorax templates instead, never through this file."
-  - id: borshevik-nvidia-toml
-    type: @ConfigFile
-    src: borshevik-nvidia.toml
-    description: "Same structure as borshevik.toml but targets ghcr.io/komorebinator/borshevik-nvidia:latest and sets ref='borshevik-nvidia' in the kickstart post-install."
-  - id: image-toml
-    type: @ConfigFile
-    src: image.toml
-    description: "Bootc Image Builder filesystem config: one customization, mountpoint='/' with minsize='20 GiB'. Consumed only by bootc-image-builder invoked by hand — no workflow in @BorshevikWorkflow reads it."
-  - id: bootc-switch
-    type: @Script
-    description: Lorax template switching the installed system to the standard image at :latest. Not referenced by @BorshevikWorkflow#build-iso, which passes the :stable variant instead.
-    src: installer/lorax_templates/bootc-switch.tmpl
-    interpreter: lorax template
-    functions:
-      - id: run
-        description: "Anaconda post-install lorax template. Appends a kickstart %post block that runs 'bootc switch --mutate-in-place --transport registry --enforce-container-sigpolicy ghcr.io/komorebinator/borshevik:latest' to the interactive-defaults.ks file, switching the installed system to track the latest Borshevik image."
-  - id: bootc-switch-stable
-    type: @Script
-    description: As bootc-switch, but targeting the :stable tag.
-    src: installer/lorax_templates/bootc-switch-stable.tmpl
-    interpreter: lorax template
-    functions:
-      - id: run
-        description: "Same as bootc-switch.tmpl but targets the :stable tag instead of :latest."
-  - id: bootc-switch-nvidia
-    type: @Script
-    description: As bootc-switch, but targeting the NVIDIA image at :latest. Also unreferenced by @BorshevikWorkflow#build-iso.
-    src: installer/lorax_templates/bootc-switch-nvidia.tmpl
-    interpreter: lorax template
-    functions:
-      - id: run
-        description: "Same as bootc-switch.tmpl but targets ghcr.io/komorebinator/borshevik-nvidia:latest."
-  - id: bootc-switch-nvidia-stable
-    type: @Script
-    description: As bootc-switch-nvidia, but targeting the :stable tag.
-    src: installer/lorax_templates/bootc-switch-nvidia-stable.tmpl
-    interpreter: lorax template
-    functions:
-      - id: run
-        description: "Same as bootc-switch-nvidia.tmpl but targets the :stable tag."
   - id: partitioning
-    type: @Script
+    type: "@Script"
     description: Lorax template setting the installer's default disk partitioning.
     src: installer/lorax_templates/partitioning.tmpl
     interpreter: lorax template
     functions:
       - id: run
         description: "Appends `clearpart --all --initlabel` and `autopart --type=lvm --fstype=ext4` to usr/share/anaconda/interactive-defaults.ks, so the installer wipes the chosen disk and lays out LVM on ext4 without asking. Passed to the build action alongside one of the bootc-switch templates."
+  - id: bootc-switch
+    type: "@Script"
+    interpreter: lorax template
+    src:
+      - installer/lorax_templates/bootc-switch.tmpl
+      - installer/lorax_templates/bootc-switch-stable.tmpl
+      - installer/lorax_templates/bootc-switch-nvidia.tmpl
+      - installer/lorax_templates/bootc-switch-nvidia-stable.tmpl
+    description: One template per variant and channel, each ending the installation on that image.
+    functions:
+      - id: run
+        description: Adds a post-install step that switches the installed system to the template's image with the container signature policy enforced, so from its first boot it follows ghcr.io and accepts only Borshevik-signed updates (@SystemConfig#container-policy). @BorshevikWorkflow#build-iso uses only the two :stable ones; the :latest ones are not used by any workflow.
+  - id: image-builder-configs
+    type: "@ConfigFile"
+    src:
+      - borshevik.toml
+      - borshevik-nvidia.toml
+      - image.toml
+    description: For building installer media by hand. borshevik.toml and borshevik-nvidia.toml are image-builder configs, one per variant, installing that variant's :latest with disk selection as the only step; image.toml gives bootc-image-builder a 20 GiB minimum root filesystem. No workflow reads them — @BorshevikWorkflow#build-iso builds the published media from the lorax templates instead.

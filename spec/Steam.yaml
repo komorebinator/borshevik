@@ -1,5 +1,5 @@
-description: Steam gaming client — RPM installation from RPM Fusion for Borshevik.
-extends: @DuckspecProject
+description: Steam, shipped in the image so the machine is ready for gaming (@SteamApp).
+extends: "@DuckspecProject"
 terms_folder: Steam/
 goals:
   - Make the machine ready for gaming without the user enabling third-party repositories by hand
@@ -8,4 +8,4 @@ uses:
 settings:
   src: ..
 software:
-  - @SteamApp
+  - "@SteamApp"

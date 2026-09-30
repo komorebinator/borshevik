@@ -1,76 +1,64 @@
-description: Configuration and data files copied into the image filesystem at build time (via COPY build_files/root/ /). Covers container signature policy, audio config, desktop entries, icons, branding assets, and OS release metadata.
-extends: @Software
+description: "Files copied into the image as they are (COPY build_files/root/ /) that belong to no other part: container signature policy, audio, branding, launcher entries and icons. Most of build_files/root/ is described with the part that uses it — the apps, the services, Hiddify, Chrome's policy."
+extends: "@Software"
 platform: Podman / WirePlumber / GNOME
 src: build_files/root/
 components:
-  - id: container-policy
-    type: @ConfigFile
-    src: build_files/root/etc/containers/policy.json
-    description: "Container image signature verification policy for Podman/bootc. The global default rejects everything; within the docker transport the default is insecureAcceptAnything, and signatures are required only per registry: ghcr.io/komorebinator must be sigstore-signed by /etc/pki/containers/cosign.pub (matchRepository), ghcr.io/ublue-os by uBlue's key or its backup, quay.io/toolbx-images by its own key, and the two Red Hat registries by the Red Hat GPG key; registry.fedoraproject.org is accepted unsigned. So every `rpm-ostree rebase` or `bootc switch` to a Borshevik image must carry the Borshevik cosign signature, while images from registries not listed are pulled without any check."
-  - id: container-registry-sigstore
-    type: @ConfigFile
-    src: build_files/root/etc/containers/registries.d/borshevik.yaml
-    description: "Per-registry Sigstore verification config for ghcr.io/komorebinator. Points to the lookaside bundle location for signature storage."
   - id: wireplumber-no-autoswitch
-    type: @ConfigFile
+    type: "@ConfigFile"
     src: build_files/root/etc/wireplumber/wireplumber.conf.d/50-disable-autoswitch.conf
-    description: "WirePlumber setting `bluetooth.autoswitch-to-headset-profile = false`: a Bluetooth headset stays on its high-quality playback profile when an application opens a microphone, instead of being switched to the low-quality headset (HSP/HFP) profile. The file's own comment cites problems with Sony headsets."
+    description: A Bluetooth headset stays on its high-quality playback profile when an app opens the microphone, instead of dropping to the low-quality headset profile; the file's comment cites problems with Sony headsets.
   - id: os-release
-    type: @ConfigFile
+    type: "@ConfigFile"
     src: build_files/root/usr/lib/os-release
-    description: "Branding half of /usr/lib/os-release, COPYed into the image: NAME and PRETTY_NAME 'Borshevik', ID=borshevik, ID_LIKE=fedora, VARIANT='Universal Blue Custom Image', LOGO=borshevik, and HOME_URL / SUPPORT_URL / BUG_REPORT_URL all pointing at the GitHub repository. @ImageBuild#os-info later appends the per-build fields to this file rather than replacing it, so these values are what reaches the installed system."
-  - id: app-manager-desktop
-    type: @ConfigFile
-    src: build_files/root/usr/share/applications/org.borshevik.AppManager.desktop
-    description: "XDG desktop entry for the App Manager. Name='Borshevik App Manager' with a Russian translation, Exec=borshevik-app-manager, Icon=org.borshevik.AppManager, and search keywords. It sets no Categories — the app reaches the launcher's 'borshevik' folder because @ShellCustomizations#app-folders-dconf lists it there by file name, not by category."
-  - id: image-manager-desktop
-    type: @ConfigFile
-    src: build_files/root/usr/share/applications/org.borshevik.ImageManager.desktop
-    description: "XDG desktop entry for the Image Manager. Name='Borshevik Image Manager', Exec=borshevik-image-manager, Icon=org.borshevik.ImageManager, DBusActivatable=false, and search keywords. Like the App Manager entry it sets no Categories; @ShellCustomizations#app-folders-dconf places it in the 'borshevik' folder by file name."
-  - id: app-manager-icon
-    type: @Graphic
-    src: build_files/root/usr/share/icons/hicolor/scalable/apps/org.borshevik.AppManager.svg
-    format: SVG
-    role: app-icon
-    description: App icon for the App Manager shown in GNOME launcher and taskbar.
-  - id: image-manager-icon
-    type: @Graphic
-    src: build_files/root/usr/share/icons/hicolor/scalable/apps/org.borshevik.ImageManager.svg
-    format: SVG
-    role: app-icon
-    description: App icon for the Image Manager shown in GNOME launcher and taskbar.
+    description: Branding half of /usr/lib/os-release — the name, ID, logo and project URLs; @ImageBuild#os-info appends the per-build fields, so both halves reach the system.
   - id: borshevik-logo
-    type: @Graphic
+    type: "@Graphic"
     src: build_files/root/usr/share/pixmaps/borshevik_logo.svg
     format: SVG
     role: logo
     description: Primary distro logo shown in the Image Manager header and GDM login screen.
   - id: borshevik-logo-dark
-    type: @Graphic
+    type: "@Graphic"
     src: build_files/root/usr/share/pixmaps/borshevik_logo_dark.svg
     format: SVG
     role: logo
-    description: Dark-background variant of the distro logo; reserved for future use.
-  - id: fedora-logo
-    type: @Graphic
-    src: build_files/root/usr/share/pixmaps/fedora_logo_med.png
-    format: PNG
-    role: placeholder
-    description: Fedora logo fallback shown by the Image Manager when no Borshevik logo is found.
-  - id: fedora-logo-white
-    type: @Graphic
-    src: build_files/root/usr/share/pixmaps/fedora_whitelogo_med.png
-    format: PNG
-    role: placeholder
-    description: White Fedora logo fallback for dark backgrounds.
+    description: Dark-background variant of the distro logo, used by GNOME itself.
   - id: plymouth-watermark
-    type: @Graphic
+    type: "@Graphic"
     src: build_files/root/usr/share/plymouth/themes/spinner/watermark.png
     format: PNG
     role: splash
     description: Watermark shown by Plymouth during boot splash.
+  - id: container-policy
+    type: "@ConfigFile"
+    src:
+      - build_files/root/etc/containers/policy.json
+      - build_files/root/etc/containers/registries.d/borshevik.yaml
+    description: "Borshevik images must carry the Borshevik signature: anything from ghcr.io/komorebinator is accepted only with a sigstore signature by cosign-key, looked up as a sigstore attachment on the registry. That is what makes every rebase or `bootc switch` to a Borshevik image — the installer's, the Image Manager's, one typed by hand — refuse an unsigned or foreign-signed one. policy.json is uBlue's policy — the one its ublue-os-signing package installs in the base image — with that one ghcr.io/komorebinator scope added after uBlue's own and nothing else changed, so updating it means taking uBlue's current file and adding the scope again. From uBlue it keeps: a top-level default of reject; for every transport uBlue knows (docker, docker-daemon, atomic, containers-storage, dir, oci, oci-archive, docker-archive, tarball) a transport-wide scope accepting anything, so any registry not listed and any local image source works as on plain Fedora; and signature checks for ghcr.io/ublue-os and quay.io/toolbx-images against uBlue's keys and for Red Hat's registries against Red Hat's GPG key. Fedora's own policy from containers-common accepts everything and checks nothing, which would let a substituted image under a Borshevik name install. A transport-wide scope is the one named by the empty string, `\"\"` (containers-policy.json(5)); an earlier hand-made copy wrote it `\"default\"`, which names a registry called default and matches nothing, and it also left out every transport but docker, so until 2026-09 every machine rejected docker.io, quay.io, `podman load` and switching to a locally built image."
   - id: cosign-key
-    type: @PublicKey
+    type: "@PublicKey"
     src: cosign.pub
     path: /etc/pki/containers/cosign.pub
-    description: "Cosign public key used to verify Sigstore signatures on Borshevik OCI images. Copied into the image by the Containerfile; referenced by container-policy and container-registry-sigstore to enforce that all rpm-ostree rebase and bootc switch operations to ghcr.io/komorebinator/* must be signed."
+    description: Public half of the key CI signs every Borshevik image with (@BorshevikWorkflow#build-base), copied into the base layer by the Containerfile. A new key pair would make every installed system refuse the next update, since the key it checks against is the one it already has.
+  - id: desktop-entries
+    type: "@ConfigFile"
+    src:
+      - build_files/root/usr/share/applications/org.borshevik.AppManager.desktop
+      - build_files/root/usr/share/applications/org.borshevik.ImageManager.desktop
+    description: "Launcher entries of the two apps. Neither sets Categories: @ShellCustomizations#defaults puts both in the Borshevik app folder by file name."
+  - id: app-icons
+    type: "@Graphic"
+    src:
+      - build_files/root/usr/share/icons/hicolor/scalable/apps/org.borshevik.AppManager.svg
+      - build_files/root/usr/share/icons/hicolor/scalable/apps/org.borshevik.ImageManager.svg
+    format: SVG
+    role: app-icon
+    description: Icons of the two apps.
+  - id: fedora-logo-overrides
+    type: "@Graphic"
+    src:
+      - build_files/root/usr/share/pixmaps/fedora_logo_med.png
+      - build_files/root/usr/share/pixmaps/fedora_whitelogo_med.png
+    format: PNG
+    role: logo
+    description: Borshevik artwork saved under the names of Fedora's own logo files, which it overwrites, so what shows Fedora's logo from them shows Borshevik's instead — added, per the commit that introduced them, to replace the logo in GNOME Settings without rebuilding it. The two files are identical.

@@ -1,5 +1,5 @@
-description: "Base layer for the standard (non-NVIDIA) Borshevik variant. Built by the borshevik-base stage of @ImageBuild#containerfile: COPYs cosign.pub to /etc/pki/containers/cosign.pub and, temporarily, @UBlueAkmods' filesystem to /tmp/akmods-kernel, runs build-base.sh (bind-mounted from the ctx stage) — @ImageBuild#install-kernel, installs RPM packages, Google Chrome, Steam, enables podman.socket — then `ostree container commit`. Rebuilds daily via cron (build-base.yml) to pick up upstream RPM updates, independently of Borshevik's own final-layer changes. Normally the kernel is simply whatever @UniversalBlueGnome ships; while @ImageBuild#install-kernel is in place it is replaced with the coreos-stable one and moves only when Fedora CoreOS promotes a new kernel."
-extends: @UniversalBlueGnome
+description: "Base layer of the standard variant, built by the borshevik-base stage of @ImageBuild#containerfile on @UniversalBlueGnome: @ImageBuild#build-base (kernel, curated RPMs, Chrome, Steam, cleanup), plus the Borshevik signing key the whole lineage verifies with (@SystemConfig#cosign-key). Its kernel is normally whatever @UniversalBlueGnome ships; while @ImageBuild#install-kernel is in place it is the coreos-stable one instead."
+extends: "@UniversalBlueGnome"
 registry: ghcr.io/komorebinator
 tags:
   - "latest — pushed on every successful build-base.yml run"

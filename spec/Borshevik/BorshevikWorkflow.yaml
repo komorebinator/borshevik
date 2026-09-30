@@ -1,13 +1,13 @@
 description: "How work is done on Borshevik, from a request to an image users rebase onto. A change is tried on `experimental` first — pushed there, built into `:latest` by hand, run on a real machine — and goes to `main` by pull request only once it works. `main` is what the daily build reads; what it produces is still under test, and reaches users only when a chosen build is promoted to `:stable`, which is also what installers switch to and ISOs are cut from. Nothing is triggered by a push or a merge: builds run on a schedule or by hand."
-extends: @DuckWorkflow
+extends: "@DuckWorkflow"
 main_branch: main
 versioning:
-  type: @CalVer
+  type: "@CalVer"
   format: DD.MM.YYYY
 src: .github/
 branches:
   - id: main
-    description: "What ships. The default branch on GitHub, so the scheduled build checks it out and promote-image-to-stable runs from it. Changes arrive by pull request — from experimental once tested, from short-lived feature branches, and from dependabot."
+    description: "What ships. The default branch on GitHub, so the scheduled build checks it out and promote-image-to-stable runs from it. Changes arrive by pull request — from experimental once tried, from a short-lived branch carrying commits cherry-picked from experimental when one change must go ahead of the rest, and from Dependabot. Nothing is committed here that is not on experimental first."
   - id: experimental
     description: Where a change is tried on real hardware before it goes to main. Built into `:latest` by hand when there is something to test, never by the schedule.
   - id: stable
@@ -18,7 +18,7 @@ channels:
     description: "The testing channel. Every build lands here, from whichever branch it was run on — daily from main, by hand from experimental — so anything on it is still under test, including what came from main. Each build is also tagged with its date, DD.MM.YYYY, which is what a digest is recognised by when choosing one to promote."
   - id: stable
     from: latest
-    description: "What users run. Installers switch to it and ISOs are cut from it. Moved by hand onto a chosen `:latest` digest — a manifest retag, no rebuild — and signed again; nothing reaches it on a schedule."
+    description: "What users run. Installers switch to it and ISOs are cut from it. Moved by hand onto a chosen `:latest` digest — a manifest retag, no rebuild — and signed again; nothing reaches it on a schedule. Installed machines then pick the move up by themselves: the image ships rpm-ostreed-automatic.timer enabled with AutomaticUpdatePolicy=stage, both from the base image rather than set by Borshevik, so each machine downloads and stages the new build of its channel about once a day and boots into it at its next reboot. Users can switch that off with the Image Manager's automatic-updates switch (@ImageManagerApp#auto-updates-row), and the Update Indicator extension shows while a staged build waits (@ImageManagerApp#rpm-ostree#needsReboot)."
 steps:
   - id: requested
     description: Someone wants a change, in an issue or in the conversation. It is clarified until nothing is left to guess, then written into the terms.
@@ -42,10 +42,14 @@ steps:
   - id: on_experimental
     description: The change is on experimental but no image has been built from it.
     when: experimental carries the change and no image built from experimental does
-    operation: "@GitHub#run_workflow(workflow=build-base.yml, ref=experimental)"
+    operation: "@GitHub#run_workflow(workflow=<build-base.yml or build-borshevik.yml, by the layer the change touches>, ref=experimental)"
+  - id: in_vm
+    description: "An image carrying the change is on `:latest`, and nobody has run it yet. Before the author spends a reboot of their own machine on it, it is run in a throwaway virtual machine (@BorshevikWorkflow#test-image-in-vm), which catches what breaks a session for anyone: a login that fails, an extension that does not load, a unit that fails, errors in the journal. A virtual machine has no NVIDIA GPU, battery, suspend, Bluetooth or real graphics, so it cannot stand in for the author's machine; it only means that when the author tries the image, what they find is about the hardware. A failure sends the change back to `requested`."
+    when: an image built from experimental carrying the change is on `:latest`, and @BorshevikWorkflow#test-image-in-vm has not passed on that image
+    operation: "@BorshevikWorkflow#try_in_vm"
   - id: testing
-    description: "An image carrying the change is on `:latest`, and the author runs it on a real machine — rebasing with the Image Manager — to see that it works. Only the author can say it does; nothing here checks it. Once it does, the change goes to main."
-    when: an image built from experimental carrying the change is on `:latest`, and the author has not yet confirmed it works on a machine running it
+    description: "An image carrying the change is on `:latest`, has passed in the virtual machine, and the author runs it on a real machine — rebasing with the Image Manager — to see that it works. Only the author can say it does; nothing here checks it. Once it does, the change goes to main."
+    when: an image built from experimental carrying the change is on `:latest`, @BorshevikWorkflow#test-image-in-vm has passed on it, and the author has not yet confirmed it works on a machine running it
     operation: "@GitHub#open_pull_request(head=experimental, base=main)"
   - id: in_review
     description: A pull request from experimental to main carries the tested change.
@@ -54,7 +58,7 @@ steps:
   - id: on_main
     description: "The change is on main and waits for a build. The schedule does it daily at 10:00 UTC; running it by hand does not have to wait."
     when: main carries the change and no image built from main does
-    operation: "@GitHub#run_workflow(workflow=build-base.yml)"
+    operation: "@GitHub#run_workflow(workflow=<build-base.yml or build-borshevik.yml, by the layer the change touches>)"
   - id: built_from_main
     description: "A build from main carrying the change is on `:latest` — still the testing channel — and waits to be chosen for users. On a machine running that build, the Image Manager's Promote to stable menu item starts the same workflow for the booted digest and variant."
     when: an image built from main carrying the change is on `:latest`, and `:stable` does not carry the change
@@ -76,94 +80,122 @@ steps:
     when: the author has confirmed both variants of the run in a virtual machine, and the site does not yet offer the run's media
     operation: "@BorshevikWorkflow#switch_iso(run_id=<run>)"
   - id: iso_published
-    description: "Fresh installs get the change. The site's download buttons lead to the run's media, and so do the permanent links https://borshevik.org/iso/borshevik-stable.iso and https://borshevik.org/iso/borshevik-nvidia-stable.iso that this README uses — the website redirects them to whatever it currently offers. The previous media stay on the server until someone removes them."
+    description: "Fresh installs get the change. The site's download buttons lead to the run's media, and so do the permanent links https://borshevik.org/iso/borshevik-stable.iso and https://borshevik.org/iso/borshevik-nvidia-stable.iso that the repository's README uses — the website redirects them to whatever it currently offers. The previous media stay on the server until someone removes them."
     when: the site's download buttons lead to the run's media
 components:
   - id: build-base
-    type: @Pipeline
+    type: "@Pipeline"
     platform: GitHub Actions
-    description: "Workflow that builds, pushes and cosign-signs both base images, then invokes the final-layer workflow. Triggered by cron (daily 10:00 UTC) or workflow_dispatch. Runs a matrix build of borshevik-base and borshevik-base-nvidia targets in parallel (each cancels in-progress runs on the same ref). For each variant: creates /mnt/xdg-data for container storage (to avoid runner disk fill); builds the Containerfile target via redhat-actions/buildah-build with BUILD_DATE, IMAGE_TAG=latest, IMAGE_NAME args; logs into GHCR; normalizes registry/image names to lowercase; pushes with tags 'latest' and 'DD.MM.YYYY'; installs cosign; fetches the pushed image digest via skopeo inspect; signs the image by digest using SIGNING_SECRET as COSIGN_PRIVATE_KEY with cosign sign --key env://COSIGN_PRIVATE_KEY. On matrix completion, calls build-borshevik.yml as a reusable workflow (needs: build_and_push)."
+    description: Builds, pushes and signs both base images, then runs build-borshevik for the final layer on top. Daily at 10:00 UTC, or by hand. Both variants build in parallel, each tagged `latest` and with the build date, DD.MM.YYYY, and each signed by digest with the SIGNING_SECRET key (@SystemConfig#cosign-key is its public half). Container storage is moved to /mnt, where the runner has the disk space an image build needs.
     src: .github/workflows/build-base.yml
   - id: build-borshevik
-    type: @Pipeline
+    type: "@Pipeline"
     platform: GitHub Actions
-    description: "Reusable workflow that builds, pushes and cosign-signs both final images on top of the published base tags. Triggered by workflow_call (from build-base.yml after the base matrix succeeds) or workflow_dispatch. Matrix-builds the borshevik and borshevik-nvidia final targets in parallel, mirroring build-base's steps but against the final Containerfile stages, which pull FROM the published ghcr.io/komorebinator/borshevik-base tags. Signs each image by digest with cosign after push. Seven steps carry `if: github.event_name != 'pull_request'` inherited from the upstream uBlue template; since neither trigger can produce a pull_request event, those guards never fire as the workflow stands."
+    description: "Builds, pushes and signs both final images the same way, on the published base tags. Run by build-base, or by hand when only the final layer changed. Seven of its steps carry `if: github.event_name != 'pull_request'` guards inherited from the uBlue template; neither of its triggers produces that event, so they never take effect."
     src: .github/workflows/build-borshevik.yml
   - id: build-iso
-    type: @Pipeline
+    type: "@Pipeline"
     platform: GitHub Actions
-    description: "Manually triggered workflow that builds bootable ISOs from the :stable images. Triggered manually (workflow_dispatch) or via workflow_call. Builds ISO installer images for borshevik:stable and borshevik-nvidia:stable using build-container-installer. A step before the build sets the ISO name to `<image_name>-<UTC build date as YYYYMMDD>-<github.run_number>.iso` (e.g. borshevik-nvidia-20260927-58.iso), so no two runs ever produce the same file name and published media never have to be overwritten in place; the installer writes `<iso name>-CHECKSUM` beside it, holding `<sha256>  <iso name>`. Uploads each variant's ISO and checksum as one artifact named `<image_name>-stable-<major_version>`; `retention-days: 0` means the repository's default retention (90 days unless changed), which is how long a run stays publishable. The tag is hardcoded to `stable` in the workflow rather than taken as an input, so a build becomes installable from an ISO only after it has been promoted and this workflow is run again; nothing chains the two."
+    description: Builds the installer media of both variants from their :stable images, by hand — the tag is fixed in the workflow, so media follow a promotion only when this is run again; nothing chains the two. File names are unique per run (`<variant>-<YYYYMMDD>-<run number>.iso`, with a -CHECKSUM beside it), so published media are never overwritten in place. The media stay as the run's artifacts for the repository's default retention (90 days unless changed), which is how long a run stays publishable.
     src: .github/workflows/build-iso.yml
   - id: publish-iso
-    type: @Pipeline
+    type: "@Pipeline"
     platform: GitHub Actions
     src: .github/workflows/publish-iso.yml
     description: "Uploads the ISOs of one build-iso run to borshevik.org's iso/ folder, without changing what the site offers: nothing links to the new names until the website is switched to them, which happens only after the author has tried them (@BorshevikWorkflow#try_iso) — from the server, since that is far faster than from GitHub. Runs with ref=main."
     triggers:
       - "workflow_dispatch, with one required input: run_id, the database id of the build-iso run whose artifacts to publish"
     jobs:
-      - "publish — one job on ubuntu-latest, `permissions: actions: read, contents: read`, concurrency group `publish-iso` with cancel-in-progress false. Steps: (1) make /mnt/iso owned by the runner user — /mnt, because the runner's root filesystem has too little free space for both ISOs. (2) `gh run download <run_id>` of this repository into /mnt/iso-download with the job's token, then move every *.iso and *.iso-CHECKSUM into /mnt/iso. (3) refuse to go on unless /mnt/iso holds exactly one ISO named `borshevik-<8 digits>-<digits>.iso` and one named `borshevik-nvidia-<8 digits>-<digits>.iso`, each with its -CHECKSUM — a run from before unique names, or a run missing a variant, is refused rather than published half or under a name the site could already be serving. (4) `sha256sum -c` of both checksum files, so what goes up is what the build produced. (5) SSH set up exactly as the website's deploy does it, from the DEPLOY_* secrets below. (6) `rsync -tv --ignore-existing --chmod=F644` of the four files into `<DEPLOY_PATH>/iso/`. rsync writes each file under a temporary name and renames it when complete, and no page links to these names yet, so a slow or interrupted upload is invisible to visitors; --ignore-existing makes a re-run skip whatever already arrived, which is safe only because no two runs share a name. (7) `sha256sum -c` of both checksum files on the server over SSH, so a truncated or corrupted upload fails the run. (8) write the two ISO names to the job summary, which is where @BorshevikWorkflow#try_iso and @BorshevikWorkflow#switch_iso read them from. Every secret reaches the shell through `env:`."
+      - "publish — one job, in a concurrency group of its own that never cancels a run in progress. Downloads the run's artifacts to /mnt, since the runner's root has too little space for both ISOs; refuses unless there is exactly one uniquely named ISO per variant, each with its checksum — a run from before unique names, or one missing a variant, is refused rather than published in half or under a name the site could already be serving; checks both checksums; uploads the four files with rsync into the site's iso/ folder over SSH, set up as the website's deploy sets it up; checks the checksums again on the server, so a truncated upload fails the run; and writes the two names to the job summary, where @BorshevikWorkflow#try_iso and @BorshevikWorkflow#switch_iso read them. rsync writes under a temporary name and renames when complete, and no page links to the new names yet, so a slow or interrupted upload is invisible to visitors; skipping files that already arrived makes a re-run safe, which holds only because no two runs share a name. Secrets reach the shell only through `env:`."
     outputs:
       - the run's two ISOs and their checksums in the site's iso/ folder, verified on the server; the site itself unchanged
     components:
       - id: DEPLOY_HOST
-        type: @Secret
+        type: "@Secret"
         storage: GitHub Actions repository secret
         used_by: publish-iso's SSH and rsync steps
         description: "The website's server, borshevik.org. This and the other DEPLOY_* secrets hold the same values as the secrets of the same names in the borshevik-landing repository, which deploys the website to the same place with the same key; change them in both together."
       - id: DEPLOY_PORT
-        type: @Secret
+        type: "@Secret"
         storage: GitHub Actions repository secret; optional
         used_by: publish-iso's SSH and rsync steps
         description: The server's SSH port. Empty or unset means 22.
       - id: DEPLOY_USER
-        type: @Secret
+        type: "@Secret"
         storage: GitHub Actions repository secret
         used_by: publish-iso's SSH and rsync steps
         description: The hosting account the website's files belong to.
       - id: DEPLOY_PATH
-        type: @Secret
+        type: "@Secret"
         storage: GitHub Actions repository secret
         used_by: publish-iso's rsync and verification steps
         description: Absolute path of the website's root on the server; the ISOs go into its iso/ folder.
       - id: DEPLOY_SSH_KEY
-        type: @Secret
+        type: "@Secret"
         storage: GitHub Actions repository secret
         used_by: publish-iso's SSH setup step
         description: Private half of the ed25519 key made for deploying the website, and nothing else.
       - id: DEPLOY_KNOWN_HOSTS
-        type: @Secret
+        type: "@Secret"
         storage: GitHub Actions repository secret
         used_by: publish-iso's SSH setup step
         description: The server's host key lines, recorded once and checked with StrictHostKeyChecking=yes, so the runner refuses any other host.
   - id: try-iso
-    type: @ShellScript
+    type: "@ShellScript"
     src: tests/try-iso.sh
     description: "Installs one ISO of a build-iso run, as borshevik.org serves it, into a fresh virtual machine on this machine, for the author to try (@BorshevikWorkflow#try_iso). Downloads from the site, not from GitHub: the run must have gone through publish-iso first, and what gets tried is the very file users will download. Runs on the host, not in a sandbox. Needs gh, logged in, curl, and the GNOME Boxes flatpak (org.gnome.Boxes), whose bundled qemu-system-x86_64, qemu-img and UEFI firmware it borrows — nothing is installed for it. Keeps everything under ${XDG_CACHE_HOME:-~/.cache}/borshevik-iso/<run id>/<variant>/, so a second try of the same run downloads nothing."
     functions:
       - id: run
-        description: "Arguments: `[--boot] <run id | latest> <borshevik | borshevik-nvidia>`. `latest` resolves, with gh, to the newest successful build-iso.yml run of komorebinator/borshevik. The ISO's name is read from that run's log with gh — the one name matching `<variant>-<8 digits>-<digits>.iso` — and the script stops if there is not exactly one (a run from before unique names has none). Unless the variant's directory already holds that ISO, downloads https://borshevik.org/iso/<name>-CHECKSUM and then the ISO with curl into `<name>.part`, failing on HTTP errors, retrying, and resuming a .part left by an interrupted attempt; renames it to <name> when complete. A 404 means publish-iso has not run for this build, and says so. Runs `sha256sum -c` on the -CHECKSUM file and stops if it fails. Without --boot: creates a fresh 40G qcow2 disk and a fresh copy of the UEFI variable store, replacing any from an earlier try, and boots the ISO — the installer's reboot then comes up from the disk by itself, since the installer registers its boot entry first. With --boot: boots the existing disk alone, no ISO, and stops if there is none. The machine is started in the background through `flatpak run --filesystem=<variant dir> --command=qemu-system-x86_64 org.gnome.Boxes`: KVM, q35, host CPU, 4 cores, 6 GiB, non-secure edk2-x86_64 firmware from the flatpak with the variable store as the second pflash, the disk on virtio, the ISO as a CD, virtio-vga with no window of its own, a SPICE server on the unix socket spice.sock in the variant directory without a password, a virtio-serial port for the SPICE agent, a QMP socket qmp.sock beside it, a USB tablet, user-mode networking on virtio-net. The screen is shown by `spicy`, the SPICE client in the same flatpak, connected to that socket once it appears: qemu's own GTK window misplaces the guest pointer under GNOME's fractional scaling on Wayland, even through XWayland, while the SPICE client that Boxes itself uses does not. Blocks until the spicy window is closed, then powers the machine off by sending `quit` over QMP, and does the same if the script is interrupted. Prints, before starting, what to check: that the installer finishes, the system boots to GNOME and gets through first login, and `rpm-ostree status` shows ghcr.io/komorebinator/<variant>:stable."
+        description: "Arguments: `[--boot] <run id | latest> <borshevik | borshevik-nvidia>`, `latest` being the newest successful build-iso run. The ISO's name is read from that run's log — exactly one `<variant>-<8 digits>-<digits>.iso`, or it stops (a run from before unique names has none). Unless it is already cached, downloads the ISO and its -CHECKSUM from borshevik.org, resuming an interrupted download; a checksum missing from the site means publish-iso has not run for this build, and it says so. Stops unless the checksum matches. Without --boot it boots the ISO on a fresh disk and fresh UEFI variables, replacing any from an earlier try, and the installed system comes up from the disk after the installer reboots; with --boot it boots the existing disk alone. The machine runs on the GNOME Boxes flatpak's own qemu and UEFI firmware, shown through that flatpak's SPICE client rather than qemu's own window, which misplaces the guest pointer under GNOME's fractional scaling on Wayland. The script blocks until that window is closed, then powers the machine off, as it also does when interrupted. Before starting it prints what to check."
   - id: promote-image-to-stable
-    type: @Pipeline
+    type: "@Pipeline"
     platform: GitHub Actions
-    description: "Manually triggered workflow that moves the :stable tag onto a chosen digest and signs the result. Triggered by workflow_dispatch with required inputs: variant (borshevik or borshevik-nvidia) and digest (sha256:... hex string). Validates digest format with regex ^sha256:[0-9a-f]{64}$. Logs into GHCR. Runs 'docker buildx imagetools create --tag ghcr.io/<owner>/<variant>:stable ghcr.io/<owner>/<variant>@<digest>' to create/update the :stable tag pointing to the given digest (no data copy, manifest-only). Fetches the resulting stable tag's manifest digest. Signs that manifest digest with cosign using SIGNING_SECRET. Triggered by borshevik-promote-to-stable CLI script."
+    description: Moves `:stable` of one variant onto a chosen digest and signs it again. Run by hand with the variant and a sha256 digest; the move is a manifest retag, no rebuild. The Image Manager's Promote to stable starts it for the booted build (@ImageManagerApp#promote-to-stable).
     src: .github/workflows/promote-image-to-stable.yml
   - id: dependabot
-    type: @ConfigFile
+    type: "@ConfigFile"
     src: .github/dependabot.yml
     description: "Configures Dependabot to check the github-actions ecosystem weekly and open PRs for outdated action versions."
   - id: renovate
-    type: @ConfigFile
+    type: "@ConfigFile"
     src: .github/renovate.json5
     description: "Configures Renovate bot using config:best-practices. Auto-merges pin/pinDigest updates. Disables digest/pin updates for container refs in workflow files (to avoid interfering with manually pinned base images). Never rebases open PRs."
   - id: validate
-    type: @ShellScript
+    type: "@ShellScript"
     src: tests/validate.sh
     description: "Static checks over the repository, run on a Borshevik machine before a change is committed. Not tests — nothing is built or booted; it catches what breaks silently before any build runs. Needs bash, python3 with PyYAML, jq, gjs and desktop-file-validate, all present on Borshevik."
     functions:
       - id: run
-        description: "Runs every check and reports each file or group as ok or FAIL, exiting 1 if anything failed: `bash -n` on every shell script under build_files/, installer/ and tests/ (by .sh suffix or an executable bit with a sh/bash shebang); `jq empty` on every JSON file under build_files/; PyYAML on the GitHub workflows and dependabot config; tomllib on the image-builder TOML files; desktop-file-validate on the desktop entries, any output counting as a failure; a gjs import of every module of both apps except their main.js, which would start the application — that parses each module and resolves its imports. Finally the translations: every language of @AppManagerApp's TRANSLATIONS and every JSON dictionary of @ImageManagerApp must carry exactly the keys of en, and every key the code passes to t() must exist in en. Both apps fall back quietly on a missing key — the Image Manager to English for the whole file when it does not parse, the App Manager to the key itself — so without this check a broken dictionary is visible only to the user who hits it."
+        description: "Checks, each reported as ok or FAIL, exiting 1 on any failure: the syntax of every shell script, the JSON files, the GitHub YAML, the TOML configs, the desktop entries, an import of every app module but main.js (which would start the app), and the translations — every language of each app must have exactly the keys of English, and every key the code asks for must exist. Both apps fall back quietly on a missing key — the Image Manager to English for the whole file when a dictionary does not parse, the App Manager to the key itself — so without this check a broken dictionary shows only to the user who hits it. Needs gjs, so from a sandboxed shell it runs on the host."
+  - id: SIGNING_SECRET
+    type: "@Secret"
+    storage: GitHub Actions repository secret
+    used_by: build-base, build-borshevik and promote-image-to-stable, which sign every pushed image and every move of `:stable` with it
+    description: Private half of @SystemConfig#cosign-key, in cosign's format. Installed systems accept only images signed with it, so losing it means no Borshevik image can be updated to again until every machine gets a new public key by hand.
+  - id: test-image-in-vm
+    type: "@ShellScript"
+    src: tests/test-image-in-vm.sh
+    description: "Runs a Borshevik image in a throwaway virtual machine on this machine and checks it without anyone at the screen (@BorshevikWorkflow#try_in_vm). Runs on the host, not in a sandbox. Needs ssh, ssh-keygen, skopeo, python3, podman (rootful, for `base` alone, through run0) and the GNOME Boxes flatpak, whose qemu-system-x86_64, qemu-img and UEFI firmware it borrows. Everything lives under ${XDG_CACHE_HOME:-~/.cache}/borshevik-vm/: the base disk, an ed25519 key made for these machines and nothing else, and one directory per run."
+    functions:
+      - id: setup
+        description: "`test-image-in-vm.sh setup [image]` — makes the base disk every run starts from, once: an installed system of <image>, default ghcr.io/komorebinator/borshevik:latest. It is only a starting point: every run rebases to the image under test first, and an image replaces the whole system, so what the base was made from does not matter beyond saving that first rebase. Creates the key if missing. Writes a bootc-image-builder config granting root that key and appending `systemd.wants=sshd.service` to the kernel command line, so the machine answers SSH from its first boot without the image having to enable sshd. Then, in one `run0` call — one password prompt — as root: pulls <image> (checked against the host's policy, the image being signed), pulls quay.io/centos-bootc/bootc-image-builder:latest with `--signature-policy` set to this repository's build_files/root/etc/containers/policy.json, the policy Borshevik ships (the host's may predate the fix that lets quay.io images through), runs the builder privileged with that config, the output directory, a store directory beside it and root's container storage mounted, for a 40 GiB btrfs qcow2. The store holds the builder's working trees and the raw disk it converts; it is mounted from the invoking user's cache because inside the container it would sit on root's /var, which on this machine has too little room for it next to the pulled image. On the way out, whether the build succeeded or not, both images are removed from root's container storage again (some 6 GB nobody could clear later without another password) and everything built is handed to the invoking user. This is the only step that needs root: bootc-image-builder installs the image the way an installer would — partitions, file systems, bootloader on a loop-mounted disk — and `run` needs nothing of the kind. Replaces an existing base only after the new one is built. Takes some twenty minutes."
+      - id: run
+        description: "`test-image-in-vm.sh run [--keep] [--new-extensions] [image]` — tries <image>, default ghcr.io/komorebinator/borshevik:latest, and exits 0 only if every check passed. Stops if there is no base. In a fresh run directory named by date and time: a qcow2 overlay on the base, so the base is never written, and a copy of the UEFI variable store. Boots it in the background through the Boxes flatpak — KVM, q35, host CPU, 4 cores, 6 GiB, virtio disk and GPU, no window, a SPICE socket for looking at it by hand, a QMP socket, user-mode networking forwarding a free local port to the guest's 22 — and waits for SSH as root with the key (up to five minutes), then for the boot to finish: `systemctl is-system-running --wait` in the guest, bounded at five minutes, repeated after any reboot that happens meanwhile. SSH answers before boot is over, and on a base's first boot setup-kargs (@Services) is still adding its kernel arguments and then reboots — a rebase started in between fails with 'Transaction in progress'. Every later reboot is waited for the same way. `ssh` is run with IdentitiesOnly, because an agent offering its own keys first gets the connection closed for too many authentication failures before the test key is tried. The forwarded port also resets a connection now and then right after boot, so a command whose ssh fails to connect (exit 255) is tried up to five times — but only one that is safe to repeat: the reboot, the rebase and the checks, which read their script from standard input, are sent once. Resolves <image>'s digest with skopeo on the host and, unless the booted deployment already has that digest from a signed reference, runs `rpm-ostree rebase ostree-image-signed:docker://<image>` in the guest and reboots into it; a base straight from bootc-image-builder boots `ostree-unverified-registry:`, so the first run always rebases once, if only to the signed reference. Prepares the scenario that has broken logins before: creates a user `tester` with a known password and, like the accounts the author tries images with, the App Manager's first run already done (its ~/.local/state/borshevik/app-manager-first-run.done stamp), so the login is an existing user's and not a brand-new account's first one — which the test machine does not cover; with --new-extensions, also sets tester's enabled-extensions and disabled-extensions to empty lists (through a private D-Bus session, as tester), so every extension the image ships is new to it and borshevik-enable-new-extensions has to enable all of them in the running shell — the case in which enabling them one by one had left some enabled twice; sets GDM's AutomaticLogin for it — logged in by the GDM daemon itself, with no greeter involved (GDM's TimedLogin needs the greeter to start it, and it never did) — and adds a drop-in to the guest's gdm.service that sleeps 70 seconds before GDM starts, raising its TimeoutStartSec from 45 to 150 seconds so the wait does not fail the start, so tester's first login comes more than a minute after boot, when the user manager's boot-relative timers fire at once. Reboots, waits for SSH, then waits (up to five minutes) until tester has an active graphical session and GNOME Shell reports itself up, and 30 seconds more for the session to settle. Copies @BorshevikWorkflow#image-checks in and runs it as root with the digest it expects, printing its report. Takes a screenshot through QMP `screendump` and writes it as screen.png in the run directory, for whoever reads the report to look at. Unless --keep, powers the machine off over QMP and deletes its disk, UEFI variables and sockets, keeping report.txt, screen.png and the small logs (serial.log, the guest's console; rebase.log; qemu.log) for looking into a failure; with --keep it leaves the machine running and prints how to reach it by SSH and by spicy."
+  - id: image-checks
+    type: "@ShellScript"
+    src: tests/image-checks.sh
+    description: "The checks @BorshevikWorkflow#test-image-in-vm runs inside the guest, as root, after tester's login. Each prints `ok <name>` or `FAIL <name>: <what was found>`; all run even after a failure; the script exits 1 if any failed and prints `all checks pass` otherwise. Everything is read from the running system and its journal for the current boot; nothing is changed."
+    functions:
+      - id: run
+        description: "Argument: the image digest expected. (1) image: `rpm-ostree status --json` has a booted deployment whose image digest is the expected one and whose origin is a signed image (ostree-image-signed). (2) system-units: `systemctl --failed` lists nothing. (3) coredumps: `coredumpctl list` for this boot is empty. (4) login: tester got exactly one graphical session of class user this boot, and no process logged 'A graphical session is already running' — a login that fails and is retried shows as two. (5) shell: a gnome-shell process runs as tester. (6) user-units: tester's user manager, reached over its bus at /run/user/<uid>/bus, lists no failed units. (7) extensions: every directory under /usr/share/gnome-shell/extensions is an extension `gnome-extensions info` reports in state ACTIVE for tester. (8) extension-errors: tester's journal for this boot has no line from gnome-shell reporting an error from an extension (`Extension <uuid>: Error` and the like, 'Extension point conflict', 'JS ERROR'). (9) enable-new-extensions: tester's borshevik-enable-new-extensions.service ended with Result=success and started no earlier than tester's gnome-session@gnome.target became active, by their monotonic timestamps. (10) blur-popups: org.gnome.shell.extensions.blur-my-shell.popup blur is false for tester — the image's patched default."
 recipes:
+  - id: try_in_vm
+    description: Runs the newest `:latest` in a throwaway virtual machine and reports whether it passed
+    instructions:
+      - "If @BorshevikWorkflow#test-image-in-vm has no base disk yet, tell the author that making one asks once for their admin password and takes some twenty minutes, then run `tests/test-image-in-vm.sh setup` on the host (through `flatpak-spawn --host` when the shell is sandboxed)"
+      - "Run `tests/test-image-in-vm.sh run` on the host, in the background — a run takes around ten minutes — and read its report when it ends"
+      - "Look at the run's screen.png: the report checks what can be read from the system, the picture shows whether the desktop looks right"
+      - "Report each check and what the screenshot shows. All passing moves the change on to `testing`; anything failing is a defect to look into before the author is asked to try the image, and sends the change back to `requested`"
   - id: try_iso
     description: Has the author install both ISOs of one build-iso run in a virtual machine and say whether they work
     arguments:
@@ -184,4 +216,6 @@ recipes:
       - "Load the project registered for https://github.com/komorebinator/borshevik-landing and, following that project's own workflow, change which ISOs it offers to these two. Its deploy refuses to switch to files that are not on the server, so a switch made before the upload finished fails there instead of breaking the download buttons"
       - "Once the website's deploy has succeeded and borshevik.org offers the two new names, clean up everything the trial left on this machine, without being asked: power off any virtual machine @BorshevikWorkflow#try-iso still has running (a qemu-system-x86_64 whose -name is one of the run's ISOs, and its spicy viewer); delete ${XDG_CACHE_HOME:-~/.cache}/borshevik-iso entirely — the ISOs and the virtual machines' disks, tens of GB; stop the website's local preview container, borshevik-landing-preview, if it is running; and remove every git worktree made for the change whose branch has been merged. Report what was removed. Nothing on the server is cleaned here: images the site no longer offers are removed from it separately"
 guidelines:
-  - "Installer media are built from main, never from experimental — build-iso.yml and publish-iso.yml, like promote-image-to-stable.yml, run with ref=main. What an ISO installs comes from :stable either way, but the workflow file and installer/ templates it builds with come from the branch it runs on, and media that reach users must be built by what main holds, not by something still being tried. A change to how ISOs are built or published therefore reaches main before it is used: by pull request, and on its own branch cut from main when experimental carries other changes not yet tried."
+  - "Build only the layer the change touches. A change to the base layer — the borshevik-base and borshevik-base-nvidia stages of the Containerfile, cosign.pub, or the scripts they run (build-base.sh, build-base-nvidia.sh, install-kernel.sh, install-rpm-packages.sh, install-google-chrome.sh, install-steam.sh, cleanup.sh) — needs build-base.yml, which then builds the final layer on top by itself. Anything else — build_files/root/, build-addons.sh and the scripts it runs, the GNOME extensions, dconf, schemas, the final stages, or a new commit in an extension repository installed from its branch — needs build-borshevik.yml alone: the final stages build FROM the published borshevik-base tags, so rebuilding the base would only spend most of an hour producing what is already published. When a change touches both, build-base.yml."
+  - "Installer media are built from main, never from experimental — build-iso.yml and publish-iso.yml, like promote-image-to-stable.yml, run with ref=main. What an ISO installs comes from :stable either way, but the workflow file and installer/ templates it builds with come from the branch it runs on, and media that reach users must be built by what main holds, not by something still being tried. A change to how ISOs are built or published is committed to experimental first like any other, and reaches main by pull request before it is used."
+  - Every change is committed to experimental first — never to a branch cut from main, never straight to main — so experimental always holds everything main holds, plus what is still being tried. A change normally reaches main with the rest of experimental, by the pull request from experimental. When one change has to reach main before other changes on experimental have been tried — a fix to the ISO pipeline, say — its commits are cherry-picked from experimental onto a short-lived branch cut from main and merged by pull request, and main is merged back into experimental right after, so the two do not drift apart. The same merge-back brings in what reaches main first by nature, such as Dependabot's pull requests.

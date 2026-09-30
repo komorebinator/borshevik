@@ -1,5 +1,5 @@
-description: GJS/GTK4+libadwaita application for installing curated Flatpak apps from Flathub. Opens automatically on first login via a systemd user service.
-extends: @DuckspecProject
+description: "The App Manager — how a fresh install gets its applications: a curated Flatpak selection offered once, on first login. The app is @AppManagerApp."
+extends: "@DuckspecProject"
 terms_folder: AppManager/
 goals:
   - Get a curated set of useful applications onto a fresh install without the user hunting through Flathub
@@ -10,4 +10,4 @@ settings:
   src: ..
   readme: ../README.md
 software:
-  - @AppManagerApp
+  - "@AppManagerApp"
