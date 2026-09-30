@@ -240,3 +240,47 @@ export async function getRegistryDigest(dockerRef) {
     return null;
   }
 }
+
+// Returns how much updating to dockerRef would download, formatted, or null on
+// failure.  Counts what the pull itself fetches: ostree-container skips every
+// layer it already holds as an ostree/container/blob/ ref, whichever deployment
+// (booted, staged, rollback) brought it in.  rpm-ostree's own "Added layers"
+// size only compares against the booted image, so it overstates the download.
+export async function getDownloadSize(dockerRef) {
+  try {
+    const inspect = Gio.Subprocess.new(
+      ['skopeo', 'inspect', '--format', '{{json .LayersData}}', `docker://${dockerRef}`],
+      Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
+    );
+    const { stdout: layersJson } = await _communicateUtf8(inspect);
+    if (!inspect.get_successful())
+      return null;
+
+    const refs = Gio.Subprocess.new(
+      ['ostree', 'refs', '--repo=/sysroot/ostree/repo', 'ostree/container/blob'],
+      Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE
+    );
+    const { stdout: refsText } = await _communicateUtf8(refs);
+    if (!refs.get_successful())
+      return null;
+
+    // Blob refs escape the digest's ':' as '_3A_' (sha256_3A_<hex>).
+    const present = new Set(
+      refsText.split('\n').map(l => l.trim().replace(/_3A_/g, ':')).filter(Boolean)
+    );
+
+    const layers = JSON.parse(layersJson);
+    if (!Array.isArray(layers) || layers.length === 0)
+      return null;
+
+    let bytes = 0;
+    for (const layer of layers) {
+      if (!present.has(layer.Digest))
+        bytes += Number(layer.Size) || 0;
+    }
+    return GLib.format_size(bytes);
+  } catch (e) {
+    logError(e, 'download size calculation failed');
+    return null;
+  }
+}
