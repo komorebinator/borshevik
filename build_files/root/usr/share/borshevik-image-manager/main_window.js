@@ -7,7 +7,8 @@ import GLib from 'gi://GLib';
 import {
   runStatusJson,
   parseStatusJson,
-  getRegistryDigest
+  getRegistryDigest,
+  getDownloadSize
 } from './rpm_ostree.js';
 import { buildFacts, computeUiState } from './app_state.js';
 import { CommandRunner } from './command_runner.js';
@@ -529,7 +530,8 @@ class MainWindow extends Adw.ApplicationWindow {
     const hasNoUpdates = /\bNo updates available\b/i.test(filteredOutput) && !hasAvailableUpdate;
     const hasStaged = Boolean(this._facts?.needsReboot);
 
-    // Prefer Added layers size; Total layers often overstates the real download.
+    // Fallback only, see getDownloadSize: rpm-ostree diffs against the booted
+    // image alone.  Prefer Added layers size; Total layers overstates even more.
     let size = null;
     const addedSizeMatch = filteredOutput.match(/AvailableUpdate:[\s\S]*?\n\s*Added layers\s*:[\s\S]*?\n\s*Size\s*:\s*([^\n]+)/i);
     if (addedSizeMatch)
@@ -557,11 +559,12 @@ class MainWindow extends Adw.ApplicationWindow {
     }
 
     if (hasAvailableUpdate) {
+      const dockerRef = this._facts?.currentOrigin?.replace(/^ostree-image-signed:docker:\/\//, '');
+
       // If a deployment is already staged, verify the registry hasn't moved
       // past it before offering to download again.  skopeo inspect is fast
       // (manifest-only, no layer data) so the extra round-trip is acceptable.
       if (hasStaged && this._facts?.stagedDigest) {
-        const dockerRef = this._facts.currentOrigin?.replace(/^ostree-image-signed:docker:\/\//, '');
         if (dockerRef && !dockerRef.includes('@sha256:')) {
           const registryDigest = await getRegistryDigest(dockerRef);
           if (registryDigest && registryDigest === this._facts.stagedDigest) {
@@ -573,6 +576,8 @@ class MainWindow extends Adw.ApplicationWindow {
           }
         }
       }
+      if (dockerRef)
+        size = (await getDownloadSize(dockerRef)) ?? size;
       this._check = { phase: 'available', downloadSize: size, message: '' };
     } else {
       this._check = { phase: 'no_updates', downloadSize: null, message: '' };
