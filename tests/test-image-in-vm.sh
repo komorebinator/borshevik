@@ -6,7 +6,9 @@ set -euo pipefail
 
 usage() {
     echo "usage: $0 setup [image]          make the test machine's base disk (default image: :latest)" >&2
-    echo "       $0 run [--keep] [image]   try an image (default: :latest)" >&2
+    echo "       $0 run [--keep] [--new-extensions] [image]" >&2
+    echo "                                  try an image (default: :latest); --new-extensions" >&2
+    echo "                                  empties tester's extension lists first" >&2
     exit 2
 }
 
@@ -162,8 +164,15 @@ PY
 }
 
 cmd_run() {
-    local keep=0
-    if [[ "${1:-}" == --keep ]]; then keep=1; shift; fi
+    local keep=0 new_extensions=0
+    while [[ "${1:-}" == --* ]]; do
+        case "$1" in
+            --keep) keep=1 ;;
+            --new-extensions) new_extensions=1 ;;
+            *) usage ;;
+        esac
+        shift
+    done
     local image="${1:-ghcr.io/komorebinator/borshevik:latest}"
     [[ -f "$base" ]] || die "no base disk; run: $0 setup"
     ensure_key
@@ -222,6 +231,14 @@ print(b.get("container-image-reference-digest", ""), b.get("container-image-refe
         sed -i "/^\[daemon\]/a AutomaticLoginEnable=true\nAutomaticLogin=tester\nInitialSetupEnable=false" "$conf"
         mkdir -p /etc/systemd/system/gdm.service.d
         printf "[Service]\nExecStartPre=/usr/bin/sleep 70\nTimeoutStartSec=150\n" >/etc/systemd/system/gdm.service.d/zz-test-late-login.conf'
+    if [[ "$new_extensions" -eq 1 ]]; then
+        # every shipped extension becomes new to tester: the service must enable all of them
+        guest 'h="$(getent passwd tester | cut -d: -f6)"
+            runuser -u tester -- env -u XDG_RUNTIME_DIR HOME="$h" dbus-run-session -- sh -c "
+            gsettings set org.gnome.shell enabled-extensions \"[]\"
+            gsettings set org.gnome.shell disabled-extensions \"[]\"
+            gsettings get org.gnome.shell enabled-extensions"' >"$dir/new-extensions.log" 2>&1
+    fi
     reboot_guest
 
     echo "waiting for tester's session"
