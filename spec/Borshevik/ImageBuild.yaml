@@ -45,7 +45,7 @@ components:
     src: build_files/scripts/build-base-nvidia.sh
     functions:
       - id: run
-        description: Installs the prebuilt kernel modules from @UBlueAkmodsNvidiaOpen together with the userspace driver, settings tool, CUDA and VA-API libraries (64- and 32-bit) from the negativo17 repository, at the version read from the akmods content itself, so modules and userspace always match. Runs no cleanup of its own; the base layer already did.
+        description: "Installs the NVIDIA driver entirely from the RPMs @UBlueAkmodsNvidiaOpen carries — the prebuilt kernel modules and, from the same build, the whole userspace set (64-bit, 32-bit and noarch: driver, libraries, CUDA, settings tool and the rest) — and only libva-nvidia-driver, which follows no driver version, from the negativo17 repository. Then refuses the build unless the installed nvidia-driver is the version the modules were built for. The userspace was once taken from negativo17 by version, which works only while the repository still carries that version: it keeps the newest alone, so an akmods tag pinned to an older kernel (@ImageBuild#containerfile#HELD_KERNEL) found its driver gone from the repository and the build failed. The cache always holds the matching set, the way uBlue's own nvidia-install.sh installs it, whether the tag is pinned or rolling. Runs no cleanup of its own; the base layer already did."
   - id: build-addons
     type: "@ShellScript"
     description: Orchestrates the final layer — Hiddify, waydroid_script, GNOME extensions, shell customizations, services, initramfs.
