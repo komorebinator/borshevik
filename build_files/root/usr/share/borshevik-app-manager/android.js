@@ -11,6 +11,7 @@ export const MODULE = "android";
 
 const STAMP = "/var/lib/borshevik/waydroid-installed";
 const SESSION_TIMEOUT_S = 120;
+const BOOT_TIMEOUT_S = 180;
 
 function strip(s) {
   return (s ?? "").toString().replace(/\r/g, "").trim();
@@ -77,6 +78,18 @@ async function startSession() {
   throw new Error("Android did not start");
 }
 
+// A session reports itself running as soon as the container is up, while Android
+// is still booting; `waydroid app install` then does nothing and says nothing.
+async function waitBooted() {
+  for (let waited = 0; waited < BOOT_TIMEOUT_S; waited += 3) {
+    const res = await run(["waydroid", "prop", "get", "sys.boot_completed"]);
+    if (strip(res.stdout) === "1")
+      return;
+    await sleep(3000);
+  }
+  throw new Error("Android did not finish starting");
+}
+
 async function installedPackages() {
   const res = await run(["waydroid", "app", "list"]);
   if (!res.ok)
@@ -140,6 +153,7 @@ export async function installApps(entries, onStep, cancelCtl = null) {
       await startSession();
       startedSession = true;
     }
+    await waitBooted();
     present = await installedPackages();
   } catch (e) {
     const msg = strip(e?.message ?? String(e));

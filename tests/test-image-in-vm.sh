@@ -277,6 +277,10 @@ print(b.get("container-image-reference-digest", ""), b.get("container-image-refe
         home="$(getent passwd tester | cut -d: -f6)"
         runuser -u tester -- mkdir -p "$home/.local/state/borshevik"
         runuser -u tester -- touch "$home/.local/state/borshevik/app-manager-first-run.done"
+        # the screen stays on and unlocked, so every screenshot shows the desktop
+        runuser -u tester -- env -u XDG_RUNTIME_DIR HOME="$home" dbus-run-session -- sh -c "
+            gsettings set org.gnome.desktop.session idle-delay 0
+            gsettings set org.gnome.desktop.screensaver lock-enabled false" >/dev/null 2>&1 || true
         conf=/etc/gdm/custom.conf
         touch "$conf"
         grep -q "^\[daemon\]" "$conf" || printf "[daemon]\n" >>"$conf"
