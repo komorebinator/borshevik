@@ -20,6 +20,8 @@ WAYDROID_SCRIPT_DIR=/usr/lib/borshevik/waydroid_script
 ANDROID_ENTRY_SRC=/usr/share/borshevik/waydroid/borshevik-android.desktop
 ANDROID_ENTRY_DEST=/usr/local/share/applications/borshevik-android.desktop
 UPDATE_TIMER=borshevik-waydroid-update.timer
+SYSTEM_CHANNEL=https://ota.waydro.id/system
+VENDOR_CHANNEL=https://ota.waydro.id/vendor
 
 step() { echo "==> $*"; }
 
@@ -120,7 +122,13 @@ cmd_install() {
     rm -f "$STAMP"
 
     step "Downloading and installing the Android image"
-    waydroid init -f -s VANILLA
+    # Fedora's package ships with no default OTA channel, so they are given here;
+    # init exits 0 even when it fails, so the images are what says it worked.
+    waydroid init -f -c "$SYSTEM_CHANNEL" -v "$VENDOR_CHANNEL" -s VANILLA
+    if [[ ! -f "${WAYDROID_DIR}/images/system.img" || ! -f "${WAYDROID_DIR}/images/vendor.img" ]]; then
+        echo "waydroid init did not install the Android images" >&2
+        exit 1
+    fi
 
     step "Letting Android reach the network"
     firewall_trust add

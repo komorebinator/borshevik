@@ -50,7 +50,8 @@ else
 fi
 
 # 5. it was the service, in this login, that enabled each of them
-logged="$(journalctl -b _UID="$uid" --user-unit borshevik-enable-new-extensions.service -o cat 2>/dev/null |
+# explicit fields: --user-unit, run as root, would match root's UID, not tester's
+logged="$(journalctl -b _SYSTEMD_USER_UNIT=borshevik-enable-new-extensions.service _UID="$uid" -o cat 2>/dev/null |
     sed -n 's/^enabled //p' | sort -u)"
 missing="$(comm -23 <(echo "$shipped") <(echo "$logged") | tr '\n' ' ')"
 [[ -z "$missing" ]] && ok service-enabled-them || fail service-enabled-them "the service did not log enabling: $missing"
