@@ -14,6 +14,7 @@ import { buildFacts, computeUiState } from './app_state.js';
 import { CommandRunner } from './command_runner.js';
 import { SettingsWindow } from './settings_window.js';
 import { ProgressWindow } from './progress_window.js';
+import { AndroidPage } from './android_page.js';
 import { readOsRelease, readUptimeSeconds, formatUptime, pickLogoCandidates, firstExistingPath, requestRebootInteractive, isAuthorizationError, runCommandCapture } from './util.js';
 
 const ISSUE_NEW_URL = 'https://github.com/komorebinator/borshevik/issues/new';
@@ -102,12 +103,23 @@ class MainWindow extends Adw.ApplicationWindow {
     actionAbout.connect('activate', () => this._showAbout());
     this._app.add_action(actionAbout);
 
-    // Main content stack: normal view only (busy operations now use separate window)
-    this._stack = new Gtk.Stack({
-      transition_type: Gtk.StackTransitionType.CROSSFADE
+    // Two tabs: the OS image and Android. Busy operations use a separate window.
+    this._stack = new Adw.ViewStack();
+    this._stack.add_titled_with_icon(this._buildMainView(), 'system',
+      i18n.t('tab_system'), 'computer-symbolic');
+
+    this._androidPage = new AndroidPage({ window: this, app: this._app });
+    this._stack.add_titled_with_icon(this._androidPage, 'android',
+      i18n.t('tab_android'), 'phone-symbolic');
+    this._stack.connect('notify::visible-child-name', () => {
+      if (this._stack.get_visible_child_name() === 'android')
+        this._androidPage.activate();
     });
 
-    this._stack.add_named(this._buildMainView(), 'main');
+    header.set_title_widget(new Adw.ViewSwitcher({
+      stack: this._stack,
+      policy: Adw.ViewSwitcherPolicy.WIDE
+    }));
 
     const toolbarView = new Adw.ToolbarView();
     toolbarView.add_top_bar(header);

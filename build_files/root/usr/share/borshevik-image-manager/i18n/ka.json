@@ -65,5 +65,21 @@
   "promote_complete": "სახე stable-ად გადაიყვანეს",
   "uptime": "მუშაობის დრო",
   "uptime_days": "დ",
-  "report_issue": "პრობლემის შეტყობინება"
+  "report_issue": "პრობლემის შეტყობინება",
+  "tab_system": "სისტემა",
+  "tab_android": "Android",
+  "android_intro": "გაუშვით Android-აპები ფანჯრებში თქვენს სამუშაო მაგიდაზე. ინსტალაცია ჩამოტვირთავს დაახლოებით 1 გბ-ს და დაამატებს ARM-აპების მხარდაჭერას და microG-ს Google-ის სერვისების ნაცვლად. აპები შემდეგ App Manager-ის Android კატეგორიიდან ყენდება — მათ შორისაა Aurora Store, რომლითაც დანარჩენ Google Play-ს მიიღებთ.",
+  "android_software_rendering": "აქ მხოლოდ NVIDIA ვიდეობარათია ხელმისაწვდომი. Android მას ვერ გამოიყენებს და პროგრამულად დახატავს, ამიტომ ნელა იმუშავებს.",
+  "android_install": "Android-ის დაყენება",
+  "android_image_built": "ანაბეჭდი აწყობილია",
+  "android_auto_updates_title": "Android-ის ავტომატური განახლება",
+  "android_auto_updates_subtitle": "Android-ის ანაბეჭდის ყოველდღიური განახლება, არასდროს ლიმიტირებული კავშირით",
+  "android_remove_title": "Android-ის წაშლა",
+  "android_remove_subtitle": "წაშლის Android-ს, მის აპებს და მათ მონაცემებს",
+  "android_remove": "წაშლა",
+  "android_remove_confirm_title": "წავშალოთ Android?",
+  "android_remove_confirm_body": "ყველა Android-აპი და მათი მონაცემები წაიშლება. ამის გაუქმება შეუძლებელია.",
+  "android_installing": "Android-ის დაყენება",
+  "android_updating": "Android-ის განახლება",
+  "android_removing": "Android-ის წაშლა"
 }

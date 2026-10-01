@@ -1,0 +1,15 @@
+[Unit]
+Description=Update the Android (Waydroid) image
+Documentation=https://github.com/komorebinator/borshevik
+ConditionPathExists=/var/lib/borshevik/waydroid-installed
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+# Never over a metered or unknown connection — the same condition
+# rpm-ostreed-automatic.service carries; the image is some 850 MB.
+ExecCondition=/bin/bash -c '[[ "$(busctl get-property org.freedesktop.NetworkManager /org/freedesktop/NetworkManager org.freedesktop.NetworkManager Metered | cut -c 3-)" == @(2|4) ]]'
+# Not while anyone uses Android: upgrading restarts the container under them.
+ExecCondition=/bin/bash -c '! waydroid status 2>/dev/null | grep -Eq "^Container:[[:space:]]*(RUNNING|FROZEN)"'
+ExecStart=/usr/libexec/borshevik/borshevik-waydroid upgrade

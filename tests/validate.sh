@@ -50,7 +50,7 @@ for f in *.toml; do
 done
 
 echo "desktop entries"
-for f in build_files/root/usr/share/applications/*.desktop; do
+for f in build_files/root/usr/share/applications/*.desktop build_files/root/usr/share/borshevik/*/*.desktop; do
     if out="$(desktop-file-validate "$f" 2>&1)" && [[ -z "$out" ]]; then pass "$f"; else fail "$f: $out"; fi
 done
 

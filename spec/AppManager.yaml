@@ -1,4 +1,4 @@
-description: "The App Manager — how a fresh install gets its applications: a curated Flatpak selection offered once, on first login. The app is @AppManagerApp."
+description: "The App Manager — how a fresh install gets its applications: a curated selection — Flatpak apps and Android apps, with room for other kinds — offered once, on first login. The app is @AppManagerApp."
 extends: "@DuckspecProject"
 terms_folder: AppManager/
 goals:

@@ -1,4 +1,4 @@
-description: "Borshevik's systemd units and the scripts they run, and how they are switched on in the image: boot-time units for kernel arguments and MOK enrollment, login-time user units for the App Manager's first run, newly shipped extensions and the GNOME Shell watchdog."
+description: "Borshevik's systemd units and the scripts they run, and how they are switched on in the image: boot-time units for kernel arguments and MOK enrollment, login-time user units for the App Manager's first run, newly shipped extensions and the GNOME Shell watchdog. Android's update timer is not among them: it is off until Android is installed, and is described with @WaydroidApp."
 extends: "@Software"
 platform: systemd / bash
 src: build_files/root/usr/lib/systemd/

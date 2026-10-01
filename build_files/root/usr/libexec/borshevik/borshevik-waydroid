@@ -1,0 +1,206 @@
+#!/usr/bin/env bash
+# Installs, upgrades and removes Android (Waydroid) on this machine.
+# Run under pkexec by the Image Manager, as root by borshevik-modules (the App
+# Manager) and by borshevik-waydroid-update.service. See @WaydroidApp in spec/.
+#
+#   borshevik-waydroid rendering   any user: prints `software` or `hardware`
+#   borshevik-waydroid install     root
+#   borshevik-waydroid upgrade     root
+#   borshevik-waydroid remove      root
+set -euo pipefail
+
+# Never exit with 126 or 127: pkexec returns those when the password is
+# refused, and callers tell a cancelled prompt from a broken install by them.
+trap 'rc=$?; if [[ $rc -eq 126 || $rc -eq 127 ]]; then exit 1; fi' EXIT
+
+STAMP=/var/lib/borshevik/waydroid-installed
+WAYDROID_DIR=/var/lib/waydroid
+WAYDROID_CFG="${WAYDROID_DIR}/waydroid.cfg"
+WAYDROID_SCRIPT_DIR=/usr/lib/borshevik/waydroid_script
+ANDROID_ENTRY_SRC=/usr/share/borshevik/waydroid/borshevik-android.desktop
+ANDROID_ENTRY_DEST=/usr/local/share/applications/borshevik-android.desktop
+UPDATE_TIMER=borshevik-waydroid-update.timer
+
+step() { echo "==> $*"; }
+
+require_root() {
+    if [[ $EUID -ne 0 ]]; then
+        echo "borshevik-waydroid $1 must run as root" >&2
+        exit 1
+    fi
+}
+
+# `software` when every GPU render node belongs to the NVIDIA driver: Waydroid
+# gets no hardware acceleration from the proprietary driver and shows nothing
+# unless Android renders in software. On a hybrid laptop Waydroid takes the
+# integrated GPU, so that is `hardware`.
+cmd_rendering() {
+    local node driver found=0
+    for node in /sys/class/drm/renderD*; do
+        [[ -e "$node/device/driver" ]] || continue
+        found=1
+        driver="$(basename "$(readlink -f "$node/device/driver")")"
+        if [[ "$driver" != "nvidia" ]]; then
+            echo hardware
+            return
+        fi
+    done
+    if [[ $found -eq 1 ]]; then echo software; else echo hardware; fi
+}
+
+# The Android version (11, 13) of the installed system image, read from its
+# build.prop without mounting it.
+android_version() {
+    local img="${WAYDROID_DIR}/images/system.img" prop version
+    for prop in /system/build.prop /build.prop; do
+        version="$(debugfs -R "cat $prop" "$img" 2>/dev/null \
+            | sed -n 's/^ro\.build\.version\.release=//p' | head -n1)"
+        if [[ -n "$version" ]]; then
+            echo "${version%%.*}"
+            return
+        fi
+    done
+    echo "cannot read the Android version from $img" >&2
+    return 1
+}
+
+# The ARM translation layer for this CPU: libhoudini is Intel's own and runs
+# best on Intel; libndk_translation is Google's, from ChromeOS, and is the one
+# that works well on AMD. Any other x86_64 vendor gets libndk too.
+translation_layer() {
+    local vendor
+    vendor="$(sed -n 's/^vendor_id[[:space:]]*:[[:space:]]*//p' /proc/cpuinfo | head -n1)"
+    case "$vendor" in
+        GenuineIntel) echo "libhoudini" ;;
+        AuthenticAMD) echo "libndk" ;;
+        *)            echo "libndk" ;;
+    esac
+}
+
+# The ARM translation layer and microG, for one Android version.
+install_addons() {
+    local version="$1" translation vendor
+    translation="$(translation_layer)"
+    vendor="$(sed -n 's/^vendor_id[[:space:]]*:[[:space:]]*//p' /proc/cpuinfo | head -n1)"
+    step "CPU vendor ${vendor:-unknown}: using ${translation} for ARM apps"
+    step "Installing ${translation} and microG for Android ${version}"
+    "${WAYDROID_SCRIPT_DIR}/venv/bin/python3" "${WAYDROID_SCRIPT_DIR}/main.py" \
+        -a "$version" install "$translation" microg
+}
+
+firewall_trust() { # add | remove
+    if firewall-cmd --state >/dev/null 2>&1; then
+        firewall-cmd --permanent --zone=trusted "--$1-interface=waydroid0" >/dev/null || true
+        firewall-cmd --zone=trusted "--$1-interface=waydroid0" >/dev/null || true
+    else
+        firewall-offline-cmd --zone=trusted "--$1-interface=waydroid0" >/dev/null || true
+    fi
+}
+
+set_software_rendering() {
+    step "Only an NVIDIA GPU renders here: switching Android to software rendering"
+    python3 - "$WAYDROID_CFG" <<'EOF'
+import configparser, sys
+path = sys.argv[1]
+cfg = configparser.ConfigParser()
+cfg.optionxform = str
+cfg.read(path)
+if not cfg.has_section("properties"):
+    cfg.add_section("properties")
+cfg["properties"]["ro.hardware.gralloc"] = "default"
+cfg["properties"]["ro.hardware.egl"] = "swiftshader"
+with open(path, "w") as f:
+    cfg.write(f)
+EOF
+    waydroid upgrade -o
+}
+
+cmd_install() {
+    require_root install
+    rm -f "$STAMP"
+
+    step "Downloading and installing the Android image"
+    waydroid init -f -s VANILLA
+
+    step "Letting Android reach the network"
+    firewall_trust add
+
+    step "Starting the Waydroid container service"
+    systemctl enable --now waydroid-container.service
+
+    local version
+    version="$(android_version)"
+    install_addons "$version"
+
+    if [[ "$(cmd_rendering)" == "software" ]]; then
+        set_software_rendering
+    fi
+
+    step "Turning on automatic Android updates"
+    systemctl enable "$UPDATE_TIMER"
+
+    install -D -m 0644 "$ANDROID_ENTRY_SRC" "$ANDROID_ENTRY_DEST"
+
+    mkdir -p "$(dirname "$STAMP")"
+    chmod 0755 "$(dirname "$STAMP")"
+    echo "$version" > "$STAMP"
+    chmod 0644 "$STAMP"
+    step "Android ${version} is installed"
+}
+
+cmd_upgrade() {
+    require_root upgrade
+    if [[ ! -f "$STAMP" ]]; then
+        echo "Android is not installed; nothing to upgrade"
+        return
+    fi
+
+    step "Updating the Android image"
+    waydroid upgrade
+
+    local before after
+    before="$(<"$STAMP")"
+    after="$(android_version)"
+    if [[ "$after" != "$before" ]]; then
+        install_addons "$after"
+        echo "$after" > "$STAMP"
+    fi
+    step "Android ${after} is up to date"
+}
+
+cmd_remove() {
+    require_root remove
+    rm -f "$STAMP"
+    rm -f "$ANDROID_ENTRY_DEST"
+
+    step "Stopping Android"
+    systemctl disable --now "$UPDATE_TIMER" 2>/dev/null || true
+    waydroid container stop 2>/dev/null || true
+    systemctl disable --now waydroid-container.service 2>/dev/null || true
+    firewall_trust remove
+
+    step "Removing the Android image"
+    rm -rf "$WAYDROID_DIR"
+
+    if [[ -n "${PKEXEC_UID:-}" ]]; then
+        local home
+        home="$(getent passwd "$PKEXEC_UID" | cut -d: -f6)"
+        if [[ -n "$home" && -d "$home" ]]; then
+            step "Removing your Android data"
+            rm -rf "${home}/.local/share/waydroid"
+            rm -f "${home}"/.local/share/applications/waydroid.*.desktop
+        fi
+    fi
+    step "Android is removed"
+}
+
+case "${1:-}" in
+    rendering) cmd_rendering ;;
+    install)   cmd_install ;;
+    upgrade)   cmd_upgrade ;;
+    remove)    cmd_remove ;;
+    *)
+        echo "usage: borshevik-waydroid rendering|install|upgrade|remove" >&2
+        exit 2
+        ;;
+esac

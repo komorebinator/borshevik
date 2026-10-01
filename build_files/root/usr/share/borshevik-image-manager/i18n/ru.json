@@ -65,5 +65,21 @@
   "promote_complete": "Образ помечен как stable",
   "uptime": "Время работы",
   "uptime_days": "д",
-  "report_issue": "Сообщить о проблеме"
+  "report_issue": "Сообщить о проблеме",
+  "tab_system": "Система",
+  "tab_android": "Android",
+  "android_intro": "Запускайте Android-приложения в окнах на рабочем столе. Установка скачает около 1 ГБ и добавит поддержку ARM-приложений и microG вместо сервисов Google. Приложения потом ставятся из категории Android в App Manager — среди них Aurora Store, через которую можно получить остальной Google Play.",
+  "android_software_rendering": "Здесь доступна только видеокарта NVIDIA. Android не может её использовать и будет рисовать программно, поэтому будет работать медленно.",
+  "android_install": "Установить Android",
+  "android_image_built": "Образ собран",
+  "android_auto_updates_title": "Автообновление Android",
+  "android_auto_updates_subtitle": "Обновлять образ Android ежедневно, никогда — по лимитному подключению",
+  "android_remove_title": "Удалить Android",
+  "android_remove_subtitle": "Удалит Android, его приложения и их данные",
+  "android_remove": "Удалить",
+  "android_remove_confirm_title": "Удалить Android?",
+  "android_remove_confirm_body": "Все Android-приложения и их данные будут удалены. Это нельзя отменить.",
+  "android_installing": "Установка Android",
+  "android_updating": "Обновление Android",
+  "android_removing": "Удаление Android"
 }

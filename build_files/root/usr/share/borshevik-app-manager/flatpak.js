@@ -4,6 +4,15 @@ function strip(s) {
   return (s ?? "").toString().replace(/\r/g, "").trim();
 }
 
+// An entry this version can install: a Flathub application id.
+export function isValid(entry) {
+  return typeof entry?.id === "string" && entry.id.trim() !== "";
+}
+
+export function displayName(entry) {
+  return String(entry?.id ?? "");
+}
+
 export function parseCustomList(text) {
   const out = [];
   for (const line of (text ?? "").split("\n")) {

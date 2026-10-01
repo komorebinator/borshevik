@@ -46,11 +46,11 @@ components:
         description: Installs the prebuilt kernel modules from @UBlueAkmodsNvidiaOpen together with the userspace driver, settings tool, CUDA and VA-API libraries (64- and 32-bit) from the negativo17 repository, at the version read from the akmods content itself, so modules and userspace always match. Runs no cleanup of its own; the base layer already did.
   - id: build-addons
     type: "@ShellScript"
-    description: Orchestrates the final layer — Hiddify, GNOME extensions, shell customizations, services, initramfs.
+    description: Orchestrates the final layer — Hiddify, waydroid_script, GNOME extensions, shell customizations, services, initramfs.
     src: build_files/scripts/build-addons.sh
     functions:
       - id: run
-        description: "The final layer's steps, in order: os-info, @HiddifyApp#installer, @GnomeExtensions#installer, @ShellCustomizations#apply-schemas and #apply-dconf — the latter after the extensions, since it enables whatever extensions are installed at that moment — @Services#enable-services, and rebuild-initramfs last."
+        description: "The final layer's steps, in order: os-info, @HiddifyApp#installer, @WaydroidApp#waydroid-script, @GnomeExtensions#installer, @ShellCustomizations#apply-schemas and #apply-dconf — the latter after the extensions, since it enables whatever extensions are installed at that moment — @Services#enable-services, and rebuild-initramfs last."
   - id: install-kernel
     type: "@ShellScript"
     description: "Temporary (added 2026-09): replaces the base image's kernel with the one @UBlueAkmods ships, holding Borshevik a few releases behind Fedora's newest. Exists only to avoid the amdgpu HDMI 4:2:0 regression in Fedora's 7.2 kernels, not as a kernel policy. Once Fedora ships a kernel carrying the fix, four things go together: this script, its call in build-base.sh, the akmods COPY in @ImageBuild#containerfile, and the coreos-stable tag on @UBlueAkmodsNvidiaOpen, which returns to main-<FEDORA_MAJOR_VERSION> so the NVIDIA modules again match the base image's own kernel; @UBlueAkmods then leaves the build altogether."
@@ -64,7 +64,7 @@ components:
     src: build_files/scripts/install-rpm-packages.sh
     functions:
       - id: run
-        description: "Layers the curated RPM set in one transaction; the list is in the script. Some of it is used by other parts of the image rather than directly by users: the compiler toolchain by @GnomeExtensions#own-builds, patchelf by @HiddifyApp#installer, gh by @ImageManagerApp#promote-to-stable, adw-gtk3-theme by the dark GTK3 default (@ShellCustomizations#defaults), and gsound by GSConnect, which recommends it for its sounds. GSConnect itself is not among the RPMs — it is built from source by @GnomeExtensions#own-builds — so nothing else would bring gsound in. mutter-devkit is what `gnome-shell --devkit` needs to run a nested shell in a window, so a GNOME Shell extension can be tried without logging out — on Wayland the session shell cannot be restarted in place, and a layered package would slow every image update, so it ships in the image instead."
+        description: "Layers the curated RPM set in one transaction; the list is in the script. Some of it is used by other parts of the image rather than directly by users: the compiler toolchain by @GnomeExtensions#own-builds, patchelf by @HiddifyApp#installer, gh by @ImageManagerApp#promote-to-stable, adw-gtk3-theme by the dark GTK3 default (@ShellCustomizations#defaults), waydroid by @WaydroidApp — shipped on every machine though only some install Android, since a package cannot be layered on demand without an image update — and gsound by GSConnect, which recommends it for its sounds. GSConnect itself is not among the RPMs — it is built from source by @GnomeExtensions#own-builds — so nothing else would bring gsound in. mutter-devkit is what `gnome-shell --devkit` needs to run a nested shell in a window, so a GNOME Shell extension can be tried without logging out — on Wayland the session shell cannot be restarted in place, and a layered package would slow every image update, so it ships in the image instead."
   - id: rebuild-initramfs
     type: "@ShellScript"
     description: Regenerates the initramfs so newly layered kernel modules and hooks are picked up.

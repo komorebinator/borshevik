@@ -65,5 +65,21 @@
   "promote_complete": "Պատկերը stable է նշված",
   "uptime": "Աշխատանքի ժամանակ",
   "uptime_days": "օր",
-  "report_issue": "Հաղորդել խնդրի մասին"
+  "report_issue": "Հաղորդել խնդրի մասին",
+  "tab_system": "Համակարգ",
+  "tab_android": "Android",
+  "android_intro": "Գործարկեք Android հավելվածները պատուհաններում՝ ձեր աշխատասեղանին։ Տեղադրումը կներբեռնի մոտ 1 ԳԲ և կավելացնի ARM հավելվածների աջակցություն ու microG՝ Google-ի ծառայությունների փոխարեն։ Հավելվածներն այնուհետև տեղադրվում են App Manager-ի Android բաժնից, որոնց թվում է Aurora Store-ը, որի միջոցով կարող եք ստանալ Google Play-ի մնացածը։",
+  "android_software_rendering": "Այստեղ հասանելի է միայն NVIDIA վիդեոքարտը։ Android-ը չի կարող այն օգտագործել և կնկարի ծրագրային եղանակով, ուստի կաշխատի դանդաղ։",
+  "android_install": "Տեղադրել Android",
+  "android_image_built": "Պատկերը կառուցվել է",
+  "android_auto_updates_title": "Android-ի ավտոմատ թարմացումներ",
+  "android_auto_updates_subtitle": "Թարմացնել Android-ի պատկերը ամեն օր, երբեք՝ սահմանափակ կապով",
+  "android_remove_title": "Հեռացնել Android",
+  "android_remove_subtitle": "Կհեռացնի Android-ը, նրա հավելվածներն ու դրանց տվյալները",
+  "android_remove": "Հեռացնել",
+  "android_remove_confirm_title": "Հեռացնե՞լ Android-ը",
+  "android_remove_confirm_body": "Բոլոր Android հավելվածներն ու դրանց տվյալները կհեռացվեն։ Սա հնարավոր չէ հետարկել։",
+  "android_installing": "Android-ի տեղադրում",
+  "android_updating": "Android-ի թարմացում",
+  "android_removing": "Android-ի հեռացում"
 }

@@ -41,6 +41,9 @@ export const TRANSLATIONS = {
     canceledNote: "Cancelled by user.",
     copyResultsBtn: "Copy report",
     reportCopiedToast: "Report copied",
+    installingModuleFmt: "Installing {module}…",
+    moduleFailedFmt: "{module} could not be installed. {details}",
+    startingAndroid: "Starting Android…",
 },
 
   ru: {
@@ -85,6 +88,9 @@ export const TRANSLATIONS = {
     canceledNote: "Отменено пользователем.",
     copyResultsBtn: "Скопировать отчет",
     reportCopiedToast: "Отчет скопирован",
+    installingModuleFmt: "Устанавливаем {module}…",
+    moduleFailedFmt: "Не удалось установить {module}. {details}",
+    startingAndroid: "Запускаем Android…",
 },
 
   uk: {
@@ -129,6 +135,9 @@ export const TRANSLATIONS = {
     canceledNote: "Скасовано користувачем.",
     copyResultsBtn: "Скопіювати звіт",
     reportCopiedToast: "Звіт скопійовано",
+    installingModuleFmt: "Встановлюємо {module}…",
+    moduleFailedFmt: "Не вдалося встановити {module}. {details}",
+    startingAndroid: "Запускаємо Android…",
 },
 
   hy: {
@@ -173,6 +182,9 @@ export const TRANSLATIONS = {
     canceledNote: "Չեղարկված օգտատիրոջ կողմից:",
     copyResultsBtn: "Պատճենել հաշվետվությունը",
     reportCopiedToast: "Հաշվետվությունը պատճենվեց",
+    installingModuleFmt: "Տեղադրում ենք {module}…",
+    moduleFailedFmt: "Չհաջողվեց տեղադրել {module}։ {details}",
+    startingAndroid: "Գործարկում ենք Android…",
 },
 
   be: {
@@ -217,6 +229,9 @@ export const TRANSLATIONS = {
     canceledNote: "Скасавана карыстальнікам.",
     copyResultsBtn: "Скапіяваць справаздачу",
     reportCopiedToast: "Справаздача скапіявана",
+    installingModuleFmt: "Усталёўваем {module}…",
+    moduleFailedFmt: "Не ўдалося ўсталяваць {module}. {details}",
+    startingAndroid: "Запускаем Android…",
 },
 
   ka: {
@@ -261,6 +276,9 @@ export const TRANSLATIONS = {
     canceledNote: "გაუქმებულია მომხმარებლის მიერ.",
     copyResultsBtn: "ანგარიშის კოპირება",
     reportCopiedToast: "ანგარიში კოპირდა",
+    installingModuleFmt: "ვაყენებთ {module}…",
+    moduleFailedFmt: "{module} ვერ დაყენდა. {details}",
+    startingAndroid: "ვუშვებთ Android-ს…",
 },
 };
 

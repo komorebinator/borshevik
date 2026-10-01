@@ -1,4 +1,4 @@
-description: "GJS/GTK4+libadwaita application for installing curated Flatpak apps from Flathub. It replaces GNOME Software's first-login app suggestions: it opens once on a user's first login (first-run) and is also available from the app grid. The curated list is not part of this repository — it is fetched at run time from https://borshevik.org/share/applications.json, which is maintained in the Borshevik website's repository (https://github.com/komorebinator/borshevik-landing), so changing what is offered needs no image build. One process per session through its GApplication id, org.borshevik.AppManager, but every activation opens a new window in it, so launching it again while it is open gives a second window."
+description: "GJS/GTK4+libadwaita application for installing a curated set of apps of several kinds — Flatpak apps from Flathub and Android apps into Waydroid (@WaydroidApp) — each kind installed by a service of its own. It replaces GNOME Software's first-login app suggestions: it opens once on a user's first login (first-run) and is also available from the app grid. The curated list is not part of this repository — it is fetched at run time from https://borshevik.org/share/applications-v2.json, whose format is described with the file (the Borshevik website's `applications-v2` component) and is maintained in the Borshevik website's repository (https://github.com/komorebinator/borshevik-landing), so changing what is offered needs no image build. One process per session through its GApplication id, org.borshevik.AppManager, but every activation opens a new window in it, so launching it again while it is open gives a second window."
 extends: "@Application"
 platform: GJS
 src: build_files/root/usr/share/borshevik-app-manager/main.js
@@ -11,17 +11,20 @@ components:
       - id: BUILD
         type: string
         description: Build number shown in the title as "(vN)"; bumped by hand for each release of the app.
+      - id: KINDS
+        type: "{ [type: 'flatpak'|'android']: service }"
+        description: "The kinds of app this version installs, each with the service that installs it, in the order a run installs them. The one list of known kinds: _loadCategories keeps only these types, and the run walks it twice — once to prepare, once to install. Every service has `isValid` (whether an entry carries what its kind needs), `displayName` (how an app is named in progress and the report) and `installApps`; a kind that needs a module before its apps can go in — android, and later AppImage or Windows — also has `isReady` and a `MODULE`, the name modules#run installs that module by. flatpak has neither: the image ships Flatpak with Flathub set up, so it is always ready. Adding a kind means adding a service with these, an entry here, and, when it has a module, that module's line in modules#run's table."
       - id: this._categories
-        type: Array<{name, applications, default}>
+        type: "Array<{name, default, apps: Array<{type: 'flatpak', id} | {type: 'android', id, name, icon, url, sha256}>}>"
         default: "[]"
-        description: The categories from the fetched list, as the main page offers them.
+        description: The categories from the fetched list, as the main page offers them — each holding only the apps of kinds this version installs.
       - id: this._categoryRows
         type: Array<{row, sw, cat}>
         default: "[]"
         description: Each rendered category with its switch — what _collectSelectedApps reads to know what the user chose.
       - id: this._cancelCtl
         type: "{cancelled: boolean, currentProc: Gio.Subprocess|null}"
-        description: Cancellation handle shared with flatpak-service#installApps — the window sets `cancelled` and kills `currentProc`; the service checks `cancelled` between apps.
+        description: Cancellation handle shared with flatpak-service#installApps and android-service#installApps — the window sets `cancelled` and kills `currentProc`; the services check `cancelled` between apps.
       - id: this._mode
         type: "'loading' | 'load_error' | 'main' | 'installing' | 'results'"
         description: The page shown. While it is 'installing' the window cannot be closed and its title buttons are hidden, so an install run cannot be abandoned half-way by closing the window.
@@ -40,7 +43,7 @@ components:
               visible: true
       - id: main-page
         type: "@View"
-        description: One row per category — its name, a strip of its apps' icons and a switch, on by default when the list marks the category `default` — followed by the Custom section, and Install below.
+        description: One row per category — its name, a strip of its apps' icons (_fetchAppIcon) and a switch, on by default when the list marks the category `default` — followed by the Custom section, and Install below.
         components:
           - id: custom-toggle
             type: "@Toggle"
@@ -52,7 +55,7 @@ components:
             description: Starts _onInstallClicked; with nothing selected it only says so.
       - id: installing-page
         type: "@View"
-        description: Which app is being installed or skipped, 'N of M', a progress bar, and Cancel — which stops after killing the app being installed, leaving the ones already done in place.
+        description: Which app is being installed or skipped, 'N of M', a progress bar, and Cancel — which stops after killing the app being installed, leaving the ones already done in place. During _prepareKinds it names the module being prepared — 'Installing Android' — with the latest line of its output under it and a pulsing bar; Cancel is unavailable then, as preparing runs as root where the user's session cannot stop it. A refused password takes the window from here straight back to the main page.
         visible: false
         states:
           - id: installing
@@ -61,16 +64,18 @@ components:
               visible: true
       - id: results-page
         type: "@View"
-        description: "The report of the run, cancelled or not: already installed, installed, and failed with each failure's message; Copy report, and OK back to the main page."
+        description: "The report of the run, cancelled or not: already installed, installed, and failed with each failure's message, Flatpak and Android apps together — when installing Android itself failed, each Android app is listed as failed with that error; Copy report, and OK back to the main page."
     functions:
       - id: _loadCategories
-        description: Fetches the curated list. Accepts only an array; each category's name is taken in the UI language, then English, then its plain `name`, and a category with no name or no apps is dropped. Anything else — a network error, bad JSON, nothing left — is shown on load-error-page.
+        description: Fetches the curated list. Accepts only an array; each category's name is taken in the UI language, then English, then its plain `name`. Within a category, an app is kept only when its `type` is in KINDS and the entry carries what that type needs (an `id` for flatpak; `id`, `url` and `sha256` for android); any other entry is dropped silently, so the list can gain a kind of app — AppImage, Windows — that only a newer App Manager installs without older ones failing on it. A category with no name or no app left is dropped. Anything else — a network error, bad JSON, nothing left — is shown on load-error-page.
       - id: _fetchAppIcon
-        description: An app's icon from Flathub's appstream API, cached under the user's cache directory so later runs fetch it only once.
+        description: An app's icon — for a Flatpak app from Flathub's appstream API, for an Android app from the entry's `icon` URL — cached under the user's cache directory so later runs fetch it only once.
       - id: _collectSelectedApps
-        description: The apps of every category switched on, plus the custom list when Custom is on, without duplicates and in the order first met.
+        description: The apps of every category switched on, plus the custom list as Flatpak apps when Custom is on, without duplicates — the same `type` and `id` counting once — and in the order first met.
+      - id: _prepareKinds
+        description: "The preparation stage: makes sure every kind with apps in the selection can install them, before any app is installed. Asks each such kind in KINDS order that has `isReady`; the ones ready need nothing, and when all are, the stage does nothing and asks nothing — a machine that already has Android goes straight to installing apps, without a password prompt. Otherwise it runs `pkexec borshevik-modules prepare` once with the MODULE of every kind not ready (modules#run), so there is one password prompt however many modules are missing. While it runs, the installing page names the module its latest `::module` line announced and shows the latest other line of output. A refusal — pkexec's 126 or 127 — means nothing was installed, and is reported to the caller. Otherwise each `::result` line records its kind as prepared or failed, and a kind that reported nothing, or whose isReady is still false afterwards, counts as failed. Runs at the click, so the password prompt comes before any app is installed rather than in the middle of the run."
       - id: _onInstallClicked
-        description: "Runs one install: reads what is already installed first (and carries on without that knowledge if it cannot), then flatpak-service#installApps, updating the installing page for each app. The progress callback drains the GLib main loop so the page repaints between apps. Ends on results-page."
+        description: Runs one install, in two stages. First _prepareKinds; if it reports a refusal, the run ends there — nothing installed, back on the main page with the selection as it was, no results page — since a user who cancels the password prompt has changed their mind about the run, not about one kind of app. Then, for each kind in KINDS order that has apps in the selection, its service's installApps — for flatpak after reading what is already installed (carrying on without that knowledge if it cannot). The apps of a kind whose preparation failed are not attempted and are reported with that failure's error; the other kinds still install. The installing page is updated for each app; the progress callback drains the GLib main loop so the page repaints between apps. Ends on results-page.
   - id: flatpak-service
     type: "@Singleton"
     description: Flatpak operations — parsing a pasted app-ID list, listing what is installed, and installing a selection.
@@ -82,6 +87,27 @@ components:
         description: The installed apps whose origin is the flathub remote — what the copy button puts on the clipboard.
       - id: installApps
         description: Installs the apps one at a time from flathub, non-interactively, skipping the ones already installed. Cancellation is checked before each app and again after the running install ends, so a cancel never starts another install. Returns what was installed, already installed and failed (with the error), and whether the run was cancelled.
+  - id: android-service
+    type: "@Singleton"
+    description: The android kind (window#KINDS) — whether Android, its module, is installed, and Android apps installed into it as the user, without privileges. Installing Android itself is modules#run's.
+    src: build_files/root/usr/share/borshevik-app-manager/android.js
+    functions:
+      - id: isReady
+        description: "Whether Android is installed: @WaydroidApp#control#stamp exists — the same test the Image Manager uses. Needs no privileges, so the preparation stage asks for none when it is true."
+      - id: installApps
+        description: Installs the apps one at a time, skipping those whose package `waydroid app list` already shows. Needs a running session for that, so starts one with `waydroid session start` when none runs and waits for it to report itself running, then stops it again at the end of the run if it was this run that started it. For each app, downloads its `url` into the user's cache, refuses the file unless its SHA-256 equals the entry's `sha256` — the list names a binary on someone else's server, and this is what makes it the one the list's maintainer checked — then `waydroid app install`. Cancellation is checked before each app. Returns the same shape as flatpak-service#installApps.
+    fields:
+      - id: MODULE
+        type: string
+        default: 'android'
+        description: The name modules#run installs Android by.
+  - id: modules
+    type: "@ShellScript"
+    src: build_files/root/usr/libexec/borshevik/borshevik-modules
+    description: "The one privileged entry point of window#_prepareKinds: installs every module a run needs under a single pkexec, so the user gives the password once however many kinds need preparing. It only dispatches — each module is installed by its own script, the one the Image Manager also runs, so a module installed from here is the same as one installed there."
+    functions:
+      - id: run
+        description: "`borshevik-modules prepare <module>...`. Refuses unless root. Accepts only module names from its own table, which maps each to the command that installs it — `android` to `/usr/libexec/borshevik/borshevik-waydroid install` (@WaydroidApp#control#install) — and rejects the whole call before doing anything when any argument is not in it: it runs as root on arguments that come from a user's process, so it must never take a path or a command from them. Then, for each module in the order given: prints `::module <name>`, runs its command with the output passed through, and prints `::result <name> ok` or `::result <name> failed <exit status>`. A failed module does not stop the ones after it. Exits 0 when every module succeeded and 1 otherwise — never 126 or 127, which pkexec returns when the password is refused, so the caller can tell the two apart."
   - id: net-service
     type: "@Singleton"
     description: HTTP GET over libsoup with a timeout — JSON or raw bytes; any non-2xx status is an error.

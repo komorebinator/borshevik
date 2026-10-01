@@ -65,5 +65,21 @@
   "promote_complete": "Вобраз пазначаны як stable",
   "uptime": "Час працы",
   "uptime_days": "д",
-  "report_issue": "Паведаміць пра праблему"
+  "report_issue": "Паведаміць пра праблему",
+  "tab_system": "Сістэма",
+  "tab_android": "Android",
+  "android_intro": "Запускайце Android-праграмы ў вокнах на працоўным стале. Усталяванне спампуе каля 1 ГБ і дадасць падтрымку ARM-праграм і microG замест сэрвісаў Google. Праграмы потым усталёўваюцца з катэгорыі Android у App Manager — сярод іх Aurora Store, праз якую можна атрымаць астатні Google Play.",
+  "android_software_rendering": "Тут даступная толькі відэакарта NVIDIA. Android не можа яе выкарыстоўваць і будзе маляваць праграмна, таму будзе працаваць павольна.",
+  "android_install": "Усталяваць Android",
+  "android_image_built": "Вобраз сабраны",
+  "android_auto_updates_title": "Аўтаабнаўленне Android",
+  "android_auto_updates_subtitle": "Абнаўляць вобраз Android штодня, ніколі — праз лімітнае злучэнне",
+  "android_remove_title": "Выдаліць Android",
+  "android_remove_subtitle": "Выдаліць Android, яго праграмы і іх даныя",
+  "android_remove": "Выдаліць",
+  "android_remove_confirm_title": "Выдаліць Android?",
+  "android_remove_confirm_body": "Усе Android-праграмы і іх даныя будуць выдалены. Гэта нельга адмяніць.",
+  "android_installing": "Усталяванне Android",
+  "android_updating": "Абнаўленне Android",
+  "android_removing": "Выдаленне Android"
 }

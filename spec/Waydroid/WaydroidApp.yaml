@@ -1,0 +1,72 @@
+description: "Waydroid as integrated in Borshevik — LineageOS in an LXC container sharing the host kernel, its apps shown as windows of the GNOME session. Only the waydroid RPM ships in the image, layered in the base layer by @ImageBuild#install-rpm-packages; nothing else of Android exists on a machine until a user installs it — from the Image Manager's Android tab (@ImageManagerApp#main-window#android-page), or by choosing an Android app in the App Manager (@AppManagerApp#android-service). Both run control#install and show its progress — the Image Manager directly, the App Manager through its module dispatcher (@AppManagerApp#modules); neither hands the user over to the other. Installing downloads the Android image, some 850 MB, into /var/lib/waydroid, and puts two things into it that most apps need on a PC: an ARM translation layer, because most apps on Google Play are built for ARM only, and microG in place of Google Play Services, so apps relying on push or Google APIs work without a Google account. Both are fetched on the user's machine by waydroid_script at install time and never built into the image: the translation layers — Google's libndk_translation from ChromeOS and Intel's libhoudini — are proprietary and may not be redistributed. The Android image is updated apart from the OS image, from Waydroid's own OTA channel, by its own timer; a Borshevik rollback does not roll it back. Whether Android is installed is decided everywhere — the Image Manager's tab, the App Manager, the update service — by control#stamp, not by /var/lib/waydroid existing, so a half-finished install or a Waydroid initialised by hand is never taken for a working one."
+src: build_files/root/usr/libexec/borshevik/borshevik-waydroid
+platform: bash / systemd
+extends: "@Software"
+components:
+  - id: control
+    type: "@ShellScript"
+    src: build_files/root/usr/libexec/borshevik/borshevik-waydroid
+    description: "Everything that changes Android on the machine, as one script with a subcommand per action, which both apps and the update service call directly: one thing to authorise, and one place where installing, updating and removing are kept consistent with each other, so the Image Manager and the App Manager cannot install Android two different ways. Run under pkexec by @ImageManagerApp#waydroid, as root by @AppManagerApp#modules — the App Manager's single privileged entry point, which installs every module a run needs under one password — and by update#service. Every subcommand but `rendering`, which only reads, refuses to run unless root. Prints what it is doing line by line, for whichever window shows its progress, and exits non-zero on any failure — but never with 126 or 127, the statuses pkexec returns when the password is refused, so a caller can tell a user who cancelled from an install that broke (@AppManagerApp#window#_prepareKinds acts on the difference, through @AppManagerApp#modules, which keeps to the same rule)."
+    fields:
+      - id: stamp
+        type: file /var/lib/borshevik/waydroid-installed, holding the Android version (e.g. 13) the translation layer and microG were installed for
+        description: The one meaning of 'Android is installed'. Written by install as its very last step and deleted by remove as its first, so its presence always means a finished install; readable by every user, which is how the Image Manager and the App Manager see it without privileges. The version inside is what upgrade compares against, because the translation layer and microG are each built for one Android version.
+    functions:
+      - id: rendering
+        description: "`borshevik-waydroid rendering`, run by any user. Prints `software` when every GPU render node in /dev/dri belongs to the NVIDIA driver, `hardware` otherwise. Waydroid gets no hardware acceleration from the proprietary NVIDIA driver, so on such a machine Android can only render in software and is slow; on a hybrid laptop Waydroid takes the integrated GPU and is fine. The one test for this: install acts on it, and the Image Manager's Android tab warns by it (@ImageManagerApp#main-window#android-page), so what the tab says and what install does cannot disagree. The App Manager does not warn — it is where a user picks apps, not where they look after the system."
+      - id: install
+        description: "`borshevik-waydroid install`. Initialises Waydroid afresh (`waydroid init -f`) with the VANILLA system image from the official OTA channel — VANILLA rather than GAPPS, since microG takes Google Play Services' place — so running it again over a broken or hand-made install starts clean. Puts waydroid0 into firewalld's trusted zone, permanently: Android takes its address and DNS from the dnsmasq Waydroid runs on that bridge, and the default zone blocks DHCP and DNS, which leaves Android without network. Enables and starts waydroid-container.service, which the image leaves disabled because started before an image exists it fails, and would show as a failed unit on every machine without Android (and fail @BorshevikWorkflow#image-checks). Through waydroid-script, for the Android version of the image just installed, installs the ARM translation chosen by the CPU's vendor in /proc/cpuinfo, with no question to the user — libhoudini, Intel's own, on GenuineIntel; libndk_translation, Google's from ChromeOS, on AuthenticAMD, where it is the one that works well, and on any other vendor — printing which it chose and why; and microG. When control#rendering says `software`, switches Android to software rendering, without which it shows nothing there. Enables update#timer — updates are on by default. Puts launcher#android-entry into /usr/local/share/applications, so Android appears in the app grid only once it is there to open. Writes control#stamp last."
+      - id: upgrade
+        description: "`borshevik-waydroid upgrade`. Brings the system and vendor images up to the OTA channel's newest with `waydroid upgrade`, which keeps Android's data and installed apps. When the image's Android version then differs from control#stamp's, installs the translation layer and microG again for the new version and rewrites the stamp — the old ones would not load. Does nothing, successfully, when control#stamp is absent."
+      - id: remove
+        description: "`borshevik-waydroid remove`. Deletes control#stamp first, so a removal that stops half-way is never taken for an install. Removes launcher#android-entry from /usr/local/share/applications. Disables update#timer and waydroid-container.service, stopping both, takes waydroid0 out of the trusted zone, and deletes /var/lib/waydroid — the images and everything installed into them. For the user who asked (PKEXEC_UID), also deletes their Android data, ~/.local/share/waydroid, and the app launchers Waydroid wrote for them, ~/.local/share/applications/waydroid.*.desktop; other users' homes are left alone."
+  - id: waydroid-script
+    type: "@ShellScript"
+    src: build_files/scripts/install-waydroid-script.sh
+    description: Puts casualsnek/waydroid_script into the image, which is what control#install and control#upgrade install the translation layer and microG with.
+    functions:
+      - id: run
+        description: Fetches waydroid_script at the commit pinned in the script into /usr/lib/borshevik/waydroid_script, with its Python requirements in a virtual environment beside it, so nothing is cloned or pip-installed on a user's machine and the version users run is the one that was tested. Pinned rather than following its main branch because it patches files into the Android image as root. The script holds no Android binaries itself; what it installs it downloads when run. Run at image build time from @ImageBuild#build-addons.
+  - id: update
+    type: "@Singleton"
+    description: Keeps the Android image current without anyone asking, as rpm-ostreed-automatic does for the OS image. Off in the image and switched on by control#install, since there is nothing to update before Android is installed; the Image Manager's Android tab turns it off and on again.
+    components:
+      - id: service
+        type: "@SystemdUnit"
+        src: build_files/root/usr/lib/systemd/system/borshevik-waydroid-update.service
+        unit_type: service
+        scope: system
+        triggers: update#timer
+        executes: /usr/libexec/borshevik/borshevik-waydroid upgrade
+        description: "Oneshot service, conditioned on control#stamp existing, so a timer left enabled without Android does nothing. Two ExecCondition checks keep it from running when it should not, so a skipped run is a condition, not a failure. The first is the one rpm-ostreed-automatic.service carries, word for word: NetworkManager's Metered property must be 2 or 4 (no, guessed no), so a metered or unknown connection never downloads an image of some 850 MB. The second skips while any user has a Waydroid session running, since upgrading restarts the container under them; the next firing tries again."
+      - id: timer
+        type: "@SystemdUnit"
+        src: build_files/root/usr/lib/systemd/system/borshevik-waydroid-update.timer
+        unit_type: timer
+        scope: system
+        triggers: daily with a randomised delay; Persistent, so a day missed while the machine was off is made up at the next boot
+        executes: ''
+        description: Fires update#service. Not enabled by the image (see control#install).
+  - id: launcher
+    type: "@Singleton"
+    description: "Android's place in the app grid. The waydroid package brings entries of its own that show from the moment the image is installed, and its main one, opened before Waydroid is set up, offers Waydroid's own setup — which would install neither the translation layer nor microG, write no control#stamp and enable no updates. So that entry is hidden, and Borshevik's Android entry exists only while Android is installed: a desktop entry cannot be shown conditionally, so control#install copies it into /usr/local/share/applications (/var/usrlocal on rpm-ostree, writable and on the default XDG data path) and control#remove deletes it. With no entry before installing, nothing in the grid leads anywhere but the two apps that install Android."
+    components:
+      - id: android-entry
+        type: "@ConfigFile"
+        src: build_files/root/usr/share/borshevik/waydroid/borshevik-android.desktop
+        description: The Android entry — named Android, opening Android's full interface with `waydroid show-full-ui`, which starts a session when none runs, with a Stop Android action (`waydroid session stop`) taken over from the package's hidden entry. Kept in the image only as the file control#install copies.
+      - id: hidden-package-entries
+        type: "@ConfigFile"
+        src: build_files/root/usr/share/applications/Waydroid.desktop
+          - build_files/root/usr/share/applications/Waydroid.desktop
+          - build_files/root/usr/share/applications/waydroid.market.desktop
+        description: The package's one visible entry, Waydroid.desktop, replaced under the same name with NoDisplay, keeping it out of the grid; its other entries (the market protocol handler and the APK installer) are NoDisplay in the package already. Copied over the package's file by the final layer's COPY, which runs after the base layer installed it.
+tests:
+  - id: static-checks
+    description: The scripts parse and the units and desktop entries are well-formed — what @BorshevikWorkflow#validate checks for the whole repository.
+    command: bash tests/validate.sh
+    expect: exits 0 and prints 'all checks pass'
+  - id: tried-by-the-author
+    description: "Manual, on a machine running an image that carries the change, since everything here acts on a real Waydroid: Android installed from the Image Manager's tab and from the App Manager's Android category, an ARM-only app from Aurora Store opening, an upgrade, Android removed and installed again. A virtual machine can try installing and removing, but not whether Android draws anything on real graphics."
+    command: "@BorshevikWorkflow#try_in_vm, then the author on their own machine (the `testing` step)"
+    expect: the author confirms Android installs, runs an ARM app, upgrades and removes cleanly; no failed units on a machine where Android is not installed
