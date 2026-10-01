@@ -1,7 +1,7 @@
-description: "Prebuilt kernel RPMs and kmod content, published by uBlue. Not an OS base image: its filesystem is copied into the base layer's build, where @ImageBuild#install-kernel takes the kernel from it. Borshevik uses the `coreos-stable` flavour — the stock Fedora kernel as Fedora CoreOS ships it, a few releases behind Fedora's newest. Needed only while @ImageBuild#install-kernel exists. External dependency — not built by this project."
+description: "Prebuilt kernel RPMs and kmod content, published by uBlue. Not an OS base image: its filesystem is copied into the base layer's build, where @ImageBuild#install-kernel takes the kernel from it. Borshevik takes it, temporarily, at a tag fixed to one kernel version of the `main` flavour — the stock Fedora kernel — held on the 7.1 series by @ImageBuild#containerfile#HELD_KERNEL, never at a rolling tag. Needed only while @ImageBuild#install-kernel exists. External dependency — not built by this project."
 registry: ghcr.io/ublue-os
 repository: https://github.com/ublue-os/akmods
 platform: OCI container image, published to ghcr.io/ublue-os
 extends: "@ContainerImage"
 tags:
-  - "coreos-stable-<FEDORA_MAJOR_VERSION> — e.g. coreos-stable-44; rolling, follows whatever kernel Fedora CoreOS currently ships"
+  - main-<FEDORA_MAJOR_VERSION>-<kernel version> — e.g. main-44-7.1.13-200.fc44; fixed to that one kernel and never moves, unlike the rolling main-<FEDORA_MAJOR_VERSION> and coreos-stable-<FEDORA_MAJOR_VERSION> tags, neither of which is used while the kernel is held

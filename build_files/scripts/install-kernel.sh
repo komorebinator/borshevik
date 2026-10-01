@@ -15,21 +15,26 @@ set -euo pipefail
 # longer demands force_yuv_pixel_format.
 #
 # TO REVERT: delete this script, its call in build-base.sh, the COPY of
-# ghcr.io/ublue-os/akmods in the Containerfile, and restore the
-# akmods-nvidia-open tag there to main-<FEDORA_MAJOR_VERSION>.
+# ghcr.io/ublue-os/akmods and the HELD_KERNEL ARGs in the Containerfile, and
+# restore the akmods-nvidia-open tag there to main-<FEDORA_MAJOR_VERSION>.
 # ###########################################################################
 
-# Replaces the kernel inherited from the base image with the one uBlue's akmods
-# cache ships for the coreos-stable flavour: the stock Fedora kernel as Fedora
-# CoreOS ships it, trailing Fedora's newest by a few releases.
+# Replaces the kernel inherited from the base image with a 7.1 kernel from
+# uBlue's akmods cache, at the tag pinned to HELD_KERNEL in the Containerfile:
+# the stock Fedora kernel, held on the last series without the regression.
 #
 # Why: taking Fedora's newest kernel unreviewed every night is how the amdgpu
 # HDMI regression in 7.2 reached users. Upstream commit 7e5760f084d0 made
 # YCbCr 4:2:0 conditional on a debugfs override, so a 4K TV whose 4K@60 exists
 # only as 4:2:0 gets RGB it cannot accept - no picture at all, no error logged.
-# Fixed upstream in 7.3 by rewrite, with no backport to 7.2.x.
+# Fixed upstream in 7.3 by rewrite, with no backport to 7.2.x (still none in
+# 7.2.8, checked 2026-10-01).
 #
-# The NVIDIA akmods image must be taken from this same flavour: its modules are
+# Pinned to one version, never a rolling tag: this first followed coreos-stable,
+# and when Fedora CoreOS moved to 7.2.5 the build quietly installed a 7.2 kernel
+# with the very regression this script exists for.
+#
+# The NVIDIA akmods image is taken at the same HELD_KERNEL tag: its modules are
 # built against one exact kernel version.
 
 SEARCH_DIR="/tmp/akmods-kernel"
