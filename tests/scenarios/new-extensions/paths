@@ -1,0 +1,12 @@
+# Files whose change means the new-extensions scenario must run: the service
+# that enables newly shipped extensions (@Services#extension-autoenable), how it
+# is switched on, the image's default enabled-extensions, and which extensions
+# the image ships and how they are installed.
+build_files/root/usr/libexec/borshevik/borshevik-enable-new-extensions.sh
+build_files/root/usr/lib/systemd/user/borshevik-enable-new-extensions.service
+build_files/root/usr/lib/systemd/user-preset/90-borshevik.preset
+build_files/scripts/enable-services.sh
+build_files/scripts/apply-dconf.sh
+build_files/scripts/install-gs-extensions.sh
+build_files/scripts/gs-extensions/**
+tests/scenarios/new-extensions/**

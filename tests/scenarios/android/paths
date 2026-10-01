@@ -1,0 +1,15 @@
+# Files whose change means the android scenario must run: Android (@WaydroidApp)
+# and the parts of the two apps the scenario actually exercises. The apps'
+# windows (window.js, android_page.js) are not here: nothing in a machine with
+# no one at it clicks through them, so changing them alone runs nothing useful.
+build_files/root/usr/libexec/borshevik/borshevik-waydroid
+build_files/root/usr/libexec/borshevik/borshevik-modules
+build_files/root/usr/lib/systemd/system/borshevik-waydroid-update.*
+build_files/root/usr/share/borshevik/waydroid/**
+build_files/root/usr/share/applications/Waydroid.desktop
+build_files/scripts/install-waydroid-script.sh
+# where the waydroid package is layered
+build_files/scripts/install-rpm-packages.sh
+build_files/root/usr/share/borshevik-app-manager/android.js
+build_files/root/usr/share/borshevik-image-manager/waydroid.js
+tests/scenarios/android/**

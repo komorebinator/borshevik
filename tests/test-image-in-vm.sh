@@ -6,9 +6,11 @@ set -euo pipefail
 
 usage() {
     echo "usage: $0 setup [image]          make the test machine's base disk (default image: :latest)" >&2
-    echo "       $0 run [--keep] [--new-extensions] [image]" >&2
-    echo "                                  try an image (default: :latest); --new-extensions" >&2
-    echo "                                  empties tester's extension lists first" >&2
+    echo "       $0 run [--keep] [--scenarios auto|all|none|<name>[,<name>...]] [image]" >&2
+    echo "                                  try an image (default: :latest); --scenarios picks" >&2
+    echo "                                  the tests/scenarios to run with the checks" >&2
+    echo "                                  (default auto: those whose paths this branch changes" >&2
+    echo "                                  against origin/main)" >&2
     exit 2
 }
 
@@ -87,7 +89,8 @@ PY
 
 guest_once() {
     ssh -i "$key" -p "$port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-        -o IdentitiesOnly=yes -o LogLevel=ERROR -o ConnectTimeout=5 root@127.0.0.1 "$@"
+        -o IdentitiesOnly=yes -o LogLevel=ERROR -o ConnectTimeout=5 -o ServerAliveInterval=30 \
+        root@127.0.0.1 "$@"
 }
 
 # Retries when ssh itself fails (255): the forwarded port resets a connection now and then
@@ -139,9 +142,10 @@ power_off() {
     wait "$qemu_pid" 2>/dev/null || true
 }
 
-screenshot() {
-    qmp screendump "{\"filename\": \"$dir/screen.ppm\"}" >/dev/null
-    python3 - "$dir/screen.ppm" "$dir/screen.png" <<'PY'
+screenshot() { # [name], default screen
+    local name="${1:-screen}"
+    qmp screendump "{\"filename\": \"$dir/$name.ppm\"}" >/dev/null
+    python3 - "$dir/$name.ppm" "$dir/$name.png" <<'PY'
 import struct, sys, zlib
 data = open(sys.argv[1], "rb").read()
 fields, pos = [], 0
@@ -160,19 +164,68 @@ png = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 2, 
     + chunk(b"IDAT", zlib.compress(rows, 6)) + chunk(b"IEND", b"")
 open(sys.argv[2], "wb").write(png)
 PY
-    rm -f "$dir/screen.ppm"
+    rm -f "$dir/$name.ppm"
+}
+
+# --- scenarios -----------------------------------------------------------------------
+
+scenarios_dir="$repo_root/tests/scenarios"
+
+all_scenarios() {
+    local d
+    for d in "$scenarios_dir"/*/; do
+        [[ -f "$d/guest.sh" ]] && basename "$d"
+    done
+}
+
+# The first file this branch changes against origin/main that a scenario's paths match.
+scenario_trigger() { # name
+    local specs=() line
+    while IFS= read -r line; do
+        line="${line%%#*}"; line="${line//[[:space:]]/}"
+        [[ -n "$line" ]] && specs+=(":(glob)$line")
+    done <"$scenarios_dir/$1/paths"
+    [[ "${#specs[@]}" -gt 0 ]] || return 0
+    git -C "$repo_root" diff --name-only origin/main...HEAD -- "${specs[@]}" | head -n1
+}
+
+# Prints the selected scenarios, one per line, and why each was picked on stderr.
+select_scenarios() { # auto | all | none | name[,name...]
+    local choice="$1" name file
+    case "$choice" in
+        none) return 0 ;;
+        all) all_scenarios ;;
+        auto)
+            git -C "$repo_root" fetch -q origin main || die "cannot fetch origin/main to pick scenarios"
+            for name in $(all_scenarios); do
+                file="$(scenario_trigger "$name")"
+                if [[ -n "$file" ]]; then
+                    echo "scenario $name: this branch changes $file" >&2
+                    echo "$name"
+                fi
+            done ;;
+        *)
+            for name in ${choice//,/ }; do
+                [[ -f "$scenarios_dir/$name/guest.sh" ]] || die "no scenario '$name' in tests/scenarios"
+                echo "$name"
+            done ;;
+    esac
 }
 
 cmd_run() {
-    local keep=0 new_extensions=0
+    local keep=0 scenarios_choice=auto
     while [[ "${1:-}" == --* ]]; do
         case "$1" in
             --keep) keep=1 ;;
-            --new-extensions) new_extensions=1 ;;
+            --scenarios) [[ -n "${2:-}" ]] || usage; scenarios_choice="$2"; shift ;;
             *) usage ;;
         esac
         shift
     done
+    # picked before the machine starts, so an unknown name costs nothing
+    local scenarios
+    scenarios="$(select_scenarios "$scenarios_choice")"
+    [[ -n "$scenarios" ]] || echo "no scenarios selected"
     local image="${1:-ghcr.io/komorebinator/borshevik:latest}"
     [[ -f "$base" ]] || die "no base disk; run: $0 setup"
     ensure_key
@@ -231,14 +284,14 @@ print(b.get("container-image-reference-digest", ""), b.get("container-image-refe
         sed -i "/^\[daemon\]/a AutomaticLoginEnable=true\nAutomaticLogin=tester\nInitialSetupEnable=false" "$conf"
         mkdir -p /etc/systemd/system/gdm.service.d
         printf "[Service]\nExecStartPre=/usr/bin/sleep 70\nTimeoutStartSec=150\n" >/etc/systemd/system/gdm.service.d/zz-test-late-login.conf'
-    if [[ "$new_extensions" -eq 1 ]]; then
-        # every shipped extension becomes new to tester: the service must enable all of them
-        guest 'h="$(getent passwd tester | cut -d: -f6)"
-            runuser -u tester -- env -u XDG_RUNTIME_DIR HOME="$h" dbus-run-session -- sh -c "
-            gsettings set org.gnome.shell enabled-extensions \"[]\"
-            gsettings set org.gnome.shell disabled-extensions \"[]\"
-            gsettings get org.gnome.shell enabled-extensions"' >"$dir/new-extensions.log" 2>&1
-    fi
+    # a scenario whose case is a state tester's login must start from sets it up now
+    local name
+    for name in $scenarios; do
+        [[ -f "$scenarios_dir/$name/prepare.sh" ]] || continue
+        echo "preparing scenario $name"
+        guest_once "bash -s" <"$scenarios_dir/$name/prepare.sh" >"$dir/prepare-$name.log" 2>&1 \
+            || die "scenario $name's prepare.sh failed; see $dir/prepare-$name.log"
+    done
     reboot_guest
 
     echo "waiting for tester's session"
@@ -259,6 +312,21 @@ print(b.get("container-image-reference-digest", ""), b.get("container-image-refe
     set -e
     screenshot
     echo "screenshot: $dir/screen.png"
+
+    # Scenarios come after the checks, so nothing they install or change can affect them.
+    local rc
+    for name in $scenarios; do
+        echo "== scenario $name" | tee -a "$dir/report.txt"
+        set +e
+        guest_once "bash -s" <"$scenarios_dir/$name/guest.sh" | tee -a "$dir/report.txt"
+        rc="${PIPESTATUS[0]}"
+        set -e
+        [[ "$rc" -eq 0 ]] || result=1
+        screenshot "screen-$name"
+        echo "screenshot: $dir/screen-$name.png"
+        mkdir -p "$dir/scenario-$name"
+        guest "tar -C /var/tmp/scenario-$name -cf - . 2>/dev/null" | tar -xf - -C "$dir/scenario-$name" 2>/dev/null || true
+    done
 
     if [[ "$keep" -eq 1 ]]; then
         echo "left running: ssh -o IdentitiesOnly=yes -i $key -p $port root@127.0.0.1"

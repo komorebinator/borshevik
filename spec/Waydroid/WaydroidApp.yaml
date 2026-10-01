@@ -61,12 +61,25 @@ components:
           - build_files/root/usr/share/applications/Waydroid.desktop
           - build_files/root/usr/share/applications/waydroid.market.desktop
         description: The package's one visible entry, Waydroid.desktop, replaced under the same name with NoDisplay, keeping it out of the grid; its other entries (the market protocol handler and the APK installer) are NoDisplay in the package already. Copied over the package's file by the final layer's COPY, which runs after the base layer installed it.
+  - id: vm-scenario
+    type: "@ShellScript"
+    src:
+      - tests/scenarios/android/guest.sh
+      - tests/scenarios/android/paths
+    description: "The android scenario of @BorshevikWorkflow#scenarios: everything about Android a machine with no one at it can show, run in the test machine whenever a change touches a file in its `paths` — this term's files, and the files of the two apps' Android parts. It exercises control as both apps call it, the App Manager's way (@AppManagerApp#modules, then @AppManagerApp#android-service under tester) and the Image Manager's (control directly), through a whole install, remove, install cycle, and runs the apps' own Android modules rather than copies of their logic. What it cannot show is how Android looks and responds: the machine's virtio GPU is no real graphics card, so the screenshot it leaves is evidence, not a verdict, and the apps' windows are not clicked through."
+    functions:
+      - id: run
+        description: "In order, each a check of its own: (1) a machine without Android — no control#stamp, update#timer and waydroid-container.service disabled and inactive, no Android entry in /usr/local/share/applications, the package's Waydroid entry hidden, waydroid-script's venv importing its requirements, control#rendering answering; (2) @AppManagerApp#modules#run refusing an unknown module with nothing done; (3) `borshevik-modules prepare android`, as the App Manager runs it after the password, printing `::module android` and `::result android ok` and exiting 0; (4) what install leaves — the stamp holding 11 or 13, the container service enabled and active, the timer enabled, waydroid0 in the trusted zone, the Android entry in place, the translation layer the CPU's vendor calls for registered as Android's native bridge, microG in the overlay; (5) the Image Manager's waydroid.js under gjs — isInstalled, readImage and checkForUpdate answering without error; (6) the App Manager's android.js under gjs as tester — the Android apps of the live applications-v2.json installed with installApps, which starts and stops the session itself, and a second call finding them already installed; (7) update#service skipped by its exec-condition while tester has a session running, and run or skipped by the metered condition, as the machine's connection decides, once none runs; (8) control#upgrade exiting 0 with the stamp still valid; (9) control#remove, as the Image Manager runs it for tester (PKEXEC_UID), leaving no stamp, no /var/lib/waydroid, no Android entry, the timer and container disabled, waydroid0 out of the trusted zone, and no ~/.local/share/waydroid for tester; (10) control#install run directly, as the Image Manager runs it, bringing everything in (4) back; (11) no failed system unit after all of it. Finally opens Android's full interface for tester, so the screenshot taken after the scenario shows what the virtual GPU made of it."
 tests:
   - id: static-checks
     description: The scripts parse and the units and desktop entries are well-formed — what @BorshevikWorkflow#validate checks for the whole repository.
     command: bash tests/validate.sh
     expect: exits 0 and prints 'all checks pass'
+  - id: in-vm
+    description: vm-scenario, run in the test machine on an image that carries the change — selected by itself whenever the change touches its paths.
+    command: tests/test-image-in-vm.sh run --scenarios android
+    expect: the report's `== scenario android` section ends with 'all checks pass'
   - id: tried-by-the-author
-    description: "Manual, on a machine running an image that carries the change, since everything here acts on a real Waydroid: Android installed from the Image Manager's tab and from the App Manager's Android category, an ARM-only app from Aurora Store opening, an upgrade, Android removed and installed again. A virtual machine can try installing and removing, but not whether Android draws anything on real graphics."
-    command: "@BorshevikWorkflow#try_in_vm, then the author on their own machine (the `testing` step)"
+    description: "Manual, on the author's own machine running an image that carries the change, for what in-vm cannot show: the two apps' windows clicked through — Install on the Android tab and in the App Manager, the password prompt, Remove — Android drawing on real graphics, and an ARM-only app from Aurora Store opening."
+    command: the author on their own machine (the `testing` step)
     expect: the author confirms Android installs, runs an ARM app, upgrades and removes cleanly; no failed units on a machine where Android is not installed

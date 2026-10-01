@@ -106,3 +106,20 @@ components:
         triggers: login to a regular GNOME session — WantedBy and After gnome-session@gnome.target, nothing else; enabled globally via user-preset
         executes: /usr/libexec/borshevik/borshevik-enable-new-extensions.sh
         description: "Oneshot service. Runs on every login rather than once, because the image can gain an extension with any update; the state file, not the unit, is what makes each extension a one-time offer. Started by gnome-session@gnome.target, which gnome-session reaches only after org.gnome.Shell@user.service — a Type=notify unit — reports GNOME Shell ready, so the shell is there to pick up the change to enabled-extensions; the greeter (gnome-session@gnome-login.target) and initial setup never start it. It must not want or be ordered on graphical-session.target: that target can come up before GNOME does — the watchdog timer's service wants it, and fires at once when a user logs in more than a minute after boot — and while any unit holding it is still running, gnome-session-init-worker finds a graphical session already active and aborts the login. Hooked there, this service did exactly that: GNOME Shell was not up yet, so each `gnome-extensions enable` D-Bus-activated the Extensions app, which failed to open a display, and the run took seconds instead of the watchdog's milliseconds."
+      - id: vm-scenario
+        type: "@ShellScript"
+        src:
+          - tests/scenarios/new-extensions/prepare.sh
+          - tests/scenarios/new-extensions/guest.sh
+          - tests/scenarios/new-extensions/paths
+        description: "The new-extensions scenario of @BorshevikWorkflow#scenarios, for the case this service exists for at its hardest: a user to whom every extension the image ships is new, so the service has to enable all of them at once in the running shell — the case in which enabling them one by one had left some enabled twice. Run whenever a change touches the service, its unit or preset, how units are enabled, the image's default enabled-extensions, or which extensions the image ships and how they are installed."
+        functions:
+          - id: prepare
+            description: "Before tester's login: sets tester's enabled-extensions and disabled-extensions to empty lists, through a private D-Bus session as tester, so the user-db overrides the image's default and every shipped extension is one this user has never been offered. tester has no offered-extensions state file at this point — it is created on a disk overlay that is new for every run, and the service writes the file only at the login — so nothing is recorded as offered either."
+          - id: run
+            description: "After the login and the checks — which in this run already show every extension ACTIVE, no extension error and the service's success (@BorshevikWorkflow#image-checks 7 to 9): every directory under /usr/share/gnome-shell/extensions is in tester's enabled-extensions, and none twice; disabled-extensions is still empty, so nothing the service did turned an extension off; the offered-extensions state file holds every shipped uuid exactly once; and the service's journal for this boot logs `enabled <uuid>` for each of them, showing that it was the service, in this login, that enabled them, rather than a default left over."
+tests:
+  - id: in-vm
+    description: The checks every test-machine run makes cover these units for an existing user (@BorshevikWorkflow#image-checks); extension-autoenable#vm-scenario adds the user to whom every extension is new, selected by itself whenever a change touches its paths.
+    command: tests/test-image-in-vm.sh run --scenarios new-extensions
+    expect: the checks pass, and the report's `== scenario new-extensions` section ends with 'all checks pass'
