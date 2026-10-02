@@ -69,7 +69,7 @@
   "tab_system": "System",
   "tab_android": "Android",
   "android_intro": "Run Android apps in windows on your desktop. Installing downloads about 1 GB and adds support for ARM apps and microG in place of Google services. Apps come afterwards from the App Manager's Android category — among them Aurora Store, through which you can get the rest of Google Play.",
-  "android_software_rendering": "Only an NVIDIA graphics card is available here. Android cannot use it and will draw in software, so it will be slow.",
+  "android_software_rendering": "Android cannot use this machine's graphics — an NVIDIA card, or a virtual machine's — and will draw in software, so it will be slow.",
   "android_install": "Install Android",
   "android_image_built": "Image built",
   "android_auto_updates_title": "Automatic Android updates",

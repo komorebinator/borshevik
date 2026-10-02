@@ -69,7 +69,7 @@
   "tab_system": "Система",
   "tab_android": "Android",
   "android_intro": "Запускайте Android-застосунки у вікнах на робочому столі. Встановлення завантажить близько 1 ГБ і додасть підтримку ARM-застосунків та microG замість сервісів Google. Застосунки потім встановлюються з категорії Android в App Manager — серед них Aurora Store, через яку можна отримати решту Google Play.",
-  "android_software_rendering": "Тут доступна лише відеокарта NVIDIA. Android не може її використовувати й малюватиме програмно, тому працюватиме повільно.",
+  "android_software_rendering": "Android не може використовувати графіку цієї машини — відеокарту NVIDIA чи графіку віртуальної машини — і малюватиме програмно, тому працюватиме повільно.",
   "android_install": "Встановити Android",
   "android_image_built": "Образ зібрано",
   "android_auto_updates_title": "Автооновлення Android",

@@ -69,7 +69,7 @@
   "tab_system": "სისტემა",
   "tab_android": "Android",
   "android_intro": "გაუშვით Android-აპები ფანჯრებში თქვენს სამუშაო მაგიდაზე. ინსტალაცია ჩამოტვირთავს დაახლოებით 1 გბ-ს და დაამატებს ARM-აპების მხარდაჭერას და microG-ს Google-ის სერვისების ნაცვლად. აპები შემდეგ App Manager-ის Android კატეგორიიდან ყენდება — მათ შორისაა Aurora Store, რომლითაც დანარჩენ Google Play-ს მიიღებთ.",
-  "android_software_rendering": "აქ მხოლოდ NVIDIA ვიდეობარათია ხელმისაწვდომი. Android მას ვერ გამოიყენებს და პროგრამულად დახატავს, ამიტომ ნელა იმუშავებს.",
+  "android_software_rendering": "Android ვერ იყენებს ამ მანქანის გრაფიკას — NVIDIA ვიდეობარათს ან ვირტუალური მანქანის გრაფიკას — და პროგრამულად დახატავს, ამიტომ ნელა იმუშავებს.",
   "android_install": "Android-ის დაყენება",
   "android_image_built": "ანაბეჭდი აწყობილია",
   "android_auto_updates_title": "Android-ის ავტომატური განახლება",

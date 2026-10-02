@@ -12,6 +12,7 @@ export const MODULE = "android";
 const STAMP = "/var/lib/borshevik/waydroid-installed";
 const SESSION_TIMEOUT_S = 120;
 const BOOT_TIMEOUT_S = 180;
+const INSTALL_TIMEOUT_S = 60;
 
 function strip(s) {
   return (s ?? "").toString().replace(/\r/g, "").trim();
@@ -100,6 +101,18 @@ async function installedPackages() {
     if (m) out.add(m[1]);
   }
   return out;
+}
+
+// The package list once it shows `id`, or as it stands after the timeout.
+async function waitForPackage(id) {
+  let present = new Set();
+  for (let waited = 0; waited < INSTALL_TIMEOUT_S; waited += 3) {
+    present = await installedPackages();
+    if (present.has(id))
+      return present;
+    await sleep(3000);
+  }
+  return present;
 }
 
 function apkCacheDir() {
@@ -192,9 +205,10 @@ export async function installApps(entries, onStep, cancelCtl = null) {
         cancelled = true;
         break;
       }
-      // `waydroid app install` does not always fail when Android refuses the
-      // package, so the package list is what says whether it went in.
-      present = await installedPackages();
+      // `waydroid app install` returns at once and Android installs the package
+      // a few seconds later — and it does not fail when Android refuses one — so
+      // the package list, read until it shows the package, says whether it went in.
+      present = await waitForPackage(entry.id);
       if (present.has(entry.id))
         installed.push(appId);
       else

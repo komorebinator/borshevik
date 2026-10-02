@@ -32,20 +32,23 @@ require_root() {
     fi
 }
 
-# `software` when every GPU render node belongs to the NVIDIA driver: Waydroid
-# gets no hardware acceleration from the proprietary driver and shows nothing
-# unless Android renders in software. On a hybrid laptop Waydroid takes the
-# integrated GPU, so that is `hardware`.
+# `software` when no GPU render node belongs to a driver Android can render on:
+# every one is the NVIDIA driver's - Waydroid gets no acceleration from the
+# proprietary driver - or virtio's - in a virtual machine without 3D, Android's
+# hardware rendering crashes SurfaceFlinger in a loop and it never boots. A
+# hybrid laptop has another render node beside NVIDIA's, which Waydroid takes,
+# so it is `hardware`. Every virtio GPU counts as unable, virgl 3D included:
+# slower there, but it works; telling them apart is left for later.
 cmd_rendering() {
     local node driver found=0
     for node in /sys/class/drm/renderD*; do
         [[ -e "$node/device/driver" ]] || continue
         found=1
         driver="$(basename "$(readlink -f "$node/device/driver")")"
-        if [[ "$driver" != "nvidia" ]]; then
-            echo hardware
-            return
-        fi
+        case "$driver" in
+            nvidia|virtio-pci|virtio_gpu) ;;
+            *) echo hardware; return ;;
+        esac
     done
     if [[ $found -eq 1 ]]; then echo software; else echo hardware; fi
 }
@@ -100,7 +103,7 @@ firewall_trust() { # add | remove
 }
 
 set_software_rendering() {
-    step "Only an NVIDIA GPU renders here: switching Android to software rendering"
+    step "No GPU here Android can render on: switching it to software rendering"
     python3 - "$WAYDROID_CFG" <<'EOF'
 import configparser, sys
 path = sys.argv[1]

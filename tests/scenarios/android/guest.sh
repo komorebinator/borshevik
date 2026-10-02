@@ -104,6 +104,16 @@ check_installed() { # suffix
     [[ "$bridge" == "$(expected_bridge)" ]] && ok "translation$s" \
         || fail "translation$s" "native bridge is '$bridge', expected $(expected_bridge) for this CPU"
 
+    # the machine's virtio GPU cannot render Android in hardware: install must
+    # have switched it to software rendering, or Android never boots here
+    if [[ "$("$CONTROL" rendering)" == software ]]; then
+        local gralloc egl
+        gralloc="$(sed -n 's/^ro\.hardware\.gralloc[[:space:]]*=[[:space:]]*//p' /var/lib/waydroid/waydroid.cfg | tail -n1)"
+        egl="$(sed -n 's/^ro\.hardware\.egl[[:space:]]*=[[:space:]]*//p' /var/lib/waydroid/waydroid.cfg | tail -n1)"
+        [[ "$gralloc" == default && "$egl" == swiftshader ]] && ok "software-rendering$s" \
+            || fail "software-rendering$s" "rendering is software, but waydroid.cfg has gralloc='$gralloc' egl='$egl'"
+    fi
+
     if find /var/lib/waydroid/overlay -iname '*GmsCore*' 2>/dev/null | grep -q .; then
         ok "microg$s"
     else
