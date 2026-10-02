@@ -68,8 +68,15 @@ EOF
     as_user timeout 1800 gjs -m "$file" 2>"$logs/$1.err"
 }
 
-json() { # json, python expression over d
-    python3 -c 'import json, sys; d = json.loads(sys.argv[1]); print(eval(sys.argv[2]))' "$1" "$2" 2>/dev/null
+# The result is the last line of the snippet's output that is a JSON object:
+# processes the modules start, such as `waydroid session start`, write to the
+# same output (`[gbinder] Service manager /dev/binder has appeared`).
+json() { # output, python expression over d
+    python3 -c '
+import json, sys
+line = [l for l in sys.argv[1].splitlines() if l.startswith("{")][-1]
+d = json.loads(line)
+print(eval(sys.argv[2]))' "$1" "$2" 2>/dev/null
 }
 
 expected_bridge() {
