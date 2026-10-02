@@ -3,6 +3,8 @@
 // borshevik-waydroid under pkexec, each run in a ProgressWindow.
 
 import Adw from 'gi://Adw';
+import Gdk from 'gi://Gdk';
+import GLib from 'gi://GLib';
 import Gtk from 'gi://Gtk';
 import Gio from 'gi://Gio';
 import GObject from 'gi://GObject';
@@ -11,11 +13,18 @@ import {
   CONTROL,
   UPDATE_TIMER,
   isInstalled,
+  busyOperation,
   readImage,
   checkForUpdate,
+  googleStatus,
   hasHardwareRendering
 } from './waydroid.js';
 import { runCommandCapture } from './util.js';
+
+// Google's page for registering a device it has not certified.
+const REGISTRATION_URL = 'https://www.google.com/android/uncertified';
+// How often the tab looks again while an operation started elsewhere runs.
+const BUSY_POLL_S = 3;
 
 export const AndroidPage = GObject.registerClass(
 class AndroidPage extends Adw.Bin {
@@ -27,21 +36,27 @@ class AndroidPage extends Adw.Bin {
 
     this._android = {
       installed: false,
+      busy: null,
       version: null,
-      imageTime: null,
+      systemTime: null,
+      vendorTime: null,
       check: { phase: 'idle', downloadSize: null, message: '' },
       autoUpdates: { enabled: null, busy: false },
-      softwareRendering: false
+      softwareRendering: false,
+      google: { phase: 'hidden', id: null, signedIn: null, message: '' }
     };
     this._autoUpdatesGuard = false;
+    this._busyPoll = 0;
 
     this._build();
+    this.connect('destroy', () => this._stopBusyPoll());
   }
 
-  // Called each time the tab is shown; reads the state the first time only,
-  // and again after every operation.
+  // Called each time the tab is shown; reads the state the first time, again
+  // after every operation, and whenever an operation started elsewhere has
+  // begun or ended since the tab last looked.
   activate() {
-    if (this._loaded)
+    if (this._loaded && busyOperation() === this._android.busy)
       return;
     this._loaded = true;
     this._refresh().catch((e) => logError(e, 'Android state refresh failed'));
@@ -93,6 +108,22 @@ class AndroidPage extends Adw.Bin {
       css_classes: ['warning']
     });
     box.append(this._renderingLabel);
+
+    // An operation started elsewhere is changing Android: say which, offer
+    // nothing until it ends.
+    this._busyBox = new Gtk.Box({
+      orientation: Gtk.Orientation.VERTICAL,
+      spacing: 12,
+      visible: false
+    });
+    this._busyBox.append(new Gtk.Spinner({ spinning: true, halign: Gtk.Align.CENTER, width_request: 32, height_request: 32 }));
+    this._busyLabel = new Gtk.Label({
+      halign: Gtk.Align.CENTER,
+      justify: Gtk.Justification.CENTER,
+      wrap: true
+    });
+    this._busyBox.append(this._busyLabel);
+    box.append(this._busyBox);
 
     // Not installed: what installing means, and Install.
     this._notInstalledBox = new Gtk.Box({
@@ -154,6 +185,57 @@ class AndroidPage extends Adw.Bin {
     autoGroup.add(this._autoUpdatesRow);
     this._installedBox.append(autoGroup);
 
+    // Google Play signs in only once this device's ID is registered with
+    // Google under the user's own account; the ID needs root to read.
+    const googleGroup = new Adw.PreferencesGroup({
+      title: i18n.t('android_google_title'),
+      description: i18n.t('android_google_description')
+    });
+    this._gsfRow = new Adw.ActionRow({ title: i18n.t('android_google_id_title') });
+    this._gsfRow.set_activatable(false);
+    this._gsfRow.set_subtitle_selectable(true);
+    this._gsfStack = new Gtk.Stack({ valign: Gtk.Align.CENTER });
+    const showIdButton = new Gtk.Button({
+      label: i18n.t('android_google_show_id'),
+      valign: Gtk.Align.CENTER
+    });
+    showIdButton.connect('clicked', () => this._showGsfId());
+    this._gsfStack.add_named(showIdButton, 'show');
+    const copyButton = new Gtk.Button({
+      icon_name: 'edit-copy-symbolic',
+      tooltip_text: i18n.t('android_google_copy'),
+      valign: Gtk.Align.CENTER,
+      css_classes: ['flat']
+    });
+    copyButton.connect('clicked', () => this._copyGsfId());
+    this._gsfStack.add_named(copyButton, 'copy');
+    this._gsfStack.add_named(new Gtk.Spinner({ spinning: true, valign: Gtk.Align.CENTER }), 'reading');
+    this._gsfRow.add_suffix(this._gsfStack);
+    googleGroup.add(this._gsfRow);
+    // Shown once the status is read: a Google account in Android is the one
+    // sign that registration went through.
+    this._signInRow = new Adw.ActionRow({ title: i18n.t('android_google_signin_title'), visible: false });
+    this._signInRow.set_activatable(false);
+    this._signInIcon = new Gtk.Image({ valign: Gtk.Align.CENTER });
+    this._signInRow.add_suffix(this._signInIcon);
+    googleGroup.add(this._signInRow);
+    const pageRow = new Adw.ActionRow({
+      title: i18n.t('android_google_open_page'),
+      subtitle: i18n.t('android_google_open_page_hint'),
+      tooltip_text: REGISTRATION_URL
+    });
+    pageRow.add_suffix(new Gtk.Image({ icon_name: 'adw-external-link-symbolic' }));
+    pageRow.set_activatable(true);
+    pageRow.connect('activated', () => {
+      try {
+        Gio.AppInfo.launch_default_for_uri(REGISTRATION_URL, null);
+      } catch (e) {
+        logError(e, 'Opening the registration page failed');
+      }
+    });
+    googleGroup.add(pageRow);
+    this._installedBox.append(googleGroup);
+
     const removeGroup = new Adw.PreferencesGroup();
     const removeRow = new Adw.ActionRow({
       title: i18n.t('android_remove_title'),
@@ -177,11 +259,18 @@ class AndroidPage extends Adw.Bin {
   }
 
   async _refresh() {
+    this._android.busy = busyOperation();
+    if (this._android.busy) {
+      this._applyState();
+      this._startBusyPoll();
+      return;
+    }
     const state = isInstalled();
     const image = state.installed ? readImage() : null;
     this._android.installed = state.installed;
     this._android.version = state.version;
-    this._android.imageTime = image?.imageTime ?? null;
+    this._android.systemTime = image?.systemBuilt ?? null;
+    this._android.vendorTime = image?.vendorBuilt ?? null;
     this._android.softwareRendering = !(await hasHardwareRendering());
     this._applyState();
 
@@ -195,15 +284,45 @@ class AndroidPage extends Adw.Bin {
     const i18n = this._app.i18n;
     const a = this._android;
 
-    this._notInstalledBox.visible = !a.installed;
-    this._installedBox.visible = a.installed;
-    this._renderingLabel.visible = a.softwareRendering;
+    this._busyBox.visible = a.busy !== null;
+    this._notInstalledBox.visible = a.busy === null && !a.installed;
+    this._installedBox.visible = a.busy === null && a.installed;
+    this._renderingLabel.visible = a.busy === null && a.softwareRendering;
+    if (a.busy) {
+      this._busyLabel.set_label(i18n.t({
+        install: 'android_busy_install',
+        upgrade: 'android_busy_upgrade',
+        remove: 'android_busy_remove'
+      }[a.busy]));
+      this._metaLabel.visible = false;
+      return;
+    }
 
     this._titleLabel.set_label(a.installed && a.version ? `Android ${a.version}` : 'Android');
-    this._metaLabel.set_label(a.installed && a.imageTime
-      ? `${i18n.t('android_image_built')}: ${a.imageTime}`
-      : '');
-    this._metaLabel.visible = this._metaLabel.get_label() !== '';
+    const meta = [];
+    if (a.installed && a.systemTime)
+      meta.push(`${i18n.t('android_system_built')}: ${a.systemTime}`);
+    if (a.installed && a.vendorTime)
+      meta.push(`${i18n.t('android_vendor_built')}: ${a.vendorTime}`);
+    this._metaLabel.set_label(meta.join('\n'));
+    this._metaLabel.visible = meta.length > 0;
+
+    const g = a.google;
+    this._gsfStack.set_visible_child_name(
+      g.phase === 'shown' ? 'copy' : g.phase === 'reading' ? 'reading' : 'show');
+    if (g.phase === 'shown')
+      this._gsfRow.set_subtitle(g.id);
+    else if (g.phase === 'not_yet')
+      this._gsfRow.set_subtitle(i18n.t('android_google_not_yet'));
+    else if (g.phase === 'error')
+      this._gsfRow.set_subtitle(g.message ? `${i18n.t('error')}: ${g.message}` : i18n.t('error'));
+    else
+      this._gsfRow.set_subtitle(i18n.t('android_google_id_hidden'));
+    this._signInRow.visible = g.phase === 'shown';
+    if (g.phase === 'shown') {
+      this._signInRow.set_subtitle(i18n.t(g.signedIn ? 'android_google_signed_in' : 'android_google_not_signed_in'));
+      this._signInIcon.set_from_icon_name(g.signedIn ? 'emblem-ok-symbolic' : 'dialog-information-symbolic');
+    }
 
     const phase = a.check.phase;
     if (phase === 'checking') {
@@ -246,6 +365,51 @@ class AndroidPage extends Adw.Bin {
     this._applyState();
   }
 
+  // While an operation started elsewhere runs, look again every few seconds;
+  // once it ends, read the whole state afresh.
+  _startBusyPoll() {
+    if (this._busyPoll)
+      return;
+    this._busyPoll = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, BUSY_POLL_S, () => {
+      if (busyOperation())
+        return GLib.SOURCE_CONTINUE;
+      this._busyPoll = 0;
+      this._refresh().catch((e) => logError(e, 'Android state refresh failed'));
+      return GLib.SOURCE_REMOVE;
+    });
+  }
+
+  _stopBusyPoll() {
+    if (this._busyPoll) {
+      GLib.source_remove(this._busyPoll);
+      this._busyPoll = 0;
+    }
+  }
+
+  async _showGsfId() {
+    this._android.google = { phase: 'reading', id: null, signedIn: null, message: '' };
+    this._applyState();
+    try {
+      const res = await googleStatus();
+      if (res.refused)
+        this._android.google = { phase: 'hidden', id: null, signedIn: null, message: '' };
+      else if (res.notYet)
+        this._android.google = { phase: 'not_yet', id: null, signedIn: null, message: '' };
+      else
+        this._android.google = { phase: 'shown', id: res.id, signedIn: res.signedIn, message: '' };
+    } catch (e) {
+      logError(e, 'Reading the Google status failed');
+      this._android.google = { phase: 'error', id: null, signedIn: null, message: e?.message ?? String(e) };
+    }
+    this._applyState();
+  }
+
+  _copyGsfId() {
+    const id = this._android.google.id;
+    if (id)
+      (this.get_display() ?? Gdk.Display.get_default()).get_clipboard().set_text(id);
+  }
+
   async _onPrimaryAction() {
     if (this._android.check.phase === 'available')
       return this._run('upgrade', this._app.i18n.t('android_updating'));
@@ -276,6 +440,8 @@ class AndroidPage extends Adw.Bin {
       withAuthRetry: false
     });
     this._android.check = { phase: 'idle', downloadSize: null, message: '' };
+    // Every install brings a new ID; one shown before would be stale.
+    this._android.google = { phase: 'hidden', id: null, signedIn: null, message: '' };
     await this._refresh();
   }
 

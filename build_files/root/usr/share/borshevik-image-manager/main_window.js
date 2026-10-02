@@ -18,6 +18,7 @@ import { AndroidPage } from './android_page.js';
 import { readOsRelease, readUptimeSeconds, formatUptime, pickLogoCandidates, firstExistingPath, requestRebootInteractive, isAuthorizationError, runCommandCapture } from './util.js';
 
 const ISSUE_NEW_URL = 'https://github.com/komorebinator/borshevik/issues/new';
+const DEFAULT_HEIGHT = 500;
 
 export const MainWindow = GObject.registerClass(
 class MainWindow extends Adw.ApplicationWindow {
@@ -26,7 +27,7 @@ class MainWindow extends Adw.ApplicationWindow {
       application: app,
       title: app.i18n.t('app_name'),
       default_width: 580,
-      default_height: 500
+      default_height: DEFAULT_HEIGHT
     });
 
     this._app = app;
@@ -104,7 +105,11 @@ class MainWindow extends Adw.ApplicationWindow {
     this._app.add_action(actionAbout);
 
     // Two tabs: the OS image and Android. Busy operations use a separate window.
-    this._stack = new Adw.ViewStack();
+    // Not vertically homogeneous: each tab is as tall as its own content, and
+    // switching gives the window back its default height, which GTK raises to
+    // whatever the shown tab needs — so the System tab is never left stretched
+    // to the Android tab's height.
+    this._stack = new Adw.ViewStack({ vhomogeneous: false });
     this._stack.add_titled_with_icon(this._buildMainView(), 'system',
       i18n.t('tab_system'), 'computer-symbolic');
 
@@ -112,6 +117,7 @@ class MainWindow extends Adw.ApplicationWindow {
     this._stack.add_titled_with_icon(this._androidPage, 'android',
       i18n.t('tab_android'), 'phone-symbolic');
     this._stack.connect('notify::visible-child-name', () => {
+      this.set_default_size(this.get_width(), DEFAULT_HEIGHT);
       if (this._stack.get_visible_child_name() === 'android')
         this._androidPage.activate();
     });

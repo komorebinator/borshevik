@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Puts casualsnek/waydroid_script into the image, with its Python requirements
 # in a virtual environment beside it. borshevik-waydroid runs it as root to
-# install the ARM translation layer and microG into Android — at a pinned
+# install the ARM translation layer into Android — at a pinned
 # commit, so the version users run is the one that was tested, and nothing is
 # cloned or pip-installed on a user's machine. The script holds no Android
 # binaries itself; what it installs it downloads when run.

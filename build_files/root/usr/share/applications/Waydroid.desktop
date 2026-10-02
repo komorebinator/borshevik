@@ -1,6 +1,6 @@
 [Desktop Entry]
 # Replaces the waydroid package's entry. Hidden: before Android is installed it
-# would offer Waydroid's own setup, without the translation layer or microG.
+# would offer Waydroid's own setup, without the translation layer.
 # Borshevik's Android entry is put in place by `borshevik-waydroid install`.
 Type=Application
 Name=Waydroid

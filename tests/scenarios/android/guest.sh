@@ -18,6 +18,9 @@ ENTRY=/usr/local/share/applications/borshevik-android.desktop
 TIMER=borshevik-waydroid-update.timer
 SERVICE=borshevik-waydroid-update.service
 CONTAINER=waydroid-container.service
+CONFIG=/usr/share/borshevik/waydroid/config.json
+CHANNEL=file:///var/lib/borshevik/waydroid-ota
+BUSY=/run/borshevik/waydroid-busy
 logs=/var/tmp/scenario-android
 mkdir -p "$logs"
 
@@ -121,11 +124,49 @@ check_installed() { # suffix
             || fail "software-rendering$s" "rendering is software, but waydroid.cfg has gralloc='$gralloc' egl='$egl'"
     fi
 
-    if find /var/lib/waydroid/overlay -iname '*GmsCore*' 2>/dev/null | grep -q .; then
-        ok "microg$s"
+    if find /var/lib/waydroid/overlay -iname '*GmsCore*' -o -iname '*Phonesky*' 2>/dev/null | grep -q .; then
+        fail "no-microg$s" "microG is in /var/lib/waydroid/overlay"
     else
-        fail "microg$s" "no GmsCore in /var/lib/waydroid/overlay"
+        ok "no-microg$s"
     fi
+
+    # waydroid.cfg follows Borshevik's channel and records the approved pair
+    local problems
+    problems="$(python3 - "$CONFIG" "$CHANNEL" <<'EOF'
+import configparser, json, sys
+images = json.load(open(sys.argv[1]))["images"]
+channel = sys.argv[2]
+cfg = configparser.ConfigParser()
+cfg.read("/var/lib/waydroid/waydroid.cfg")
+w = cfg["waydroid"]
+want = {
+    "system_ota": f"{channel}/system/lineage/waydroid_x86_64/{images['system']['romtype']}.json",
+    "vendor_ota": f"{channel}/vendor/waydroid_x86_64/{images['vendor']['romtype']}.json",
+    "system_datetime": str(images["system"]["datetime"]),
+    "vendor_datetime": str(images["vendor"]["datetime"]),
+}
+print("; ".join(f"{k} is {w.get(k)!r}, not {v!r}" for k, v in want.items() if w.get(k) != v))
+EOF
+)"
+    [[ -z "$problems" ]] && ok "approved-images$s" || fail "approved-images$s" "$problems"
+
+    # config.json's properties in waydroid.cfg, from which Waydroid builds
+    # Android's when a session starts
+    problems=""
+    while IFS='=' read -r key value; do
+        grep -Eqx "${key//./\\.}[[:space:]]*=[[:space:]]*${value}" /var/lib/waydroid/waydroid.cfg \
+            || problems+="${key}=${value} not in waydroid.cfg; "
+    done < <(config_properties)
+    [[ -z "$problems" ]] && ok "properties$s" || fail "properties$s" "$problems"
+
+    [[ -f /var/lib/waydroid/overlay/system/etc/init/borshevik.rc && -f /var/lib/waydroid/overlay/system/etc/borshevik-defaults.sh ]] \
+        && ok "first-boot$s" || fail "first-boot$s" "borshevik.rc or borshevik-defaults.sh missing from the overlay"
+
+    [[ -s "$BUSY" ]] && fail "not-busy$s" "$BUSY still holds '$(cat "$BUSY")'" || ok "not-busy$s"
+}
+
+config_properties() {
+    python3 -c 'import json, sys; [print(f"{k}={v}") for k, v in json.load(open(sys.argv[1]))["properties"].items()]' "$CONFIG"
 }
 
 # --- 1. a machine without Android -------------------------------------------
@@ -179,19 +220,27 @@ async function main() {
     const hardware = await w.hasHardwareRendering();
     return { s, image, update, hardware };
 }")"
-if [[ "$(json "$res" "d.get('s', {}).get('installed') is True and d['s']['version'] == open('$STAMP').read().strip() and (d['image'] or {}).get('systemTime', 0) > 0 and isinstance(d['update'].get('available'), bool) and isinstance(d['hardware'], bool)")" == True ]]; then
-    ok "image-manager-js (update available: $(json "$res" "d['update']['available']"))"
+if [[ "$(json "$res" "d.get('s', {}).get('installed') is True and d['s']['version'] == open('$STAMP').read().strip() and (d['image'] or {}).get('systemTime', 0) > 0 and (d['image'] or {}).get('vendorTime', 0) > 0 and d['update'].get('available') is False and isinstance(d['hardware'], bool)")" == True ]]; then
+    ok image-manager-js
 else
     fail image-manager-js "${res:-no output} $(head -c 300 "$logs/image-manager.err")"
 fi
 
 # --- 6. the App Manager's android.js, as tester -------------------------------
+# An entry of its own rather than the live list's, which may hold no Android
+# app: F-Droid's client, pinned. F-Droid moves old builds to its archive after
+# a while; then pin the current one (its suggestedVersionCode, from
+# https://f-droid.org/api/v1/packages/org.fdroid.fdroid).
 res="$(gjs_as_user app-manager "
-import { fetchJson } from 'file:///usr/share/borshevik-app-manager/net.js';
 import * as a from 'file:///usr/share/borshevik-app-manager/android.js';
 async function main() {
-    const list = await fetchJson('https://borshevik.org/share/applications-v2.json');
-    const apps = list.flatMap((c) => c.apps ?? []).filter((e) => e?.type === 'android' && a.isValid(e));
+    const apps = [{
+        type: 'android',
+        id: 'org.fdroid.fdroid',
+        name: 'F-Droid',
+        url: 'https://f-droid.org/repo/org.fdroid.fdroid_1023052.apk',
+        sha256: '985f5181d48bb6bafd54083a048b391271e0ab28385881cc41294fb01a222762'
+    }].filter((e) => a.isValid(e));
     const first = await a.installApps(apps, () => {}, null);
     const second = await a.installApps(apps, () => {}, null);
     return { ids: apps.map((e) => e.id), ready: a.isReady(), first, second };
@@ -208,6 +257,61 @@ else
 fi
 session_running && fail app-manager-session "the session android.js started is still running" \
     || ok app-manager-session
+
+# While a session runs: the GAPPS image's Google packages, and the ID to
+# register the device with, once Android has had time to check in with Google.
+android_session_checks() {
+    local packages missing="" id rc
+    for _ in $(seq 60); do
+        [[ "$(as_user waydroid prop get sys.boot_completed 2>/dev/null)" == 1 ]] && break
+        sleep 3
+    done
+    local problems="" key value got
+    while IFS='=' read -r key value; do
+        got="$(as_user waydroid prop get "$key" 2>/dev/null)"
+        [[ "$got" == "$value" ]] || problems+="$key is '$got', not '$value'; "
+    done < <(config_properties)
+    [[ -z "$problems" ]] && ok android-properties || fail android-properties "$problems"
+
+    # the first-boot service applies config.json's android_settings once
+    for _ in $(seq 20); do
+        [[ "$(as_user waydroid prop get persist.borshevik.defaults 2>/dev/null)" == 1 ]] && break
+        sleep 3
+    done
+    problems=""
+    while read -r namespace key value; do
+        got="$(lxc-attach -P /var/lib/waydroid/lxc -n waydroid --clear-env -v PATH=/system/bin:/system/xbin \
+            -- /system/bin/settings get "$namespace" "$key" 2>/dev/null | tr -d '\r')"
+        [[ "$got" == "$value" ]] || problems+="$namespace $key is '$got', not '$value'; "
+    done < <(python3 -c 'import json, sys
+for ns, kv in json.load(open(sys.argv[1])).get("android_settings", {}).items():
+    for k, v in kv.items(): print(ns, k, v)' "$CONFIG")
+    [[ -z "$problems" ]] && ok android-settings || fail android-settings "$problems"
+
+    # every package, not `waydroid app list`, which shows only those with a
+    # launcher, and Google Play Services has none
+    packages="$(lxc-attach -P /var/lib/waydroid/lxc -n waydroid --clear-env -v PATH=/system/bin:/system/xbin \
+        -- /system/bin/pm list packages 2>/dev/null | tr -d '\r')"
+    for p in com.google.android.gms com.google.android.gsf com.android.vending; do
+        grep -qx "package:$p" <<<"$packages" || missing+="$p "
+    done
+    [[ -z "$missing" ]] && ok google-packages || fail google-packages "not in Android: $missing"
+
+    local status
+    for _ in $(seq 20); do
+        status="$(env PKEXEC_UID="$uid" "$CONTROL" google 2>"$logs/google.err")"; rc=$?
+        [[ "$rc" -eq 3 ]] || break
+        sleep 6
+    done
+    id="$(sed -n 's/^android_id=//p' <<<"$status")"
+    if [[ "$rc" -eq 0 && "$id" =~ ^[0-9]+$ ]] && grep -qx 'google_account=no' <<<"$status"; then
+        ok "google ($id, no account)"
+    elif [[ "$rc" -eq 3 ]]; then
+        ok "google (not checked in with Google yet)"
+    else
+        fail google "exit $rc, printed '$status': $(head -c 300 "$logs/google.err")"
+    fi
+}
 
 # --- 7. the update service's conditions ---------------------------------------
 # Each ExecCondition of the unit is run on its own, so the session condition is
@@ -227,6 +331,7 @@ if [[ "${#conditions[@]}" -eq 2 ]]; then
     if wait_session 180; then
         eval "${conditions[1]}" && fail update-session-skip "the condition lets an upgrade run during a session" \
             || ok update-session-skip
+        android_session_checks
     else
         fail update-session-skip "no session after three minutes: $(tail -n 3 "$logs/session.log" | tr '\n' ' ')"
     fi
@@ -249,6 +354,19 @@ else
 fi
 
 # --- 8. upgrade ------------------------------------------------------------------
+# refused while another operation holds the busy lock, having changed nothing
+cfg_before="$(sha256sum /var/lib/waydroid/waydroid.cfg)"
+flock "$BUSY" sleep 60 &
+holder=$!
+sleep 2
+logged upgrade-busy "$CONTROL" upgrade; rc=$?
+kill "$holder" 2>/dev/null; wait "$holder" 2>/dev/null
+if [[ "$rc" -eq 4 && "$(sha256sum /var/lib/waydroid/waydroid.cfg)" == "$cfg_before" && -f "$STAMP" ]]; then
+    ok upgrade-busy
+else
+    fail upgrade-busy "exit $rc (expected 4), waydroid.cfg $([[ "$(sha256sum /var/lib/waydroid/waydroid.cfg)" == "$cfg_before" ]] && echo unchanged || echo changed): $(tail_of upgrade-busy)"
+fi
+
 logged upgrade "$CONTROL" upgrade; rc=$?
 version="$(cat "$STAMP" 2>/dev/null)"
 if [[ "$rc" -eq 0 && "$version" =~ ^(11|13)$ ]]; then
@@ -257,12 +375,25 @@ else
     fail upgrade "exit $rc, stamp '$version': $(tail_of upgrade)"
 fi
 
+# as on a machine installed from another channel: a vendor build other than
+# the approved one recorded; upgrade must bring the approved one back
+approved_vendor="$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["images"]["vendor"]["datetime"])' "$CONFIG")"
+sed -i 's/^vendor_datetime = .*/vendor_datetime = 1790542319/' /var/lib/waydroid/waydroid.cfg
+logged upgrade-back "$CONTROL" upgrade; rc=$?
+recorded="$(sed -n 's/^vendor_datetime = //p' /var/lib/waydroid/waydroid.cfg)"
+if [[ "$rc" -eq 0 && "$recorded" == "$approved_vendor" ]] && grep -q "vendor image is not the approved one" "$logs/upgrade-back.log"; then
+    ok upgrade-to-approved
+else
+    fail upgrade-to-approved "exit $rc, vendor_datetime '$recorded', approved $approved_vendor: $(tail_of upgrade-back)"
+fi
+
 # --- 9. remove as the Image Manager does, for tester ------------------------------
 logged remove env PKEXEC_UID="$uid" "$CONTROL" remove; rc=$?
 problems=""
 [[ "$rc" -eq 0 ]] || problems+="exit $rc: $(tail_of remove); "
 [[ -e "$STAMP" ]] && problems+="stamp left; "
 [[ -e /var/lib/waydroid ]] && problems+="/var/lib/waydroid left; "
+[[ -e /var/lib/borshevik/waydroid-ota ]] && problems+="/var/lib/borshevik/waydroid-ota left; "
 [[ -e "$ENTRY" ]] && problems+="$ENTRY left; "
 [[ "$(systemctl is-enabled "$TIMER" 2>&1)" == disabled ]] || problems+="$TIMER still $(systemctl is-enabled "$TIMER" 2>&1); "
 [[ "$(systemctl is-enabled "$CONTAINER" 2>&1)" == disabled ]] || problems+="$CONTAINER still $(systemctl is-enabled "$CONTAINER" 2>&1); "
