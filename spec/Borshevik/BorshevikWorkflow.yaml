@@ -40,7 +40,7 @@ steps:
     when: local commits carry the change and are not on the remote
     operation: "@Git#push(branch=experimental)"
   - id: on_experimental
-    description: The change is on experimental but no image has been built from it.
+    description: The change is on experimental but no image has been built from it. The build takes from a few minutes to most of an hour; when it ends, @BorshevikWorkflow#notify_contributor with its result.
     when: experimental carries the change and no image built from experimental does
     operation: "@GitHub#run_workflow(workflow=<build-base.yml or build-borshevik.yml, by the layer the change touches>, ref=experimental)"
   - id: in_vm
@@ -56,7 +56,7 @@ steps:
     when: an open pull request into main carries the change
     operation: "@GitHub#merge_pull_request(strategy=merge)"
   - id: on_main
-    description: "The change is on main and waits for a build. The schedule does it daily at 10:00 UTC; running it by hand does not have to wait."
+    description: The change is on main and waits for a build. The schedule does it daily at 10:00 UTC; running it by hand does not have to wait. When a build run by hand ends, @BorshevikWorkflow#notify_contributor with its result.
     when: main carries the change and no image built from main does
     operation: "@GitHub#run_workflow(workflow=<build-base.yml or build-borshevik.yml, by the layer the change touches>)"
   - id: built_from_main
@@ -64,11 +64,11 @@ steps:
     when: an image built from main carrying the change is on `:latest`, and `:stable` does not carry the change
     operation: "@GitHub#run_workflow(workflow=promote-image-to-stable.yml, ref=main, inputs=variant=<variant> digest=<digest>)"
   - id: on_stable
-    description: The change reaches users through `:stable`. What follows only concerns fresh installs.
+    description: The change reaches users through `:stable`. What follows only concerns fresh installs. When the ISO build ends, @BorshevikWorkflow#notify_contributor with its result.
     when: "`:stable` resolves to a digest that carries the change, and no ISO carrying it is downloadable"
     operation: "@GitHub#run_workflow(workflow=build-iso.yml, ref=main)"
   - id: iso_built
-    description: "Installer media carrying the change exist as the artifacts of one build-iso run, under file names no other run shares. They are not tried here, where they are: GitHub serves artifacts to the author's machine at a few hundred KiB/s, hours per image, while borshevik.org serves the same files about twenty times faster. So they go to the server first, where nothing links to them yet, and are tried from there."
+    description: "Installer media carrying the change exist as the artifacts of one build-iso run, under file names no other run shares. They are not tried here, where they are: GitHub serves artifacts to the author's machine at a few hundred KiB/s, hours per image, while borshevik.org serves the same files about twenty times faster. So they go to the server first, where nothing links to them yet, and are tried from there. When the upload ends, @BorshevikWorkflow#notify_contributor with its result."
     when: a build-iso run produced media carrying the change, and publish-iso.yml has not yet succeeded for it
     operation: "@GitHub#run_workflow(workflow=publish-iso.yml, ref=main, inputs=run_id=<run>)"
   - id: iso_uploaded
@@ -197,9 +197,11 @@ recipes:
     description: Runs the newest `:latest` in a throwaway virtual machine and reports whether it passed
     instructions:
       - "If @BorshevikWorkflow#test-image-in-vm has no base disk yet, tell the author that making one asks once for their admin password and takes some twenty minutes, then run `tests/test-image-in-vm.sh setup` on the host (through `flatpak-spawn --host` when the shell is sandboxed)"
-      - Run `tests/test-image-in-vm.sh run` on the host from the branch the image was built from, in the background — a run takes around ten minutes, and longer, with downloads inside the machine, when scenarios are selected — and read its report when it ends. Leave scenario selection on `auto`, so the scenarios run are the ones this change touches; say which ran and why, as the run prints it
+      - "Run `tests/test-image-in-vm.sh run` on the host from the branch the image was built from, as a transient user service of its own — `systemd-run --user --collect --unit=borshevik-vm-test -p WorkingDirectory=<repository root> bash -c 'bash tests/test-image-in-vm.sh run > ~/.cache/borshevik-vm/last-run.log 2>&1; echo \"vm-run exit $?\" >> ~/.cache/borshevik-vm/last-run.log'` (through `flatpak-spawn --host` when the shell is sandboxed) — rather than as a background command of the session that starts it: a run takes around ten minutes, and an hour or more, with downloads inside the machine, when scenarios are selected, which outlasts the time a session's background command is allowed, and one stopped half-way leaves the machine's disk behind. The service gets the session's SSH agent from the user manager, so `auto` selection can fetch origin from it. Leave scenario selection on `auto`, so the scenarios run are the ones this change touches; say which ran and why, as the run prints it"
+      - "Follow last-run.log while the run goes, not only once it ends: report each scenario as it starts and each FAIL as it appears, so a broken step is known within minutes rather than after the hour the rest of the run takes; the run is over when the log's last line reads `vm-run exit <status>`"
       - "Look at the run's screen.png, and each scenario's screen-<name>.png: the report checks what can be read from the system, the pictures show whether the desktop looks right"
       - Report each check, each scenario's checks, and what the screenshots show. All passing moves the change on to `testing`; anything failing is a defect to look into before the author is asked to try the image, and sends the change back to `requested`
+      - Invoke @BorshevikWorkflow#notify_contributor with the run's result — the run can take an hour — naming the first failing check, or, when all passed, that the image is ready for the author to try
   - id: try_iso
     description: Has the author install both ISOs of one build-iso run in a virtual machine and say whether they work
     arguments:
@@ -219,6 +221,18 @@ recipes:
       - Read the two ISO names from the job summary of the latest successful publish-iso.yml run for <run_id>, and make sure the author confirmed both in @BorshevikWorkflow#try_iso
       - "Load the project registered for https://github.com/komorebinator/borshevik-landing and, following that project's own workflow, change which ISOs it offers to these two. Its deploy refuses to switch to files that are not on the server, so a switch made before the upload finished fails there instead of breaking the download buttons"
       - "Once the website's deploy has succeeded and borshevik.org offers the two new names, clean up everything the trial left on this machine, without being asked: power off any virtual machine @BorshevikWorkflow#try-iso still has running (a qemu-system-x86_64 whose -name is one of the run's ISOs, and its spicy viewer); delete ${XDG_CACHE_HOME:-~/.cache}/borshevik-iso entirely — the ISOs and the virtual machines' disks, tens of GB; stop the website's local preview container, borshevik-landing-preview, if it is running; and remove every git worktree made for the change whose branch has been merged. Report what was removed. Nothing on the server is cleaned here: images the site no longer offers are removed from it separately"
+  - id: notify_contributor
+    description: Tells the contributor whose change it is, with a desktop notification, that an operation they are waiting on has ended — for the steps whose operation runs for minutes to hours, when they are rarely watching the conversation
+    arguments:
+      - id: operation
+        description: what ended, e.g. `build-borshevik on experimental` or `VM run`
+      - id: passed
+        description: whether it succeeded
+      - id: detail
+        description: "the one thing to know: the failing check or step, or what comes next"
+    instructions:
+      - "Run `notify-send --app-name=\"Claude · Borshevik\" --icon=<dialog-information when passed, dialog-error otherwise> \"<operation>: <passed or failed>\" \"<detail>\"` on the host (through `flatpak-spawn --host` when the shell is sandboxed)"
+      - Say the same in the conversation; the notification is a pointer to it, not a replacement
 guidelines:
   - "Build only the layer the change touches. A change to the base layer — the borshevik-base and borshevik-base-nvidia stages of the Containerfile, cosign.pub, or the scripts they run (build-base.sh, build-base-nvidia.sh, install-kernel.sh, install-rpm-packages.sh, install-google-chrome.sh, install-steam.sh, cleanup.sh) — needs build-base.yml, which then builds the final layer on top by itself. Anything else — build_files/root/, build-addons.sh and the scripts it runs, the GNOME extensions, dconf, schemas, the final stages, or a new commit in an extension repository installed from its branch — needs build-borshevik.yml alone: the final stages build FROM the published borshevik-base tags, so rebuilding the base would only spend most of an hour producing what is already published. When a change touches both, build-base.yml."
   - "Installer media are built from main, never from experimental — build-iso.yml and publish-iso.yml, like promote-image-to-stable.yml, run with ref=main. What an ISO installs comes from :stable either way, but the workflow file and installer/ templates it builds with come from the branch it runs on, and media that reach users must be built by what main holds, not by something still being tried. A change to how ISOs are built or published is committed to experimental first like any other, and reaches main by pull request before it is used."
