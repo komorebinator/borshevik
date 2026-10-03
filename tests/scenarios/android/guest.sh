@@ -260,27 +260,46 @@ session_running && fail app-manager-session "the session android.js started is s
 
 # While a session runs: the GAPPS image's Google packages, and the ID to
 # register the device with, once Android has had time to check in with Google.
-android_session_checks() {
-    local packages missing="" id rc
-    for _ in $(seq 60); do
-        [[ "$(as_user waydroid prop get sys.boot_completed 2>/dev/null)" == 1 ]] && break
+booted() { # seconds
+    for _ in $(seq $(($1 / 3))); do
+        [[ "$(as_user timeout 10 waydroid prop get sys.boot_completed 2>/dev/null)" == 1 ]] && return 0
         sleep 3
     done
+    return 1
+}
+
+# Waydroid's hwcomposer sometimes aborts at start (waydroid/waydroid#2085) and
+# can come back without registering, leaving Android waiting for good: one
+# session restart, said in the report; a second failure is a FAIL.
+android_session_checks() {
+    local packages missing="" id rc
+    if booted 180; then
+        ok android-boot
+    else
+        as_user waydroid session stop >/dev/null 2>&1
+        sleep 5
+        as_user setsid waydroid session start >"$logs/session-retry.log" 2>&1 < /dev/null &
+        if wait_session 180 && booted 180; then
+            ok "android-boot (after a session restart: hwcomposer race, waydroid/waydroid#2085)"
+        else
+            fail android-boot "Android did not finish booting, a session restart included"
+        fi
+    fi
     local problems="" key value got
     while IFS='=' read -r key value; do
-        got="$(as_user waydroid prop get "$key" 2>/dev/null)"
+        got="$(as_user timeout 10 waydroid prop get "$key" 2>/dev/null)"
         [[ "$got" == "$value" ]] || problems+="$key is '$got', not '$value'; "
     done < <(config_properties)
     [[ -z "$problems" ]] && ok android-properties || fail android-properties "$problems"
 
     # the first-boot service applies config.json's android_settings once
     for _ in $(seq 20); do
-        [[ "$(as_user waydroid prop get persist.borshevik.defaults 2>/dev/null)" == 1 ]] && break
+        [[ "$(as_user timeout 10 waydroid prop get persist.borshevik.defaults 2>/dev/null)" == 1 ]] && break
         sleep 3
     done
     problems=""
     while read -r namespace key value; do
-        got="$(lxc-attach -P /var/lib/waydroid/lxc -n waydroid --clear-env -v PATH=/system/bin:/system/xbin \
+        got="$(timeout 20 lxc-attach -P /var/lib/waydroid/lxc -n waydroid --clear-env -v PATH=/system/bin:/system/xbin \
             -- /system/bin/settings get "$namespace" "$key" 2>/dev/null | tr -d '\r')"
         [[ "$got" == "$value" ]] || problems+="$namespace $key is '$got', not '$value'; "
     done < <(python3 -c 'import json, sys
@@ -290,7 +309,7 @@ for ns, kv in json.load(open(sys.argv[1])).get("android_settings", {}).items():
 
     # every package, not `waydroid app list`, which shows only those with a
     # launcher, and Google Play Services has none
-    packages="$(lxc-attach -P /var/lib/waydroid/lxc -n waydroid --clear-env -v PATH=/system/bin:/system/xbin \
+    packages="$(timeout 20 lxc-attach -P /var/lib/waydroid/lxc -n waydroid --clear-env -v PATH=/system/bin:/system/xbin \
         -- /system/bin/pm list packages 2>/dev/null | tr -d '\r')"
     for p in com.google.android.gms com.google.android.gsf com.android.vending; do
         grep -qx "package:$p" <<<"$packages" || missing+="$p "
@@ -355,12 +374,15 @@ fi
 
 # --- 8. upgrade ------------------------------------------------------------------
 # refused while another operation holds the busy lock, having changed nothing
+# The scenario holds the lock itself, on a descriptor of its own that no
+# child keeps after it is closed - a background `flock ... sleep` would leave
+# the sleep holding it after the flock process is killed.
 cfg_before="$(sha256sum /var/lib/waydroid/waydroid.cfg)"
-flock "$BUSY" sleep 60 &
-holder=$!
-sleep 2
-logged upgrade-busy "$CONTROL" upgrade; rc=$?
-kill "$holder" 2>/dev/null; wait "$holder" 2>/dev/null
+exec 8<>"$BUSY"
+flock 8
+logged upgrade-busy "$CONTROL" upgrade 8>&-; rc=$?
+flock -u 8
+exec 8>&-
 if [[ "$rc" -eq 4 && "$(sha256sum /var/lib/waydroid/waydroid.cfg)" == "$cfg_before" && -f "$STAMP" ]]; then
     ok upgrade-busy
 else
