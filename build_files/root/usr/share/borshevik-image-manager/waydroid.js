@@ -133,6 +133,66 @@ export async function googleStatus() {
   return { id: values.android_id, signedIn: values.google_account === 'yes' };
 }
 
+// Whether Android holds a Google account, read without privileges: true or
+// false, or null when the user cannot read Android's accounts database. The
+// file belongs to Android's system user, uid 1000, which Waydroid does not
+// remap and which is the machine's first user's uid too.
+export async function signedInLocally() {
+  const db = GLib.build_filenamev([GLib.get_home_dir(),
+    '.local/share/waydroid/data/system_ce/0/accounts_ce.db']);
+  const script = `
+import os, shutil, sqlite3, sys, tempfile
+db = sys.argv[1]
+if not os.access(db, os.R_OK):
+    sys.exit(2)
+with tempfile.TemporaryDirectory() as tmp:
+    copy = os.path.join(tmp, "a.db")
+    for suffix in ("", "-wal", "-shm", "-journal"):
+        if os.path.exists(db + suffix):
+            shutil.copyfile(db + suffix, copy + suffix)
+    n = sqlite3.connect(copy).execute("SELECT count(*) FROM accounts WHERE type = 'com.google'").fetchone()[0]
+print("yes" if n else "no")
+`;
+  try {
+    const res = await runCommandCapture(['python3', '-c', script, db]);
+    if (!res.success)
+      return null;
+    return (res.stdout || '').trim() === 'yes';
+  } catch (_e) {
+    return null;
+  }
+}
+
+// Whether Android is running now — 'running', 'suspended' (the container
+// frozen while Android sleeps) or 'stopped' — and, unless stopped, for how
+// many seconds: the container's lxc-start process, whose age anyone can read.
+export async function runtimeState() {
+  let state = 'stopped';
+  try {
+    const res = await runCommandCapture(['waydroid', 'status']);
+    const out = res.stdout || '';
+    if (/^Session:\s*RUNNING/m.test(out))
+      state = /^Container:\s*FROZEN/m.test(out) ? 'suspended' : 'running';
+  } catch (_e) {
+    return { state: 'stopped', uptime: null };
+  }
+  if (state === 'stopped')
+    return { state, uptime: null };
+
+  let uptime = null;
+  try {
+    const res = await runCommandCapture(['ps', '-eo', 'etimes=,args=']);
+    for (const line of (res.stdout || '').split('\n')) {
+      const m = line.trim().match(/^(\d+)\s+lxc-start -P \/var\/lib\/waydroid\/lxc\b/);
+      if (m) {
+        uptime = Number(m[1]);
+        break;
+      }
+    }
+  } catch (_e) {}
+  return { state, uptime };
+}
+
 // Asked of borshevik-waydroid rather than worked out again, so the tab's
 // warning and what install does always agree.
 export async function hasHardwareRendering() {

@@ -17,14 +17,18 @@ import {
   readImage,
   checkForUpdate,
   googleStatus,
+  signedInLocally,
+  runtimeState,
   hasHardwareRendering
 } from './waydroid.js';
-import { runCommandCapture } from './util.js';
+import { runCommandCapture, formatUptime } from './util.js';
 
 // Google's page for registering a device it has not certified.
 const REGISTRATION_URL = 'https://www.google.com/android/uncertified';
 // How often the tab looks again while an operation started elsewhere runs.
 const BUSY_POLL_S = 3;
+// How often the tab reads Android's running state while it is shown.
+const RUNTIME_POLL_S = 5;
 
 export const AndroidPage = GObject.registerClass(
 class AndroidPage extends Adw.Bin {
@@ -40,6 +44,8 @@ class AndroidPage extends Adw.Bin {
       version: null,
       systemTime: null,
       vendorTime: null,
+      runtime: { state: 'stopped', uptime: null },
+      signedInLocally: null,
       check: { phase: 'idle', downloadSize: null, message: '' },
       autoUpdates: { enabled: null, busy: false },
       softwareRendering: false,
@@ -47,9 +53,17 @@ class AndroidPage extends Adw.Bin {
     };
     this._autoUpdatesGuard = false;
     this._busyPoll = 0;
+    this._runtimeTick = 0;
+    this._runtimeAt = 0;
 
     this._build();
-    this.connect('destroy', () => this._stopBusyPoll());
+    // Android's running state ticks while the tab is on screen, and only then.
+    this.connect('map', () => this._startRuntimeTick());
+    this.connect('unmap', () => this._stopRuntimeTick());
+    this.connect('destroy', () => {
+      this._stopBusyPoll();
+      this._stopRuntimeTick();
+    });
   }
 
   // Called each time the tab is shown; reads the state the first time, again
@@ -97,7 +111,26 @@ class AndroidPage extends Adw.Bin {
       selectable: true,
       css_classes: ['caption', 'dim-label']
     });
-    box.append(this._metaLabel);
+    // The image dates and Android's state read as one block, without the
+    // page's spacing between them.
+    const metaBox = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, spacing: 0 });
+    metaBox.append(this._metaLabel);
+    box.append(metaBox);
+
+    // Android's state now — running for how long, suspended or stopped — and,
+    // unless stopped, a way to stop it.
+    this._runtimeBox = new Gtk.Box({ spacing: 6, halign: Gtk.Align.CENTER, visible: false });
+    this._runtimeLabel = new Gtk.Label({ css_classes: ['caption', 'dim-label'] });
+    this._runtimeBox.append(this._runtimeLabel);
+    this._stopButton = new Gtk.Button({
+      icon_name: 'media-playback-stop-symbolic',
+      tooltip_text: i18n.t('android_stop'),
+      valign: Gtk.Align.CENTER,
+      css_classes: ['flat', 'circular']
+    });
+    this._stopButton.connect('clicked', () => this._stopAndroid());
+    this._runtimeBox.append(this._stopButton);
+    metaBox.append(this._runtimeBox);
 
     this._renderingLabel = new Gtk.Label({
       label: i18n.t('android_software_rendering'),
@@ -187,14 +220,16 @@ class AndroidPage extends Adw.Bin {
 
     // Google Play signs in only once this device's ID is registered with
     // Google under the user's own account; the ID needs root to read.
-    const googleGroup = new Adw.PreferencesGroup({
+    const googleGroup = this._googleGroup = new Adw.PreferencesGroup({
       title: i18n.t('android_google_title'),
       description: i18n.t('android_google_description')
     });
     this._gsfRow = new Adw.ActionRow({ title: i18n.t('android_google_id_title') });
     this._gsfRow.set_activatable(false);
     this._gsfRow.set_subtitle_selectable(true);
-    this._gsfStack = new Gtk.Stack({ valign: Gtk.Align.CENTER });
+    // Not homogeneous: the Copy icon sits at the row's end, not where the
+    // wider Show button would have it.
+    this._gsfStack = new Gtk.Stack({ valign: Gtk.Align.CENTER, hhomogeneous: false, interpolate_size: true });
     const showIdButton = new Gtk.Button({
       label: i18n.t('android_google_show_id'),
       valign: Gtk.Align.CENTER
@@ -212,14 +247,7 @@ class AndroidPage extends Adw.Bin {
     this._gsfStack.add_named(new Gtk.Spinner({ spinning: true, valign: Gtk.Align.CENTER }), 'reading');
     this._gsfRow.add_suffix(this._gsfStack);
     googleGroup.add(this._gsfRow);
-    // Shown once the status is read: a Google account in Android is the one
-    // sign that registration went through.
-    this._signInRow = new Adw.ActionRow({ title: i18n.t('android_google_signin_title'), visible: false });
-    this._signInRow.set_activatable(false);
-    this._signInIcon = new Gtk.Image({ valign: Gtk.Align.CENTER });
-    this._signInRow.add_suffix(this._signInIcon);
-    googleGroup.add(this._signInRow);
-    const pageRow = new Adw.ActionRow({
+    const pageRow = this._pageRow = new Adw.ActionRow({
       title: i18n.t('android_google_open_page'),
       subtitle: i18n.t('android_google_open_page_hint'),
       tooltip_text: REGISTRATION_URL
@@ -272,6 +300,11 @@ class AndroidPage extends Adw.Bin {
     this._android.systemTime = image?.systemBuilt ?? null;
     this._android.vendorTime = image?.vendorBuilt ?? null;
     this._android.softwareRendering = !(await hasHardwareRendering());
+    if (state.installed) {
+      this._android.runtime = await runtimeState();
+      this._runtimeAt = GLib.get_monotonic_time();
+      this._android.signedInLocally = await signedInLocally();
+    }
     this._applyState();
 
     if (state.installed) {
@@ -295,6 +328,7 @@ class AndroidPage extends Adw.Bin {
         remove: 'android_busy_remove'
       }[a.busy]));
       this._metaLabel.visible = false;
+      this._runtimeBox.visible = false;
       return;
     }
 
@@ -318,11 +352,15 @@ class AndroidPage extends Adw.Bin {
       this._gsfRow.set_subtitle(g.message ? `${i18n.t('error')}: ${g.message}` : i18n.t('error'));
     else
       this._gsfRow.set_subtitle(i18n.t('android_google_id_hidden'));
-    this._signInRow.visible = g.phase === 'shown';
-    if (g.phase === 'shown') {
-      this._signInRow.set_subtitle(i18n.t(g.signedIn ? 'android_google_signed_in' : 'android_google_not_signed_in'));
-      this._signInIcon.set_from_icon_name(g.signedIn ? 'emblem-ok-symbolic' : 'dialog-information-symbolic');
-    }
+    // Signed in as far as is known — read with the ID, or without the password
+    // where the accounts database is readable: a Google account in Android is
+    // the one sign that registration went through. Once it has, the group says
+    // so and the registration page has nothing left to offer.
+    const signedIn = (g.phase === 'shown' ? g.signedIn : a.signedInLocally) === true;
+    this._googleGroup.set_description(i18n.t(signedIn ? 'android_google_signed_in' : 'android_google_description'));
+    this._pageRow.visible = !signedIn;
+
+    this._applyRuntime();
 
     const phase = a.check.phase;
     if (phase === 'checking') {
@@ -406,8 +444,82 @@ class AndroidPage extends Adw.Bin {
 
   _copyGsfId() {
     const id = this._android.google.id;
-    if (id)
-      (this.get_display() ?? Gdk.Display.get_default()).get_clipboard().set_text(id);
+    if (!id)
+      return;
+    // GTK 4's clipboard has no set_text in GJS: a content provider for the string.
+    const clipboard = (this.get_display() ?? Gdk.Display.get_default()).get_clipboard();
+    clipboard.set_content(Gdk.ContentProvider.new_for_value(id));
+  }
+
+  // Android's state line: running for how long, suspended or stopped. The
+  // uptime counts on from the last reading between readings.
+  _applyRuntime() {
+    const i18n = this._app.i18n;
+    const a = this._android;
+    this._runtimeBox.visible = a.busy === null && a.installed;
+    if (!this._runtimeBox.visible)
+      return;
+    const r = a.runtime;
+    let text;
+    if (r.state === 'running' && r.uptime !== null) {
+      const elapsed = Math.floor((GLib.get_monotonic_time() - this._runtimeAt) / 1e6);
+      text = `${i18n.t('uptime')}: ${formatUptime(r.uptime + elapsed, i18n.t('uptime_days'))}`;
+    } else if (r.state === 'running') {
+      text = i18n.t('android_state_running');
+    } else if (r.state === 'suspended') {
+      text = i18n.t('android_state_suspended');
+    } else {
+      text = i18n.t('android_state_stopped');
+    }
+    this._runtimeLabel.set_label(text);
+    this._stopButton.visible = r.state !== 'stopped';
+  }
+
+  // While the tab is shown: the line every second, the state every few.
+  _startRuntimeTick() {
+    if (this._runtimeTick)
+      return;
+    let n = 0;
+    this._runtimeTick = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 1, () => {
+      if (++n % RUNTIME_POLL_S === 0 && this._android.installed && this._android.busy === null) {
+        runtimeState().then((r) => {
+          this._android.runtime = r;
+          this._runtimeAt = GLib.get_monotonic_time();
+          this._applyRuntime();
+        }).catch((e) => logError(e, 'Reading Android state failed'));
+      } else {
+        this._applyRuntime();
+      }
+      return GLib.SOURCE_CONTINUE;
+    });
+  }
+
+  _stopRuntimeTick() {
+    if (this._runtimeTick) {
+      GLib.source_remove(this._runtimeTick);
+      this._runtimeTick = 0;
+    }
+  }
+
+  async _stopAndroid() {
+    const i18n = this._app.i18n;
+    const ok = await this._window._confirm({
+      heading: i18n.t('android_stop_confirm_title'),
+      body: i18n.t('android_stop_confirm_body'),
+      confirmId: 'stop',
+      confirmLabel: i18n.t('android_stop'),
+      appearance: Adw.ResponseAppearance.DESTRUCTIVE
+    });
+    if (!ok)
+      return;
+    try {
+      await runCommandCapture(['waydroid', 'session', 'stop']);
+    } catch (e) {
+      logError(e, 'Stopping Android failed');
+    }
+    this._android.runtime = await runtimeState();
+    this._runtimeAt = GLib.get_monotonic_time();
+    this._applyRuntime();
   }
 
   async _onPrimaryAction() {
