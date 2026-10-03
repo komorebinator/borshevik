@@ -162,6 +162,19 @@ EOF
     [[ -f /var/lib/waydroid/overlay/system/etc/init/borshevik.rc && -f /var/lib/waydroid/overlay/system/etc/borshevik-defaults.sh ]] \
         && ok "first-boot$s" || fail "first-boot$s" "borshevik.rc or borshevik-defaults.sh missing from the overlay"
 
+    # Fedora's kernel builds hid-playstation, so the DualSense's layout is
+    # copied without the kernel config check Android cannot pass
+    local kl=/var/lib/waydroid/overlay/system/usr/keylayout/Vendor_054c_Product_0ce6.kl
+    if ! grep -qE '^CONFIG_HID_PLAYSTATION=(y|m)$' "/usr/lib/modules/$(uname -r)/config"; then
+        fail "keylayouts$s" "this kernel does not build hid-playstation"
+    elif [[ ! -f "$kl" ]]; then
+        fail "keylayouts$s" "$kl missing"
+    elif grep -q '^requires_kernel_config' "$kl" || ! grep -q '^key 0x130' "$kl"; then
+        fail "keylayouts$s" "$kl is not the DualSense layout without its check"
+    else
+        ok "keylayouts$s"
+    fi
+
     [[ -s "$BUSY" ]] && fail "not-busy$s" "$BUSY still holds '$(cat "$BUSY")'" || ok "not-busy$s"
 }
 

@@ -21,7 +21,9 @@
   },
   "properties": {
     "waydroid.updater.disabled": "true",
-    "persist.waydroid.multi_windows": "true"
+    "persist.waydroid.multi_windows": "true",
+    "persist.waydroid.uevent": "true",
+    "persist.waydroid.udev": "true"
   },
   "android_settings": {
     "secure": {

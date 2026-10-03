@@ -240,6 +240,48 @@ EOF
     chmod 0644 "${OVERLAY_SYSTEM}/etc/init/borshevik.rc" "${OVERLAY_SYSTEM}/etc/borshevik-defaults.sh"
 }
 
+# Game controllers' key layouts that Android loads only after finding their
+# driver in /proc/config.gz, which the container does not have, so it falls
+# back to layouts for the generic HID driver and the buttons come out wrong.
+# For each such layout in the installed image whose driver the running kernel
+# builds, a copy without that check goes into the system overlay in its place.
+# Only copies carrying KEYLAYOUT_MARK are replaced.
+KEYLAYOUT_MARK="# Written by borshevik-waydroid: Android's layout without its kernel config check"
+write_keylayouts() {
+    local dir="${OVERLAY_SYSTEM}/usr/keylayout" kconfig tmp f name opt ok
+    kconfig="/usr/lib/modules/$(uname -r)/config"
+    mkdir -p "$dir"
+    for f in "$dir"/*.kl; do
+        if [[ -f "$f" && "$(head -n1 "$f")" == "$KEYLAYOUT_MARK" ]]; then
+            rm -f "$f"
+        fi
+    done
+    if [[ ! -r "$kconfig" ]]; then
+        echo "cannot read $kconfig; controllers keep Android's fallback layouts" >&2
+        return 0
+    fi
+    tmp="$(mktemp -d)"
+    debugfs -R "rdump /system/usr/keylayout $tmp" "${WAYDROID_DIR}/images/system.img" >/dev/null 2>&1 || true
+    for f in "$tmp"/keylayout/*.kl; do
+        if [[ ! -f "$f" ]] || ! grep -q '^requires_kernel_config' "$f"; then
+            continue
+        fi
+        ok=1
+        for opt in $(sed -n 's/#.*//; s/^requires_kernel_config[[:space:]]\{1,\}//p' "$f"); do
+            if ! grep -qE "^${opt}=(y|m)\$" "$kconfig"; then
+                ok=
+            fi
+        done
+        if [[ -n "$ok" ]]; then
+            name="$(basename "$f")"
+            { echo "$KEYLAYOUT_MARK"; grep -v '^requires_kernel_config' "$f"; } > "${dir}/${name}"
+            chmod 0644 "${dir}/${name}"
+            step "Controller layout ${name} for this kernel"
+        fi
+    done
+    rm -rf "$tmp"
+}
+
 cmd_install() {
     require_root install
     take_busy install
@@ -269,6 +311,7 @@ cmd_install() {
     version="$(android_version)"
     install_addons "$version"
     write_first_boot
+    write_keylayouts
 
     apply_settings
     waydroid upgrade -o
@@ -299,6 +342,7 @@ cmd_upgrade() {
     write_first_boot
     apply_settings
     waydroid upgrade
+    write_keylayouts
 
     local before after
     before="$(<"$STAMP")"
