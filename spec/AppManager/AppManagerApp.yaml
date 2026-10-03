@@ -156,6 +156,13 @@ tests:
     command: bash tests/app-manager-transfer.sh
     expect: exits 0 and prints 'all checks pass'
   - id: tried-by-the-author
-    description: "Manual, on the author's machine running the working tree (`gjs -m build_files/root/usr/share/borshevik-app-manager/main.js`): both tabs at the window's default size and narrower, tiles toggling, an install run of a few apps, Android support checked on a machine without it, a configuration copied on one computer and imported on another through GSConnect, and the script run on a computer without Borshevik."
-    command: the author on their own machine
+    description: "Manual, on the author's machine running the working tree (recipes#run): both tabs at the window's default size and narrower, tiles toggling, an install run of a few apps, Android support checked on a machine without it, a configuration copied on one computer and imported on another through GSConnect, and the script run on a computer without Borshevik."
+    command: the author on their own machine, the app run by recipes#run
     expect: the author confirms the window looks right and each path works
+recipes:
+  - id: run
+    description: Runs the App Manager straight from the repository working tree, beside an installed one if it is open, so a change can be tried on this machine without building an image.
+    instructions:
+      - "Run `gjs -m build_files/root/usr/share/borshevik-app-manager/main.js --gapplication-app-id=org.borshevik.AppManager.Devel` from the repository root in the host session, in the background so the window stays open; add `--lang <code>` for another language. The application accepts another id (CAN_OVERRIDE_APP_ID) for this: under its own id, launching it while the installed App Manager runs only opens another window of the installed version"
+      - "Never run it under `dbus-run-session` or any other private session bus to get around the single instance — see @ImageManagerApp#recipes#run for what that breaks. A copy on its own bus also cannot reach GNOME Shell, so its GSConnect button does nothing"
+      - "Watch its output for JS errors and report them, then let the user judge the window itself; for a layout question, measure it — a probe importing window.js can build the window and print its widgets' sizes — rather than ask the user after every change"

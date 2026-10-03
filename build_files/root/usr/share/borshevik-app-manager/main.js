@@ -1,7 +1,9 @@
 #!/usr/bin/env gjs -m
 import Adw from "gi://Adw?version=1";
+import Gio from "gi://Gio";
 import GLib from "gi://GLib";
 import GObject from "gi://GObject";
+import System from "system";
 
 import { makeTranslator } from "./i18n.js";
 import { AppWindow } from "./window.js";
@@ -23,10 +25,16 @@ function parseLangArg(argv) {
 const BorshevikAppManager = GObject.registerClass(
 class BorshevikAppManager extends Adw.Application {
   _init() {
+    // CAN_OVERRIDE_APP_ID: a copy run from the working tree takes
+    // --gapplication-app-id=org.borshevik.AppManager.Devel, so it runs beside
+    // the installed one on the session's own bus (@AppManagerApp#recipes#run).
     super._init({
       application_id: "org.borshevik.AppManager",
-      flags: 0,
+      flags: Gio.ApplicationFlags.CAN_OVERRIDE_APP_ID,
     });
+    // Declared so GApplication accepts it; read by parseLangArg.
+    this.add_main_option("lang", 0, GLib.OptionFlags.NONE, GLib.OptionArg.STRING,
+      "The interface language: en, ru, uk, ka, hy or be", "LANG");
   }
 
   vfunc_activate() {
@@ -45,4 +53,6 @@ class BorshevikAppManager extends Adw.Application {
 
 Adw.init();
 const app = new BorshevikAppManager();
-app.run(ARGV);
+// GApplication takes the program's name first, as in C's argv; gjs's ARGV
+// leaves it out, and without it the first option would be taken for the name.
+app.run([System.programInvocationName, ...ARGV]);

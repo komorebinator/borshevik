@@ -11,9 +11,12 @@ import { I18n } from './i18n.js';
 export const Application = GObject.registerClass(
 class Application extends Adw.Application {
   constructor() {
+    // CAN_OVERRIDE_APP_ID: a copy run from the working tree takes
+    // --gapplication-app-id=org.borshevik.ImageManager.Devel, so it runs beside
+    // the installed one on the session's own bus (@ImageManagerApp#recipes#run).
     super({
       application_id: 'org.borshevik.ImageManager',
-      flags: Gio.ApplicationFlags.FLAGS_NONE
+      flags: Gio.ApplicationFlags.CAN_OVERRIDE_APP_ID
     });
 
     // Use Gio.File to properly convert file:// URI to path
