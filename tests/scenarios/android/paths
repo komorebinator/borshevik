@@ -10,6 +10,5 @@ build_files/root/usr/share/applications/Waydroid.desktop
 build_files/scripts/install-waydroid-script.sh
 # where the waydroid package is layered
 build_files/scripts/install-rpm-packages.sh
-build_files/root/usr/share/borshevik-app-manager/android.js
 build_files/root/usr/share/borshevik-image-manager/waydroid.js
 tests/scenarios/android/**

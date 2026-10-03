@@ -133,6 +133,12 @@ class MainWindow extends Adw.ApplicationWindow {
     this.set_content(toolbarView);
   }
 
+  // Shows a tab by name, `system` or `android`; any other name changes nothing.
+  showPage(name) {
+    if (this._stack.get_child_by_name(name))
+      this._stack.set_visible_child_name(name);
+  }
+
   _buildMainView() {
     const i18n = this._app.i18n;
 

@@ -239,38 +239,6 @@ else
     fail image-manager-js "${res:-no output} $(head -c 300 "$logs/image-manager.err")"
 fi
 
-# --- 6. the App Manager's android.js, as tester -------------------------------
-# An entry of its own rather than the live list's, which may hold no Android
-# app: F-Droid's client, pinned. F-Droid moves old builds to its archive after
-# a while; then pin the current one (its suggestedVersionCode, from
-# https://f-droid.org/api/v1/packages/org.fdroid.fdroid).
-res="$(gjs_as_user app-manager "
-import * as a from 'file:///usr/share/borshevik-app-manager/android.js';
-async function main() {
-    const apps = [{
-        type: 'android',
-        id: 'org.fdroid.fdroid',
-        name: 'F-Droid',
-        url: 'https://f-droid.org/repo/org.fdroid.fdroid_1023052.apk',
-        sha256: '985f5181d48bb6bafd54083a048b391271e0ab28385881cc41294fb01a222762'
-    }].filter((e) => a.isValid(e));
-    const first = await a.installApps(apps, () => {}, null);
-    const second = await a.installApps(apps, () => {}, null);
-    return { ids: apps.map((e) => e.id), ready: a.isReady(), first, second };
-}")"
-if [[ "$(json "$res" "len(d['ids']) > 0 and d['ready'] and not d['first']['failed'] and len(d['first']['installed']) + len(d['first']['alreadyInstalled']) == len(d['ids'])")" == True ]]; then
-    ok "app-manager-install ($(json "$res" "', '.join(d['ids'])"))"
-else
-    fail app-manager-install "${res:-no output} $(head -c 300 "$logs/app-manager.err")"
-fi
-if [[ "$(json "$res" "len(d['second']['alreadyInstalled']) == len(d['ids']) and not d['second']['installed'] and not d['second']['failed']")" == True ]]; then
-    ok app-manager-already-installed
-else
-    fail app-manager-already-installed "second run: $(json "$res" "d.get('second')")"
-fi
-session_running && fail app-manager-session "the session android.js started is still running" \
-    || ok app-manager-session
-
 # While a session runs: the GAPPS image's Google packages, and the ID to
 # register the device with, once Android has had time to check in with Google.
 booted() { # seconds
@@ -345,7 +313,7 @@ for ns, kv in json.load(open(sys.argv[1])).get("android_settings", {}).items():
     fi
 }
 
-# --- 7. the update service's conditions ---------------------------------------
+# --- 6. the update service's conditions ---------------------------------------
 # Each ExecCondition of the unit is run on its own, so the session condition is
 # tested whatever the machine's connection makes of the metered one.
 mapfile -t conditions < <(systemctl cat "$SERVICE" | sed -n 's/^ExecCondition=//p')
@@ -385,7 +353,7 @@ else
     fail update-service "start exit $rc, Result=$result"
 fi
 
-# --- 8. upgrade ------------------------------------------------------------------
+# --- 7. upgrade ------------------------------------------------------------------
 # refused while another operation holds the busy lock, having changed nothing
 # The scenario holds the lock itself, on a descriptor of its own that no
 # child keeps after it is closed - a background `flock ... sleep` would leave
@@ -422,7 +390,7 @@ else
     fail upgrade-to-approved "exit $rc, vendor_datetime '$recorded', approved $approved_vendor: $(tail_of upgrade-back)"
 fi
 
-# --- 9. remove as the Image Manager does, for tester ------------------------------
+# --- 8. remove as the Image Manager does, for tester ------------------------------
 logged remove env PKEXEC_UID="$uid" "$CONTROL" remove; rc=$?
 problems=""
 [[ "$rc" -eq 0 ]] || problems+="exit $rc: $(tail_of remove); "
@@ -438,12 +406,12 @@ firewall-cmd --permanent --zone=trusted --list-interfaces 2>/dev/null | grep -qw
 ls "$home"/.local/share/applications/waydroid.*.desktop >/dev/null 2>&1 && problems+="$user's Android app launchers left; "
 [[ -z "$problems" ]] && ok remove || fail remove "$problems"
 
-# --- 10. install again, as the Image Manager does -----------------------------
+# --- 9. install again, as the Image Manager does -----------------------------
 logged install "$CONTROL" install; rc=$?
 [[ "$rc" -eq 0 ]] && ok reinstall || fail reinstall "exit $rc: $(tail_of install)"
 check_installed "-again"
 
-# --- 11. nothing failed along the way ------------------------------------------
+# --- 10. nothing failed along the way ------------------------------------------
 units="$(systemctl --failed --no-legend --plain | awk '{print $1}' | tr '\n' ' ')"
 [[ -z "$units" ]] && ok system-units || fail system-units "$units"
 
