@@ -13,8 +13,8 @@ import * as transfer from "./transfer.js";
 const BUILD = "22";
 
 // The kinds of app this version installs, in the order a run installs them.
-// Every service has `isValid`, `displayName` and `installApps`. An entry of any
-// other type is dropped when the list loads: Android apps come from Google Play.
+// Every service has `isValid`, `displayName` and `installApps`. Flatpak is the
+// only one: Android apps come from Google Play.
 const KINDS = { flatpak };
 
 const MODULES_CMD = "/usr/libexec/borshevik/borshevik-modules";
@@ -266,7 +266,9 @@ class AppWindow extends Adw.ApplicationWindow {
 
   async _loadCategories() {
     this._newStack.set_visible_child_name("loading");
-    const url = "https://borshevik.org/share/applications-v2.json";
+    // The plain list of Flathub ids: applications-v2.json's typed entries
+    // served the Android apps this version no longer installs.
+    const url = "https://borshevik.org/share/applications.json";
     try {
       const json = await fetchJson(url);
       if (!Array.isArray(json))
@@ -282,11 +284,10 @@ class AppWindow extends Adw.ApplicationWindow {
               ? String(x[loc]).trim()
               : (typeof x?.en === "string" && String(x.en).trim() ? String(x.en).trim() : fallback);
 
-          // Entries of a kind this version does not install, or missing what
-          // their kind needs, are dropped silently, so the list can carry kinds
-          // only other App Managers install.
-          const apps = (Array.isArray(x.apps) ? x.apps : [])
-            .filter((a) => a && typeof a === "object" && Object.hasOwn(KINDS, a.type) && KINDS[a.type].isValid(a));
+          const apps = (Array.isArray(x.applications) ? x.applications : [])
+            .filter((id) => typeof id === "string")
+            .map((id) => ({ type: "flatpak", id: id.trim() }))
+            .filter((a) => flatpak.isValid(a));
 
           return {
             name: localized || fallback,
