@@ -1,0 +1,4 @@
+# Copied into /usr/local/share/applications by borshevik-waydroid install, and
+# removed by remove: APKs open in the installer only while Android is there.
+[Default Applications]
+application/vnd.android.package-archive=borshevik-apk-install.desktop

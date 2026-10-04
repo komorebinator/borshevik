@@ -24,6 +24,15 @@ SHARE=/usr/share/borshevik/waydroid
 CONFIG="${SHARE}/config.json"
 ANDROID_ENTRY_SRC="${SHARE}/borshevik-android.desktop"
 ANDROID_ENTRY_DEST=/usr/local/share/applications/borshevik-android.desktop
+# Android's own list of its apps, where they are updated and uninstalled.
+APPS_ENTRY_SRC="${SHARE}/borshevik-android-apps.desktop"
+APPS_ENTRY_DEST=/usr/local/share/applications/borshevik-android-apps.desktop
+# What opens an APK while Android is installed: the installer's entry, and the
+# mimeapps.list that makes it the default over /usr/share's archive manager.
+APK_ENTRY_SRC="${SHARE}/borshevik-apk-install.desktop"
+APK_ENTRY_DEST=/usr/local/share/applications/borshevik-apk-install.desktop
+MIMEAPPS_SRC="${SHARE}/mimeapps.list"
+MIMEAPPS_DEST=/usr/local/share/applications/mimeapps.list
 UPDATE_TIMER=borshevik-waydroid-update.timer
 # An OTA channel listing only the images config.json approves, written from it
 # before every init and upgrade; Waydroid builds the files' paths from it.
@@ -282,6 +291,14 @@ write_keylayouts() {
     rm -rf "$tmp"
 }
 
+# The entries that exist only while Android is installed.
+install_entries() {
+    install -D -m 0644 "$ANDROID_ENTRY_SRC" "$ANDROID_ENTRY_DEST"
+    install -D -m 0644 "$APPS_ENTRY_SRC" "$APPS_ENTRY_DEST"
+    install -D -m 0644 "$APK_ENTRY_SRC" "$APK_ENTRY_DEST"
+    install -D -m 0644 "$MIMEAPPS_SRC" "$MIMEAPPS_DEST"
+}
+
 cmd_install() {
     require_root install
     take_busy install
@@ -319,7 +336,7 @@ cmd_install() {
     step "Turning on automatic Android updates"
     systemctl enable "$UPDATE_TIMER"
 
-    install -D -m 0644 "$ANDROID_ENTRY_SRC" "$ANDROID_ENTRY_DEST"
+    install_entries
 
     mkdir -p "$(dirname "$STAMP")"
     chmod 0755 "$(dirname "$STAMP")"
@@ -341,6 +358,7 @@ cmd_upgrade() {
     follow_channel
     write_first_boot
     apply_settings
+    install_entries
     waydroid upgrade
     write_keylayouts
 
@@ -359,7 +377,7 @@ cmd_remove() {
     require_root remove
     take_busy remove
     rm -f "$STAMP"
-    rm -f "$ANDROID_ENTRY_DEST"
+    rm -f "$ANDROID_ENTRY_DEST" "$APPS_ENTRY_DEST" "$APK_ENTRY_DEST" "$MIMEAPPS_DEST"
 
     step "Stopping Android"
     systemctl disable --now "$UPDATE_TIMER" 2>/dev/null || true

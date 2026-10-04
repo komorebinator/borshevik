@@ -15,6 +15,10 @@ CONTROL=/usr/libexec/borshevik/borshevik-waydroid
 MODULES=/usr/libexec/borshevik/borshevik-modules
 STAMP=/var/lib/borshevik/waydroid-installed
 ENTRY=/usr/local/share/applications/borshevik-android.desktop
+APPS_ENTRY=/usr/local/share/applications/borshevik-android-apps.desktop
+APK_ENTRY=/usr/local/share/applications/borshevik-apk-install.desktop
+MIMEAPPS=/usr/local/share/applications/mimeapps.list
+APK_MIME=application/vnd.android.package-archive
 TIMER=borshevik-waydroid-update.timer
 SERVICE=borshevik-waydroid-update.service
 CONTAINER=waydroid-container.service
@@ -107,7 +111,16 @@ check_installed() { # suffix
         fail "firewall$s" "waydroid0 is not in the permanent trusted zone"
     fi
 
-    [[ -f "$ENTRY" ]] && ok "entry$s" || fail "entry$s" "no $ENTRY"
+    [[ -f "$ENTRY" && -f "$APPS_ENTRY" ]] && ok "entry$s" || fail "entry$s" "no $ENTRY or $APPS_ENTRY"
+
+    # APKs open in the installer while Android is installed
+    local apk_default
+    apk_default="$(as_user xdg-mime query default "$APK_MIME" 2>&1)"
+    if [[ -f "$APK_ENTRY" && -f "$MIMEAPPS" && "$apk_default" == borshevik-apk-install.desktop ]]; then
+        ok "apk-entry$s"
+    else
+        fail "apk-entry$s" "entry $([[ -f "$APK_ENTRY" ]] && echo present || echo missing), mimeapps.list $([[ -f "$MIMEAPPS" ]] && echo present || echo missing), APKs open with '$apk_default'"
+    fi
 
     bridge="$(cat /var/lib/waydroid/waydroid.cfg /var/lib/waydroid/waydroid_base.prop 2>/dev/null |
         sed -n 's/^ro\.dalvik\.vm\.native\.bridge[[:space:]]*=[[:space:]]*//p' | tail -n1)"
@@ -189,8 +202,11 @@ problems=""
 systemctl is-active -q "$TIMER" && problems+="$TIMER is active; "
 [[ "$(systemctl is-enabled "$CONTAINER" 2>&1)" == disabled ]] || problems+="$CONTAINER is $(systemctl is-enabled "$CONTAINER" 2>&1); "
 systemctl is-active -q "$CONTAINER" && problems+="$CONTAINER is active; "
-[[ -e "$ENTRY" ]] && problems+="$ENTRY exists; "
+[[ -e "$ENTRY" || -e "$APPS_ENTRY" ]] && problems+="an Android entry exists; "
+[[ -e "$APK_ENTRY" || -e "$MIMEAPPS" ]] && problems+="the APK entry or its mimeapps.list exists; "
 grep -qx 'NoDisplay=true' /usr/share/applications/Waydroid.desktop || problems+="the package's Waydroid entry is not hidden; "
+grep -q '^MimeType=' /usr/share/applications/waydroid.app.install.desktop && problems+="the package's APK installer still takes APKs; "
+[[ "$(as_user xdg-mime query default "$APK_MIME" 2>&1)" == borshevik-apk-install.desktop ]] && problems+="APKs open in the installer without Android; "
 [[ -z "$problems" ]] && ok clean || fail clean "$problems"
 
 if out="$(/usr/lib/borshevik/waydroid_script/venv/bin/python3 -c 'import tqdm, requests, InquirerPy' 2>&1)"; then
@@ -237,6 +253,37 @@ if [[ "$(json "$res" "d.get('s', {}).get('installed') is True and d['s']['versio
     ok image-manager-js
 else
     fail image-manager-js "${res:-no output} $(head -c 300 "$logs/image-manager.err")"
+fi
+
+# --- 6. the APK installer's install.js, as tester ------------------------------
+# An APK of its own rather than one from a list: F-Droid's client, pinned. F-Droid
+# moves old builds to its archive after a while; then pin the current one (its
+# suggestedVersionCode, from https://f-droid.org/api/v1/packages/org.fdroid.fdroid).
+apk="$logs/fdroid.apk"
+if curl -sfL -o "$apk" https://f-droid.org/repo/org.fdroid.fdroid_1023052.apk \
+    && [[ "$(sha256sum "$apk" | cut -d' ' -f1)" == 985f5181d48bb6bafd54083a048b391271e0ab28385881cc41294fb01a222762 ]]; then
+    chmod 0644 "$apk"
+    echo "not an APK" > "$logs/not-an.apk"; chmod 0644 "$logs/not-an.apk"
+    res="$(gjs_as_user apk-installer "
+import * as a from 'file:///usr/share/borshevik/waydroid/apk-installer/install.js';
+async function main() {
+    const apk = await a.readApk('$apk');
+    let refused = false;
+    try { await a.readApk('$logs/not-an.apk'); } catch { refused = true; }
+    const stages = [];
+    const r = await a.installApk('$apk', apk.package, (s) => stages.push(s));
+    const present = (await a.installedPackages()).has(apk.package);
+    return { apk, refused, stages, r, present };
+}")"
+    if [[ "$(json "$res" "d['apk']['package'] == 'org.fdroid.fdroid' and d['refused'] and d['present'] and d['r']['updated'] is False")" == True ]]; then
+        ok "apk-installer ($(json "$res" "' → '.join(d['stages'])"))"
+    else
+        fail apk-installer "${res:-no output} $(head -c 300 "$logs/apk-installer.err")"
+    fi
+    as_user waydroid session stop >/dev/null 2>&1
+    for _ in $(seq 20); do session_running || break; sleep 3; done
+else
+    fail apk-installer "could not download the pinned F-Droid APK, or its checksum differs"
 fi
 
 # While a session runs: the GAPPS image's Google packages, and the ID to
@@ -313,7 +360,7 @@ for ns, kv in json.load(open(sys.argv[1])).get("android_settings", {}).items():
     fi
 }
 
-# --- 6. the update service's conditions ---------------------------------------
+# --- 7. the update service's conditions ---------------------------------------
 # Each ExecCondition of the unit is run on its own, so the session condition is
 # tested whatever the machine's connection makes of the metered one.
 mapfile -t conditions < <(systemctl cat "$SERVICE" | sed -n 's/^ExecCondition=//p')
@@ -353,7 +400,7 @@ else
     fail update-service "start exit $rc, Result=$result"
 fi
 
-# --- 7. upgrade ------------------------------------------------------------------
+# --- 8. upgrade ------------------------------------------------------------------
 # refused while another operation holds the busy lock, having changed nothing
 # The scenario holds the lock itself, on a descriptor of its own that no
 # child keeps after it is closed - a background `flock ... sleep` would leave
@@ -390,14 +437,16 @@ else
     fail upgrade-to-approved "exit $rc, vendor_datetime '$recorded', approved $approved_vendor: $(tail_of upgrade-back)"
 fi
 
-# --- 8. remove as the Image Manager does, for tester ------------------------------
+# --- 9. remove as the Image Manager does, for tester ------------------------------
 logged remove env PKEXEC_UID="$uid" "$CONTROL" remove; rc=$?
 problems=""
 [[ "$rc" -eq 0 ]] || problems+="exit $rc: $(tail_of remove); "
 [[ -e "$STAMP" ]] && problems+="stamp left; "
 [[ -e /var/lib/waydroid ]] && problems+="/var/lib/waydroid left; "
 [[ -e /var/lib/borshevik/waydroid-ota ]] && problems+="/var/lib/borshevik/waydroid-ota left; "
-[[ -e "$ENTRY" ]] && problems+="$ENTRY left; "
+[[ -e "$ENTRY" || -e "$APPS_ENTRY" ]] && problems+="an Android entry left; "
+[[ -e "$APK_ENTRY" || -e "$MIMEAPPS" ]] && problems+="the APK entry or its mimeapps.list left; "
+[[ "$(as_user xdg-mime query default "$APK_MIME" 2>&1)" == borshevik-apk-install.desktop ]] && problems+="APKs still open in the installer; "
 [[ "$(systemctl is-enabled "$TIMER" 2>&1)" == disabled ]] || problems+="$TIMER still $(systemctl is-enabled "$TIMER" 2>&1); "
 [[ "$(systemctl is-enabled "$CONTAINER" 2>&1)" == disabled ]] || problems+="$CONTAINER still $(systemctl is-enabled "$CONTAINER" 2>&1); "
 systemctl is-active -q "$CONTAINER" && problems+="$CONTAINER still active; "
@@ -406,12 +455,12 @@ firewall-cmd --permanent --zone=trusted --list-interfaces 2>/dev/null | grep -qw
 ls "$home"/.local/share/applications/waydroid.*.desktop >/dev/null 2>&1 && problems+="$user's Android app launchers left; "
 [[ -z "$problems" ]] && ok remove || fail remove "$problems"
 
-# --- 9. install again, as the Image Manager does -----------------------------
+# --- 10. install again, as the Image Manager does -----------------------------
 logged install "$CONTROL" install; rc=$?
 [[ "$rc" -eq 0 ]] && ok reinstall || fail reinstall "exit $rc: $(tail_of install)"
 check_installed "-again"
 
-# --- 10. nothing failed along the way ------------------------------------------
+# --- 11. nothing failed along the way ------------------------------------------
 units="$(systemctl --failed --no-legend --plain | awk '{print $1}' | tr '\n' ' ')"
 [[ -z "$units" ]] && ok system-units || fail system-units "$units"
 

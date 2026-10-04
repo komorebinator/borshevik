@@ -5,7 +5,7 @@ folder-children=['system', 'utilities', 'borshevik', 'android']
 name='System-Tools.directory'
 translate=true
 categories=['System','Settings']
-excluded-apps=['borshevik-android.desktop']
+excluded-apps=['borshevik-android.desktop', 'borshevik-android-apps.desktop']
 
 [org/gnome/desktop/app-folders/folders/utilities]
 name='Utilities.directory'
@@ -20,5 +20,5 @@ apps=['org.borshevik.ImageManager.desktop','org.borshevik.AppManager.desktop']
 [org/gnome/desktop/app-folders/folders/android]
 name='Android'
 translate=false
-apps=['borshevik-android.desktop']
+apps=['borshevik-android.desktop', 'borshevik-android-apps.desktop']
 categories=['X-WayDroid-App']
