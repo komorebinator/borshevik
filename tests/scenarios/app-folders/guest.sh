@@ -60,6 +60,7 @@ for d in dirs:
         shown[os.path.basename(path)] = {x for x in e.get("Categories", "").split(";") if x}
 
 # 2. every folder it names is defined, and what each holds here
+where = {}
 for fid in mine:
     schema = f"org.gnome.desktop.app-folders.folder:/org/gnome/desktop/app-folders/folders/{fid}/"
     name = ast.literal_eval(gget(schema, "name").strip() or "''")
@@ -70,7 +71,18 @@ for fid in mine:
     cats = set(strv(gget(schema, "categories")))
     excluded = set(strv(gget(schema, "excluded-apps")))
     held = sorted(a for a, c in shown.items() if a not in excluded and (a in apps or c & cats))
+    for a in held:
+        where.setdefault(a, []).append(fid)
     ok(f"defined-{fid} ({name}): {len(held)} apps here{': ' + ' '.join(held) if held else ', so hidden'}")
+
+# 3. no app is in two folders at once
+twice = {a: f for a, f in where.items() if len(f) > 1}
+if twice:
+    fail("one-folder-each", " ".join(f"{a} in {'+'.join(f)}" for a, f in sorted(twice.items())))
+else:
+    ok("one-folder-each")
+loose = sorted(set(shown) - set(where))
+print(f"loose in the grid: {' '.join(loose) if loose else 'none'}")
 
 print("all checks pass" if not failed else "some checks failed")
 sys.exit(1 if failed else 0)

@@ -1,6 +1,7 @@
 # Files whose change means the app-folders scenario must run: the image's app
-# folders and how dconf defaults are installed. See
+# folders, their names, and how dconf defaults are installed. See
 # @ShellCustomizations#defaults#vm-scenario.
 build_files/scripts/dconf/local.d/00-enable-app-folders
+build_files/root/usr/share/desktop-directories/**
 build_files/scripts/apply-dconf.sh
 tests/scenarios/app-folders/**
