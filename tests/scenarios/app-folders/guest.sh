@@ -77,16 +77,17 @@ sys.exit(1 if failed else 0)
 PY
 result=$?
 
-# Opens the app grid for the scenario's screenshot: Super+A on a virtual
+# Opens the app grid for the scenario's screenshot: Escape, for the welcome
+# dialog GNOME Shell shows at a first login, then Super+A, on a virtual
 # keyboard, since GNOME Shell takes no such request over D-Bus from an
 # ordinary client.
 python3 - <<'PY' || echo "note: could not open the app grid for the screenshot"
 import fcntl, os, struct, time
-EV_SYN, EV_KEY, KEY_LEFTMETA, KEY_A = 0, 1, 125, 30
+EV_SYN, EV_KEY, KEY_ESC, KEY_LEFTMETA, KEY_A = 0, 1, 1, 125, 30
 UI_SET_EVBIT, UI_SET_KEYBIT, UI_DEV_CREATE, UI_DEV_DESTROY = 0x40045564, 0x40045565, 0x5501, 0x5502
 fd = os.open("/dev/uinput", os.O_WRONLY | os.O_NONBLOCK)
 fcntl.ioctl(fd, UI_SET_EVBIT, EV_KEY)
-for key in (KEY_LEFTMETA, KEY_A):
+for key in (KEY_ESC, KEY_LEFTMETA, KEY_A):
     fcntl.ioctl(fd, UI_SET_KEYBIT, key)
 # struct uinput_user_dev: name, input_id (bus, vendor, product, version),
 # ff_effects_max, then four absolute-axis arrays of 64 ints
@@ -95,10 +96,14 @@ fcntl.ioctl(fd, UI_DEV_CREATE)
 time.sleep(2)  # for libinput to add the device to the seat
 def emit(kind, code, value):
     os.write(fd, struct.pack("llHHi", 0, 0, kind, code, value))
-for code, value in ((KEY_LEFTMETA, 1), (KEY_A, 1), (KEY_A, 0), (KEY_LEFTMETA, 0)):
-    emit(EV_KEY, code, value)
-    emit(EV_SYN, 0, 0)
-    time.sleep(0.1)
+def press(*codes):
+    for code, value in [(c, 1) for c in codes] + [(c, 0) for c in reversed(codes)]:
+        emit(EV_KEY, code, value)
+        emit(EV_SYN, 0, 0)
+        time.sleep(0.1)
+press(KEY_ESC)
+time.sleep(2)  # for the dialog to close
+press(KEY_LEFTMETA, KEY_A)
 time.sleep(0.5)
 fcntl.ioctl(fd, UI_DEV_DESTROY)
 os.close(fd)
