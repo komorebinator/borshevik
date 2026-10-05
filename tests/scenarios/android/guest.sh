@@ -335,6 +335,35 @@ for ns, kv in json.load(open(sys.argv[1])).get("android_settings", {}).items():
     for k, v in kv.items(): print(ns, k, v)' "$CONFIG")
     [[ -z "$problems" ]] && ok android-settings || fail android-settings "$problems"
 
+    # theme-sync hands Android GNOME's colours and the theme service applies
+    # them, also when the accent changes while Android runs. tester's session
+    # began before Android was installed, so its condition kept it stopped.
+    theme_applied() { # colour, night (yes|no)
+        local palette night
+        for _ in $(seq 30); do
+            palette="$(timeout 20 lxc-attach -P /var/lib/waydroid/lxc -n waydroid --clear-env -v PATH=/system/bin:/system/xbin \
+                -- /system/bin/settings get secure theme_customization_overlay_packages 2>/dev/null | tr -d '\r')"
+            night="$(timeout 20 lxc-attach -P /var/lib/waydroid/lxc -n waydroid --clear-env -v PATH=/system/bin:/system/xbin \
+                -- /system/bin/cmd uimode night 2>/dev/null | tr -d '\r')"
+            [[ "$palette" == *"\"android.theme.customization.system_palette\":\"$1\""* && "$night" == *"Night mode: $2"* ]] && return 0
+            sleep 2
+        done
+        echo "palette '$palette', '$night'"
+        return 1
+    }
+    local accent scheme
+    accent="$(as_user gsettings get org.gnome.desktop.interface accent-color)"
+    scheme="$(as_user gsettings get org.gnome.desktop.interface color-scheme)"
+    as_user gsettings set org.gnome.desktop.interface accent-color blue
+    as_user gsettings set org.gnome.desktop.interface color-scheme prefer-dark
+    as_user systemctl --user start borshevik-android-theme.service
+    if got="$(theme_applied 3584e4 yes)"; then ok theme-sync; else fail theme-sync "blue and dark not applied: $got"; fi
+    as_user gsettings set org.gnome.desktop.interface accent-color teal
+    as_user gsettings set org.gnome.desktop.interface color-scheme default
+    if got="$(theme_applied 2190a4 no)"; then ok theme-sync-change; else fail theme-sync-change "teal and light not applied: $got"; fi
+    as_user gsettings set org.gnome.desktop.interface accent-color "${accent//\'/}"
+    as_user gsettings set org.gnome.desktop.interface color-scheme "${scheme//\'/}"
+
     # every package, not `waydroid app list`, which shows only those with a
     # launcher, and Google Play Services has none
     packages="$(timeout 20 lxc-attach -P /var/lib/waydroid/lxc -n waydroid --clear-env -v PATH=/system/bin:/system/xbin \

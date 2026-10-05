@@ -9,6 +9,8 @@ build_files/root/usr/share/borshevik/waydroid/**
 build_files/root/usr/share/applications/Waydroid.desktop
 build_files/root/usr/share/applications/waydroid.app.install.desktop
 build_files/root/usr/bin/borshevik-apk-install
+build_files/root/usr/libexec/borshevik/borshevik-android-theme
+build_files/root/usr/lib/systemd/user/borshevik-android-theme.service
 build_files/scripts/install-waydroid-script.sh
 # where the waydroid package is layered
 build_files/scripts/install-rpm-packages.sh

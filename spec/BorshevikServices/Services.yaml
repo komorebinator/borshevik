@@ -86,7 +86,7 @@ components:
   - id: user-preset
     type: "@ConfigFile"
     src: build_files/root/usr/lib/systemd/user-preset/90-borshevik.preset
-    description: "Preset file holding `enable` for app-manager-first-run, extension-autoenable#service and gnome-watchdog#timer. @Services#enable-services applies it per unit with `systemctl --global preset <unit>` at build time, so these are on for every user account, including ones created later."
+    description: Preset file holding `enable` for app-manager-first-run, extension-autoenable#service, gnome-watchdog#timer and @WaydroidApp#theme-sync. @Services#enable-services applies it per unit with `systemctl --global preset <unit>` at build time, so these are on for every user account, including ones created later. theme-sync is enabled on every machine and keeps itself from starting where Android is not installed, by its own condition.
   - id: extension-autoenable
     type: "@Singleton"
     description: "Enables every GNOME Shell extension the image ships, once per extension per user. The image's default enabled-extensions (written by @ShellCustomizations' apply-dconf step) is only a system-db default: the first time a user toggles any extension, their own user-db list takes over and a system default is never read again, so an extension added to the image later stayed off for everyone who had ever touched their extensions. This offers each system extension to each user exactly once and remembers it, enabling it only if the user's lists have never named it, so a decision to switch one off is kept — whether made before this service existed or after."

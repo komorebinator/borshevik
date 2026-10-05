@@ -34,6 +34,8 @@ APK_ENTRY_DEST=/usr/local/share/applications/borshevik-apk-install.desktop
 MIMEAPPS_SRC="${SHARE}/mimeapps.list"
 MIMEAPPS_DEST=/usr/local/share/applications/mimeapps.list
 UPDATE_TIMER=borshevik-waydroid-update.timer
+# The user service handing Android GNOME's colours.
+THEME_SYNC=borshevik-android-theme.service
 # An OTA channel listing only the images config.json approves, written from it
 # before every init and upgrade; Waydroid builds the files' paths from it.
 CHANNEL_DIR=/var/lib/borshevik/waydroid-ota
@@ -249,6 +251,48 @@ EOF
     chmod 0644 "${OVERLAY_SYSTEM}/etc/init/borshevik.rc" "${OVERLAY_SYSTEM}/etc/borshevik-defaults.sh"
 }
 
+# Android's colours, as theme-sync hands them over: persist.borshevik.theme,
+# `<rrggbb> <dark|light>`, applied by an init service once Android has booted
+# and whenever the property changes. The colour becomes Android's Material You
+# seed (theme_customization_overlay_packages), the mode its dark theme.
+write_theme() {
+    mkdir -p "${OVERLAY_SYSTEM}/etc/init"
+    cat > "${OVERLAY_SYSTEM}/etc/init/borshevik-theme.rc" <<'EOF'
+service borshevik_theme /system/bin/sh /system/etc/borshevik-theme.sh
+    user root
+    group root
+    oneshot
+    disabled
+
+on property:sys.boot_completed=1
+    start borshevik_theme
+
+on property:persist.borshevik.theme=*
+    restart borshevik_theme
+EOF
+    cat > "${OVERLAY_SYSTEM}/etc/borshevik-theme.sh" <<'EOF'
+#!/system/bin/sh
+# Written by borshevik-waydroid: Android's colours follow GNOME's.
+# A persistent property is loaded before Android's settings can be written;
+# the boot trigger applies it once they can.
+[ "$(getprop sys.boot_completed)" = 1 ] || exit 0
+set -- $(getprop persist.borshevik.theme)
+color="$1" mode="$2"
+case "$color" in
+    [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]) ;;
+    *) exit 0 ;;
+esac
+want="{\"android.theme.customization.system_palette\":\"$color\",\"android.theme.customization.accent_color\":\"$color\",\"android.theme.customization.color_source\":\"preset\",\"android.theme.customization.theme_style\":\"VIBRANT\"}"
+[ "$(settings get secure theme_customization_overlay_packages)" = "$want" ] ||
+    settings put secure theme_customization_overlay_packages "$want"
+case "$mode" in
+    dark) cmd uimode night yes ;;
+    light) cmd uimode night no ;;
+esac
+EOF
+    chmod 0644 "${OVERLAY_SYSTEM}/etc/init/borshevik-theme.rc" "${OVERLAY_SYSTEM}/etc/borshevik-theme.sh"
+}
+
 # Game controllers' key layouts that Android loads only after finding their
 # driver in /proc/config.gz, which the container does not have, so it falls
 # back to layouts for the generic HID driver and the buttons come out wrong.
@@ -328,6 +372,7 @@ cmd_install() {
     version="$(android_version)"
     install_addons "$version"
     write_first_boot
+    write_theme
     write_keylayouts
 
     apply_settings
@@ -342,7 +387,18 @@ cmd_install() {
     chmod 0755 "$(dirname "$STAMP")"
     echo "$version" > "$STAMP"
     chmod 0644 "$STAMP"
+    start_theme_sync
     step "Android ${version} is installed"
+}
+
+# theme-sync's condition kept it from starting in the session of the user who
+# installed Android, which began before the stamp existed; start it there now.
+start_theme_sync() {
+    [[ -n "${PKEXEC_UID:-}" ]] || return 0
+    local user
+    user="$(getent passwd "$PKEXEC_UID" | cut -d: -f1)"
+    [[ -n "$user" ]] || return 0
+    systemctl --user -M "${user}@" start "$THEME_SYNC" 2>/dev/null || true
 }
 
 cmd_upgrade() {
@@ -357,6 +413,7 @@ cmd_upgrade() {
     write_channel >/dev/null
     follow_channel
     write_first_boot
+    write_theme
     apply_settings
     install_entries
     waydroid upgrade

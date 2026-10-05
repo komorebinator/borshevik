@@ -1,0 +1,16 @@
+[Unit]
+Description=Keep Android's colours those of GNOME
+# Only where Android is installed; borshevik-waydroid install starts it for the
+# user who installed it, whose session began before the stamp existed.
+ConditionPathExists=/var/lib/borshevik/waydroid-installed
+# Never on graphical-session.target: holding it before gnome-session starts makes
+# gnome-session-init-worker abort the login ("A graphical session is already running").
+After=gnome-session@gnome.target
+PartOf=gnome-session@gnome.target
+
+[Service]
+ExecStart=/usr/libexec/borshevik/borshevik-android-theme
+Restart=on-failure
+
+[Install]
+WantedBy=gnome-session@gnome.target
