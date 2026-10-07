@@ -12,6 +12,7 @@ ok()   { echo "ok android-$1"; }
 fail() { echo "FAIL android-$1: $2"; failed=1; }
 
 CONTROL=/usr/libexec/borshevik/borshevik-waydroid
+ACCOUNTS=/usr/libexec/borshevik/borshevik-waydroid-accounts
 MODULES=/usr/libexec/borshevik/borshevik-modules
 STAMP=/var/lib/borshevik/waydroid-installed
 ENTRY=/usr/local/share/applications/borshevik-android.desktop
@@ -19,6 +20,9 @@ APPS_ENTRY=/usr/local/share/applications/borshevik-android-apps.desktop
 APK_ENTRY=/usr/local/share/applications/borshevik-apk-install.desktop
 MIMEAPPS=/usr/local/share/applications/mimeapps.list
 APK_MIME=application/vnd.android.package-archive
+# A system-wide default of someone else's in the same mimeapps.list, which
+# install and remove must leave as they found it.
+FOREIGN_DEFAULT=text/x-borshevik-test=org.gnome.TextEditor.desktop
 TIMER=borshevik-waydroid-update.timer
 SERVICE=borshevik-waydroid-update.service
 CONTAINER=waydroid-container.service
@@ -116,10 +120,11 @@ check_installed() { # suffix
     # APKs open in the installer while Android is installed
     local apk_default
     apk_default="$(as_user xdg-mime query default "$APK_MIME" 2>&1)"
-    if [[ -f "$APK_ENTRY" && -f "$MIMEAPPS" && "$apk_default" == borshevik-apk-install.desktop ]]; then
+    if [[ -f "$APK_ENTRY" && -f "$MIMEAPPS" && "$apk_default" == borshevik-apk-install.desktop ]] \
+        && grep -qxF "$FOREIGN_DEFAULT" "$MIMEAPPS"; then
         ok "apk-entry$s"
     else
-        fail "apk-entry$s" "entry $([[ -f "$APK_ENTRY" ]] && echo present || echo missing), mimeapps.list $([[ -f "$MIMEAPPS" ]] && echo present || echo missing), APKs open with '$apk_default'"
+        fail "apk-entry$s" "entry $([[ -f "$APK_ENTRY" ]] && echo present || echo missing), mimeapps.list $([[ -f "$MIMEAPPS" ]] && echo present || echo missing), APKs open with '$apk_default', the other default $(grep -qxF "$FOREIGN_DEFAULT" "$MIMEAPPS" 2>/dev/null && echo kept || echo lost)"
     fi
 
     bridge="$(cat /var/lib/waydroid/waydroid.cfg /var/lib/waydroid/waydroid_base.prop 2>/dev/null |
@@ -174,6 +179,8 @@ EOF
 
     [[ -f /var/lib/waydroid/overlay/system/etc/init/borshevik.rc && -f /var/lib/waydroid/overlay/system/etc/borshevik-defaults.sh ]] \
         && ok "first-boot$s" || fail "first-boot$s" "borshevik.rc or borshevik-defaults.sh missing from the overlay"
+    [[ -f /var/lib/waydroid/overlay/system/etc/init/borshevik-google.rc && -f /var/lib/waydroid/overlay/system/etc/borshevik-google.sh ]] \
+        && ok "google-watch$s" || fail "google-watch$s" "borshevik-google.rc or borshevik-google.sh missing from the overlay"
 
     # Fedora's kernel builds hid-playstation, so the DualSense's layout is
     # copied without the kernel config check Android cannot pass
@@ -188,7 +195,8 @@ EOF
         ok "keylayouts$s"
     fi
 
-    [[ -s "$BUSY" ]] && fail "not-busy$s" "$BUSY still holds '$(cat "$BUSY")'" || ok "not-busy$s"
+    grep -qE '^done (install|upgrade) [0-9]+$' "$BUSY" && ok "not-busy$s" \
+        || fail "not-busy$s" "$BUSY holds '$(cat "$BUSY")', not the record of an ended operation"
 }
 
 config_properties() {
@@ -208,6 +216,8 @@ grep -qx 'NoDisplay=true' /usr/share/applications/Waydroid.desktop || problems+=
 grep -q '^MimeType=' /usr/share/applications/waydroid.app.install.desktop && problems+="the package's APK installer still takes APKs; "
 [[ "$(as_user xdg-mime query default "$APK_MIME" 2>&1)" == borshevik-apk-install.desktop ]] && problems+="APKs open in the installer without Android; "
 [[ -z "$problems" ]] && ok clean || fail clean "$problems"
+mkdir -p "$(dirname "$MIMEAPPS")"
+printf '[Default Applications]\n%s\n' "$FOREIGN_DEFAULT" > "$MIMEAPPS"
 
 if out="$(/usr/lib/borshevik/waydroid_script/venv/bin/python3 -c 'import tqdm, requests, InquirerPy' 2>&1)"; then
     ok waydroid-script
@@ -247,9 +257,16 @@ async function main() {
     const image = w.readImage();
     const update = await w.checkForUpdate(image);
     const hardware = await w.hasHardwareRendering();
-    return { s, image, update, hardware };
+    const signedIn = await w.signedInLocally();
+    return { s, image, update, hardware, signedIn };
 }")"
-if [[ "$(json "$res" "d.get('s', {}).get('installed') is True and d['s']['version'] == open('$STAMP').read().strip() and (d['image'] or {}).get('systemTime', 0) > 0 and (d['image'] or {}).get('vendorTime', 0) > 0 and d['update'].get('available') is False and isinstance(d['hardware'], bool)")" == True ]]; then
+# Android has not started yet: no sign-in flag, so signedInLocally says false;
+# and the tool control's google reads with says "nothing yet" the way it is meant to.
+"$ACCOUNTS" android-id /nonexistent >/dev/null 2>&1; rc=$?
+[[ "$rc" -eq 3 ]] && ok accounts-no-id || fail accounts-no-id "android-id on no database exited $rc, not 3"
+as_user "$ACCOUNTS" google-account /nonexistent >/dev/null 2>&1; rc=$?
+[[ "$rc" -eq 2 ]] && ok accounts-unreadable || fail accounts-unreadable "google-account on no database exited $rc, not 2"
+if [[ "$(json "$res" "d.get('s', {}).get('installed') is True and d['s']['version'] == open('$STAMP').read().strip() and (d['image'] or {}).get('systemTime', 0) > 0 and (d['image'] or {}).get('vendorTime', 0) > 0 and d['update'].get('available') is False and isinstance(d['hardware'], bool) and d.get('signedIn', 'missing') is False")" == True ]]; then
     ok image-manager-js
 else
     fail image-manager-js "${res:-no output} $(head -c 300 "$logs/image-manager.err")"
@@ -387,6 +404,18 @@ for ns, kv in json.load(open(sys.argv[1])).get("android_settings", {}).items():
     else
         fail google "exit $rc, printed '$status': $(head -c 300 "$logs/google.err")"
     fi
+
+    # The sign-in watch runs inside Android and, the test machine having no
+    # Google account, keeps looking; no flag, so the Image Manager reads false.
+    local watch flag
+    watch="$(timeout 20 lxc-attach -P /var/lib/waydroid/lxc -n waydroid --clear-env -v PATH=/system/bin:/system/xbin \
+        -- /system/bin/getprop init.svc.borshevik_google 2>/dev/null | tr -d '\r')"
+    flag="$(getent passwd "$user" | cut -d: -f6)/.local/share/waydroid/data/borshevik/google-signed-in"
+    if [[ "$watch" == running && ! -e "$flag" ]]; then
+        ok "google-watch-running"
+    else
+        fail google-watch-running "borshevik_google is '$watch', flag $([[ -e "$flag" ]] && echo present || echo absent)"
+    fi
 }
 
 # --- 7. the update service's conditions ---------------------------------------
@@ -474,7 +503,9 @@ problems=""
 [[ -e /var/lib/waydroid ]] && problems+="/var/lib/waydroid left; "
 [[ -e /var/lib/borshevik/waydroid-ota ]] && problems+="/var/lib/borshevik/waydroid-ota left; "
 [[ -e "$ENTRY" || -e "$APPS_ENTRY" ]] && problems+="an Android entry left; "
-[[ -e "$APK_ENTRY" || -e "$MIMEAPPS" ]] && problems+="the APK entry or its mimeapps.list left; "
+[[ -e "$APK_ENTRY" ]] && problems+="the APK entry left; "
+grep -qF "${APK_MIME}=" "$MIMEAPPS" 2>/dev/null && problems+="the APK association left in mimeapps.list; "
+grep -qxF "$FOREIGN_DEFAULT" "$MIMEAPPS" 2>/dev/null || problems+="the other default in mimeapps.list lost; "
 [[ "$(as_user xdg-mime query default "$APK_MIME" 2>&1)" == borshevik-apk-install.desktop ]] && problems+="APKs still open in the installer; "
 [[ "$(systemctl is-enabled "$TIMER" 2>&1)" == disabled ]] || problems+="$TIMER still $(systemctl is-enabled "$TIMER" 2>&1); "
 [[ "$(systemctl is-enabled "$CONTAINER" 2>&1)" == disabled ]] || problems+="$CONTAINER still $(systemctl is-enabled "$CONTAINER" 2>&1); "

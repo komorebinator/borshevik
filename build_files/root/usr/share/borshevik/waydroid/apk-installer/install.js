@@ -200,10 +200,15 @@ export async function installApk(path, pkg, onStage = () => {}) {
   const res = await run(["waydroid", "app", "install", path]);
 
   // The install returns at once and does not fail when Android refuses the
-  // package, so a new one counts only once Android lists it. An update cannot
-  // be seen there, so one that went through the command counts as done.
-  if (had)
+  // package, so a new one counts only once Android lists it — even when the
+  // command failed, as Android may have taken the package all the same. An
+  // update cannot be seen there, so it counts as done when the command
+  // succeeded, and failed when it did not.
+  if (had) {
+    if (!res.ok)
+      throw new InstallError("notInstalled", strip(res.stderr) || strip(res.stdout));
     return { updated: true };
+  }
   onStage("verifying");
   for (let waited = 0; waited < INSTALL_TIMEOUT_S; waited += 3) {
     if ((await installedPackages()).has(pkg))

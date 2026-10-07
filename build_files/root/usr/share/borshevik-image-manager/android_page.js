@@ -14,6 +14,7 @@ import {
   UPDATE_TIMER,
   isInstalled,
   busyOperation,
+  operations,
   readImage,
   checkForUpdate,
   googleStatus,
@@ -55,6 +56,7 @@ class AndroidPage extends Adw.Bin {
     this._busyPoll = 0;
     this._runtimeTick = 0;
     this._runtimeAt = 0;
+    this._seenOperation = null;
 
     this._build();
     // Android's running state ticks while the tab is on screen, and only then.
@@ -68,9 +70,11 @@ class AndroidPage extends Adw.Bin {
 
   // Called each time the tab is shown; reads the state the first time, again
   // after every operation, and whenever an operation started elsewhere has
-  // begun or ended since the tab last looked.
+  // begun or ended since the tab last looked — one may have begun and ended
+  // unseen, which the busy file's record of the last one tells.
   activate() {
-    if (this._loaded && busyOperation() === this._android.busy)
+    const ops = operations();
+    if (this._loaded && ops.busy === this._android.busy && ops.last === this._seenOperation)
       return;
     this._loaded = true;
     this._refresh().catch((e) => logError(e, 'Android state refresh failed'));
@@ -293,6 +297,13 @@ class AndroidPage extends Adw.Bin {
       this._startBusyPoll();
       return;
     }
+    // Any operation since the tab last looked, here or elsewhere, ends the
+    // Google ID shown: an install brings a new one, and only the last operation
+    // is known — an install followed by an upgrade shows as the upgrade.
+    const last = operations().last;
+    if (last !== this._seenOperation)
+      this._android.google = { phase: 'hidden', id: null, signedIn: null, message: '' };
+    this._seenOperation = last;
     const state = isInstalled();
     const image = state.installed ? readImage() : null;
     this._android.installed = state.installed;
@@ -303,7 +314,7 @@ class AndroidPage extends Adw.Bin {
     if (state.installed) {
       this._android.runtime = await runtimeState();
       this._runtimeAt = GLib.get_monotonic_time();
-      this._android.signedInLocally = await signedInLocally();
+      this._android.signedInLocally = signedInLocally();
     }
     this._applyState();
 
@@ -552,8 +563,6 @@ class AndroidPage extends Adw.Bin {
       withAuthRetry: false
     });
     this._android.check = { phase: 'idle', downloadSize: null, message: '' };
-    // Every install brings a new ID; one shown before would be stale.
-    this._android.google = { phase: 'hidden', id: null, signedIn: null, message: '' };
     await this._refresh();
   }
 

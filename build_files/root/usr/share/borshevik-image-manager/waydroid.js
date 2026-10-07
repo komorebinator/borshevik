@@ -32,16 +32,24 @@ export function isInstalled() {
   return { installed: true, version: text.trim() || null };
 }
 
-// The operation borshevik-waydroid is running right now — 'install',
-// 'upgrade' or 'remove' — or null. The busy file holds `<operation> <pid>`
-// while one runs and is empty otherwise; a pid no longer alive means one that
-// crashed, not one still running.
+// What the busy file says, read once: the operation borshevik-waydroid is
+// running right now — 'install', 'upgrade' or 'remove' — or null; and the one it
+// last finished since boot, with when, as one string ('install 1791…') that
+// changes with every operation, or null when none has run. The file holds
+// `<operation> <pid>` while one runs and `done <operation> <time>` once one has
+// ended; a pid no longer alive means one that crashed, not one still running.
+export function operations() {
+  const text = (_readText(BUSY) ?? '').trim();
+  const running = text.match(/^(install|upgrade|remove) (\d+)$/);
+  const done = text.match(/^done (install|upgrade|remove) (\d+)$/);
+  return {
+    busy: running && GLib.file_test(`/proc/${running[2]}`, GLib.FileTest.EXISTS) ? running[1] : null,
+    last: done ? `${done[1]} ${done[2]}` : null
+  };
+}
+
 export function busyOperation() {
-  const text = _readText(BUSY);
-  const m = (text ?? '').trim().match(/^(install|upgrade|remove) (\d+)$/);
-  if (!m)
-    return null;
-  return GLib.file_test(`/proc/${m[2]}`, GLib.FileTest.EXISTS) ? m[1] : null;
+  return operations().busy;
 }
 
 // The installed images' build times, as waydroid.cfg records them — what
@@ -133,34 +141,12 @@ export async function googleStatus() {
   return { id: values.android_id, signedIn: values.google_account === 'yes' };
 }
 
-// Whether Android holds a Google account, read without privileges: true or
-// false, or null when the user cannot read Android's accounts database. The
-// file belongs to Android's system user, uid 1000, which Waydroid does not
-// remap and which is the machine's first user's uid too.
-export async function signedInLocally() {
-  const db = GLib.build_filenamev([GLib.get_home_dir(),
-    '.local/share/waydroid/data/system_ce/0/accounts_ce.db']);
-  const script = `
-import os, shutil, sqlite3, sys, tempfile
-db = sys.argv[1]
-if not os.access(db, os.R_OK):
-    sys.exit(2)
-with tempfile.TemporaryDirectory() as tmp:
-    copy = os.path.join(tmp, "a.db")
-    for suffix in ("", "-wal", "-shm", "-journal"):
-        if os.path.exists(db + suffix):
-            shutil.copyfile(db + suffix, copy + suffix)
-    n = sqlite3.connect(copy).execute("SELECT count(*) FROM accounts WHERE type = 'com.google'").fetchone()[0]
-print("yes" if n else "no")
-`;
-  try {
-    const res = await runCommandCapture(['python3', '-c', script, db]);
-    if (!res.success)
-      return null;
-    return (res.stdout || '').trim() === 'yes';
-  } catch (_e) {
-    return null;
-  }
+// Whether Android has signed in to Google, without privileges or a running
+// Android: the flag Android writes into its own data the first time it sees a
+// Google account, readable by the user it belongs to whatever their uid.
+export function signedInLocally() {
+  return GLib.file_test(GLib.build_filenamev([GLib.get_home_dir(),
+    '.local/share/waydroid/data/borshevik/google-signed-in']), GLib.FileTest.EXISTS);
 }
 
 // Whether Android is running now — 'running', 'suspended' (the container

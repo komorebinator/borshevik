@@ -13,8 +13,9 @@ set -euo pipefail
 
 # Never exit with 126 or 127: pkexec returns those when the password is
 # refused, and callers tell a cancelled prompt from a broken install by them.
-# An operation that held the busy lock empties the busy file on the way out.
-trap 'rc=$?; if [[ -n "${BUSY_HELD:-}" ]]; then : > "$BUSY"; fi; if [[ $rc -eq 126 || $rc -eq 127 ]]; then exit 1; fi' EXIT
+# An operation that held the busy lock leaves in the busy file, on the way out,
+# which operation ended and when.
+trap 'rc=$?; if [[ -n "${BUSY_HELD:-}" ]]; then printf "done %s %s\n" "$BUSY_HELD" "$(date +%s%N)" > "$BUSY"; fi; if [[ $rc -eq 126 || $rc -eq 127 ]]; then exit 1; fi' EXIT
 
 STAMP=/var/lib/borshevik/waydroid-installed
 WAYDROID_DIR=/var/lib/waydroid
@@ -28,11 +29,12 @@ ANDROID_ENTRY_DEST=/usr/local/share/applications/borshevik-android.desktop
 APPS_ENTRY_SRC="${SHARE}/borshevik-android-apps.desktop"
 APPS_ENTRY_DEST=/usr/local/share/applications/borshevik-android-apps.desktop
 # What opens an APK while Android is installed: the installer's entry, and the
-# mimeapps.list that makes it the default over /usr/share's archive manager.
+# one line of /usr/local's mimeapps.list that makes it the default over
+# /usr/share's archive manager.
 APK_ENTRY_SRC="${SHARE}/borshevik-apk-install.desktop"
 APK_ENTRY_DEST=/usr/local/share/applications/borshevik-apk-install.desktop
-MIMEAPPS_SRC="${SHARE}/mimeapps.list"
 MIMEAPPS_DEST=/usr/local/share/applications/mimeapps.list
+APK_MIME=application/vnd.android.package-archive
 UPDATE_TIMER=borshevik-waydroid-update.timer
 # The user service handing Android GNOME's colours.
 THEME_SYNC=borshevik-android-theme.service
@@ -43,8 +45,11 @@ SYSTEM_CHANNEL="file://${CHANNEL_DIR}/system"
 VENDOR_CHANNEL="file://${CHANNEL_DIR}/vendor"
 GSF_DB=.local/share/waydroid/data/data/com.google.android.gsf/databases/gservices.db
 ACCOUNTS_DB=.local/share/waydroid/data/system_ce/0/accounts_ce.db
+# Reads both, for this script and for the Image Manager.
+ACCOUNTS_TOOL=/usr/libexec/borshevik/borshevik-waydroid-accounts
 # `<operation> <pid>` while install, upgrade or remove runs, under an flock;
-# empty otherwise. Read by the Image Manager.
+# `done <operation> <nanoseconds since the epoch>` once one has ended. Read by
+# the Image Manager.
 BUSY=/run/borshevik/waydroid-busy
 OVERLAY_SYSTEM="${WAYDROID_DIR}/overlay/system"
 
@@ -58,10 +63,10 @@ take_busy() { # operation
     exec 9<>"$BUSY"
     chmod 0644 "$BUSY"
     if ! flock -n 9; then
-        echo "Another Android operation is running: $(cat "$BUSY")" >&2
+        echo "Another Android operation is running: $(sed -n 's/^\(install\|upgrade\|remove\) [0-9]*$/\1/p' "$BUSY")" >&2
         exit 4
     fi
-    BUSY_HELD=1
+    BUSY_HELD="$1"
     echo "$1 $$" > "$BUSY"
 }
 
@@ -112,10 +117,11 @@ android_version() {
 # The ARM translation layer for this CPU: libhoudini is Intel's own and runs
 # best on Intel; libndk_translation is Google's, from ChromeOS, and is the one
 # that works well on AMD. Any other x86_64 vendor gets libndk too.
-translation_layer() {
-    local vendor
-    vendor="$(sed -n 's/^vendor_id[[:space:]]*:[[:space:]]*//p' /proc/cpuinfo | head -n1)"
-    case "$vendor" in
+cpu_vendor() {
+    sed -n 's/^vendor_id[[:space:]]*:[[:space:]]*//p' /proc/cpuinfo | head -n1
+}
+translation_layer() { # cpu vendor
+    case "$1" in
         GenuineIntel) echo "libhoudini" ;;
         AuthenticAMD) echo "libndk" ;;
         *)            echo "libndk" ;;
@@ -125,8 +131,8 @@ translation_layer() {
 # The ARM translation layer, for one Android version.
 install_addons() {
     local version="$1" translation vendor
-    translation="$(translation_layer)"
-    vendor="$(sed -n 's/^vendor_id[[:space:]]*:[[:space:]]*//p' /proc/cpuinfo | head -n1)"
+    vendor="$(cpu_vendor)"
+    translation="$(translation_layer "$vendor")"
     step "CPU vendor ${vendor:-unknown}: using ${translation} for ARM apps"
     step "Installing ${translation} for Android ${version}"
     "${WAYDROID_SCRIPT_DIR}/venv/bin/python3" "${WAYDROID_SCRIPT_DIR}/main.py" \
@@ -174,21 +180,29 @@ with open(path, "w") as f:
 EOF
 }
 
-# Writes the channel from config.json's approved images, one entry each, and
-# prints the system type (the system image's romtype) init is to ask for.
-write_channel() {
-    python3 - "$CONFIG" "$CHANNEL_DIR" <<'EOF'
+# The romtype config.json approves for an image (system or vendor); the
+# system's is the system type init is to ask for.
+romtype() { # system | vendor
+    python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["images"][sys.argv[2]]["romtype"])' "$CONFIG" "$1"
+}
+# Where in the channel Waydroid looks for each image's entry — its own layout,
+# written down here only — as the URL waydroid.cfg names it by. Called inside
+# $(…), where set -e does not reach, so a failure is returned explicitly.
+system_ota() { local t; t="$(romtype system)" || return 1; echo "${SYSTEM_CHANNEL}/lineage/waydroid_x86_64/${t}.json"; }
+vendor_ota() { local t; t="$(romtype vendor)" || return 1; echo "${VENDOR_CHANNEL}/waydroid_x86_64/${t}.json"; }
+
+# Writes the channel from config.json's approved images, one entry each, at
+# the system and vendor OTA URLs given.
+write_channel() { # system OTA URL, vendor OTA URL
+    python3 - "$CONFIG" "$1" "$2" <<'EOF'
 import json, os, sys
-config_path, channel_dir = sys.argv[1:3]
+config_path, system_ota, vendor_ota = sys.argv[1:4]
 images = json.load(open(config_path))["images"]
-system, vendor = images["system"], images["vendor"]
-for rel, entry in ((f"system/lineage/waydroid_x86_64/{system['romtype']}.json", system),
-                   (f"vendor/waydroid_x86_64/{vendor['romtype']}.json", vendor)):
-    path = os.path.join(channel_dir, rel)
+for url, entry in ((system_ota, images["system"]), (vendor_ota, images["vendor"])):
+    path = url.removeprefix("file://")
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w") as f:
         json.dump({"response": [entry]}, f, indent=2)
-print(system["romtype"])
 EOF
 }
 
@@ -196,15 +210,12 @@ EOF
 # image that is not the approved one, newer or older: `waydroid upgrade` only
 # fetches a build newer than the installed one, and an approved build is older
 # when a broken one was withdrawn.
-follow_channel() {
-    python3 - "$WAYDROID_CFG" "$CONFIG" "$SYSTEM_CHANNEL" "$VENDOR_CHANNEL" <<'EOF'
+follow_channel() { # system OTA URL, vendor OTA URL
+    python3 - "$WAYDROID_CFG" "$CONFIG" "$1" "$2" <<'EOF'
 import configparser, json, sys
-path, config_path, system_channel, vendor_channel = sys.argv[1:5]
+path, config_path, system_ota, vendor_ota = sys.argv[1:5]
 images = json.load(open(config_path))["images"]
-otas = {
-    "system": f"{system_channel}/lineage/waydroid_x86_64/{images['system']['romtype']}.json",
-    "vendor": f"{vendor_channel}/waydroid_x86_64/{images['vendor']['romtype']}.json",
-}
+otas = {"system": system_ota, "vendor": vendor_ota}
 cfg = configparser.ConfigParser()
 cfg.optionxform = str
 cfg.read(path)
@@ -293,6 +304,39 @@ EOF
     chmod 0644 "${OVERLAY_SYSTEM}/etc/init/borshevik-theme.rc" "${OVERLAY_SYSTEM}/etc/borshevik-theme.sh"
 }
 
+# Notes once, inside Android, that it has signed in to Google: a flag in its
+# /data, which the user's ~/.local/share/waydroid/data is and anyone may pass
+# through, so the Image Manager reads it for any user without a password or a
+# running Android. Looks when Android has booted and then once an hour until it
+# has seen a Google account, then never again.
+write_google_watch() {
+    mkdir -p "${OVERLAY_SYSTEM}/etc/init"
+    cat > "${OVERLAY_SYSTEM}/etc/init/borshevik-google.rc" <<'EOF'
+service borshevik_google /system/bin/sh /system/etc/borshevik-google.sh
+    user root
+    group root
+    oneshot
+    disabled
+
+on property:sys.boot_completed=1
+    start borshevik_google
+EOF
+    cat > "${OVERLAY_SYSTEM}/etc/borshevik-google.sh" <<'EOF'
+#!/system/bin/sh
+# Written by borshevik-waydroid: notes once that Android has signed in to Google.
+flag=/data/borshevik/google-signed-in
+[ -e "$flag" ] && exit 0
+until dumpsys account 2>/dev/null | grep -qF 'type=com.google}'; do
+    sleep 3600
+done
+mkdir -p "${flag%/*}"
+chmod 0755 "${flag%/*}"
+: > "$flag"
+chmod 0644 "$flag"
+EOF
+    chmod 0644 "${OVERLAY_SYSTEM}/etc/init/borshevik-google.rc" "${OVERLAY_SYSTEM}/etc/borshevik-google.sh"
+}
+
 # Game controllers' key layouts that Android loads only after finding their
 # driver in /proc/config.gz, which the container does not have, so it falls
 # back to layouts for the generic HID driver and the buttons come out wrong.
@@ -300,6 +344,9 @@ EOF
 # builds, a copy without that check goes into the system overlay in its place.
 # Only copies carrying KEYLAYOUT_MARK are replaced.
 KEYLAYOUT_MARK="# Written by borshevik-waydroid: Android's layout without its kernel config check"
+keylayouts_digest() {
+    { cat "${OVERLAY_SYSTEM}"/usr/keylayout/*.kl 2>/dev/null || true; } | sha256sum
+}
 write_keylayouts() {
     local dir="${OVERLAY_SYSTEM}/usr/keylayout" kconfig tmp f name opt ok
     kconfig="/usr/lib/modules/$(uname -r)/config"
@@ -335,12 +382,96 @@ write_keylayouts() {
     rm -rf "$tmp"
 }
 
+# Sets or unsets the APK association in /usr/local's mimeapps.list, and nothing
+# else there: the file may hold an administrator's own defaults, an APK default
+# of their own among them, which set leaves in place and unset does not touch.
+# It is created when missing and deleted when unsetting leaves nothing in it;
+# rewritten only when it changes, through a new file put in its place.
+apk_association() { # set | unset
+    python3 - "$MIMEAPPS_DEST" "$APK_MIME" "$(basename "$APK_ENTRY_DEST")" "$1" <<'EOF'
+import os, sys
+path, mime, entry, action = sys.argv[1:5]
+ours = f"{mime}={entry}"
+# What the whole file this script used to copy there said of itself; untrue now.
+LEGACY = ("# Copied into /usr/local/share/applications by borshevik-waydroid install, and",
+          "# removed by remove: APKs open in the installer only while Android is there.")
+
+def read():
+    if not os.path.exists(path):
+        return None
+    with open(path, encoding="utf-8", errors="surrogateescape", newline="") as f:
+        return f.read()
+
+old = read()
+# Split on newlines only, so every line keeps what it ends in, a CR included;
+# the line added ends the way the file's lines do, and the file ends as it did.
+lines = (old or "").split("\n")
+final_newline = old is None or old.endswith("\n")
+if lines and lines[-1] == "":
+    lines.pop()
+crlf = bool(lines) and all(l.endswith("\r") for l in lines)
+ours_line = ours + ("\r" if crlf else "")
+header_line = "[Default Applications]" + ("\r" if crlf else "")
+had_header = any(l.strip() == "[Default Applications]" for l in lines)
+lines = [l for l in lines if l.strip() not in LEGACY]
+key = lambda l: l.split("=", 1)[0].strip()
+# An APK default of someone else's, in [Default Applications]; lines in other
+# sections only offer or hide applications.
+section, theirs = None, False
+for l in lines:
+    if l.strip().startswith("[") and l.strip().endswith("]"):
+        section = l.strip()
+    elif section == "[Default Applications]" and key(l) == mime and l.strip() != ours:
+        theirs = True
+out, section, placed = [], None, False
+for line in lines:
+    stripped = line.strip()
+    if stripped.startswith("[") and stripped.endswith("]"):
+        if section == "[Default Applications]" and action == "set" and not placed and not theirs:
+            end = len(out)
+            while end and not out[end - 1].strip():
+                end -= 1
+            out.insert(end, ours_line)
+            placed = True
+        section = stripped
+    elif section == "[Default Applications]" and stripped == ours:
+        continue
+    out.append(line)
+if action == "set" and not placed and not theirs:
+    if section != "[Default Applications]":
+        out.append(header_line)
+    out.append(ours_line)
+# Unsetting takes out a [Default Applications] left empty, which set added.
+if action == "unset" and had_header:
+    i = next(n for n, l in enumerate(out) if l.strip() == "[Default Applications]")
+    rest = out[i + 1:]
+    end = next((n for n, l in enumerate(rest) if l.strip().startswith("[")), len(rest))
+    if not any(l.strip() for l in rest[:end]):
+        out = out[:i] + rest[end:]
+
+keep = any(l.strip() and l.strip() != "[Default Applications]" for l in out)
+new = "\n".join(out) + ("\n" if final_newline else "") if keep else None
+if new == old:
+    sys.exit(0)
+if new is None:
+    os.remove(path)
+    sys.exit(0)
+os.makedirs(os.path.dirname(path), exist_ok=True)
+tmp = path + ".borshevik-new"
+with open(tmp, "w", encoding="utf-8", errors="surrogateescape", newline="") as f:
+    f.write(new)
+os.chmod(tmp, 0o644)
+os.replace(tmp, path)
+EOF
+}
+
 # The entries that exist only while Android is installed.
 install_entries() {
     install -D -m 0644 "$ANDROID_ENTRY_SRC" "$ANDROID_ENTRY_DEST"
     install -D -m 0644 "$APPS_ENTRY_SRC" "$APPS_ENTRY_DEST"
     install -D -m 0644 "$APK_ENTRY_SRC" "$APK_ENTRY_DEST"
-    install -D -m 0644 "$MIMEAPPS_SRC" "$MIMEAPPS_DEST"
+    # Someone else's file: a failure there is reported, and stops nothing.
+    apk_association set || echo "could not make APKs open in Android through ${MIMEAPPS_DEST}" >&2
 }
 
 cmd_install() {
@@ -353,8 +484,11 @@ cmd_install() {
     # translation layer went into, and waydroid.cfg's [properties].
     rm -rf "${WAYDROID_DIR}/overlay" "${WAYDROID_DIR}/overlay_rw" "${WAYDROID_DIR}/overlay_work"
     rm -f "$WAYDROID_CFG"
-    local system_type
-    system_type="$(write_channel)"
+    local system_type system vendor
+    system="$(system_ota)"
+    vendor="$(vendor_ota)"
+    system_type="$(romtype system)"
+    write_channel "$system" "$vendor"
     # init exits 0 even when it fails, so the images are what says it worked.
     waydroid init -f -c "$SYSTEM_CHANNEL" -v "$VENDOR_CHANNEL" -s "$system_type"
     if [[ ! -f "${WAYDROID_DIR}/images/system.img" || ! -f "${WAYDROID_DIR}/images/vendor.img" ]]; then
@@ -373,6 +507,7 @@ cmd_install() {
     install_addons "$version"
     write_first_boot
     write_theme
+    write_google_watch
     write_keylayouts
 
     apply_settings
@@ -410,21 +545,35 @@ cmd_upgrade() {
     fi
 
     step "Updating the Android images"
-    write_channel >/dev/null
-    follow_channel
+    local system vendor
+    system="$(system_ota)"
+    vendor="$(vendor_ota)"
+    write_channel "$system" "$vendor"
+    follow_channel "$system" "$vendor"
     write_first_boot
     write_theme
+    write_google_watch
     apply_settings
     install_entries
     waydroid upgrade
-    write_keylayouts
 
-    local before after
+    # `waydroid upgrade` has already restarted a running Android, before what
+    # follows changed its overlay; restart it again once anything did.
+    local layouts restart= before after version_changed=
+    layouts="$(keylayouts_digest)"
+    write_keylayouts
+    [[ "$(keylayouts_digest)" != "$layouts" ]] && restart=1
     before="$(<"$STAMP")"
     after="$(android_version)"
-    if [[ "$after" != "$before" ]]; then
+    [[ "$after" != "$before" ]] && version_changed=1
+    if [[ -n "$version_changed" ]]; then
         install_addons "$after"
+        restart=1
+    fi
+    if [[ -n "$restart" ]]; then
         waydroid upgrade -o
+    fi
+    if [[ -n "$version_changed" ]]; then
         echo "$after" > "$STAMP"
     fi
     step "Android ${after} is up to date"
@@ -434,7 +583,8 @@ cmd_remove() {
     require_root remove
     take_busy remove
     rm -f "$STAMP"
-    rm -f "$ANDROID_ENTRY_DEST" "$APPS_ENTRY_DEST" "$APK_ENTRY_DEST" "$MIMEAPPS_DEST"
+    rm -f "$ANDROID_ENTRY_DEST" "$APPS_ENTRY_DEST" "$APK_ENTRY_DEST"
+    apk_association unset || echo "could not take the APK association out of ${MIMEAPPS_DEST}" >&2
 
     step "Stopping Android"
     systemctl disable --now "$UPDATE_TIMER" 2>/dev/null || true
@@ -465,32 +615,26 @@ cmd_remove() {
 # to is read whole, journal included. Exits 3 until Android has checked in.
 cmd_google() {
     require_root google
-    local home
+    local home id rc=0 account
     home="$(getent passwd "${PKEXEC_UID:-0}" | cut -d: -f6)"
-    python3 - "${home}/${GSF_DB}" "${home}/${ACCOUNTS_DB}" <<'EOF'
-import os, shutil, sqlite3, sys, tempfile
-
-NOT_YET = "Android has not checked in with Google yet: start Android once with network, then try again"
-
-def query(db, sql):
-    if not os.path.exists(db):
-        return None
-    with tempfile.TemporaryDirectory() as tmp:
-        copy = os.path.join(tmp, "copy.db")
-        for suffix in ("", "-wal", "-shm", "-journal"):
-            if os.path.exists(db + suffix):
-                shutil.copyfile(db + suffix, copy + suffix)
-        return sqlite3.connect(copy).execute(sql).fetchone()
-
-gsf_db, accounts_db = sys.argv[1:3]
-row = query(gsf_db, "SELECT value FROM main WHERE name = 'android_id'")
-if not row or not row[0]:
-    print(NOT_YET, file=sys.stderr)
-    sys.exit(3)
-accounts = query(accounts_db, "SELECT count(*) FROM accounts WHERE type = 'com.google'")
-print(f"android_id={row[0]}")
-print(f"google_account={'yes' if accounts and accounts[0] else 'no'}")
-EOF
+    id="$("$ACCOUNTS_TOOL" android-id "${home}/${GSF_DB}")" || rc=$?
+    if [[ $rc -eq 3 ]]; then
+        echo "Android has not checked in with Google yet: start Android once with network, then try again" >&2
+        exit 3
+    elif [[ $rc -ne 0 ]]; then
+        exit 1
+    fi
+    # As root the file is unreadable only when it does not exist yet: no account.
+    # Anything else that fails is a failure, not a "no".
+    rc=0
+    account="$("$ACCOUNTS_TOOL" google-account "${home}/${ACCOUNTS_DB}")" || rc=$?
+    if [[ $rc -eq 2 ]]; then
+        account=no
+    elif [[ $rc -ne 0 ]]; then
+        exit 1
+    fi
+    echo "android_id=${id}"
+    echo "google_account=${account}"
 }
 
 case "${1:-}" in

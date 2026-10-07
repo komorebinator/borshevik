@@ -3,6 +3,7 @@
 # windows (window.js, android_page.js) are not here: nothing in a machine with
 # no one at it clicks through them, so changing them alone runs nothing useful.
 build_files/root/usr/libexec/borshevik/borshevik-waydroid
+build_files/root/usr/libexec/borshevik/borshevik-waydroid-accounts
 build_files/root/usr/libexec/borshevik/borshevik-modules
 build_files/root/usr/lib/systemd/system/borshevik-waydroid-update.*
 build_files/root/usr/share/borshevik/waydroid/**

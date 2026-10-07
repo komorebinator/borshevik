@@ -134,8 +134,13 @@ class MainWindow extends Adw.ApplicationWindow {
   }
 
   // Shows a tab by name, `system` or `android`; any other name changes nothing.
+  // The Android tab asked for while shown looks again, as switching would not.
   showPage(name) {
-    if (this._stack.get_child_by_name(name))
+    if (!this._stack.get_child_by_name(name))
+      return;
+    if (name === 'android' && this._stack.get_visible_child_name() === name)
+      this._androidPage.activate();
+    else
       this._stack.set_visible_child_name(name);
   }
 
