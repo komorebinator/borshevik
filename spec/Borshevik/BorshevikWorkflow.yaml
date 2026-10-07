@@ -56,7 +56,7 @@ steps:
     when: an image built from experimental carrying the change is on `:latest`, @BorshevikWorkflow#test-image-in-vm has passed on it, experimental is the state the review last went green on, and the author has not yet confirmed it works on a machine running it
     operation: "@GitHub#open_pull_request(head=experimental, base=main)"
   - id: in_review
-    description: A pull request from experimental to main carries the tested change.
+    description: A pull request from experimental to main carries the tested change; its description says what features the branch brings and how they were tested.
     when: an open pull request into main carries the change
     operation: "@GitHub#merge_pull_request(strategy=merge)"
   - id: on_main
@@ -234,10 +234,9 @@ recipes:
       - "Take <diff>, fetching origin first when it names a remote branch. Read enough of the surrounding code and of the terms to judge the change, but judge only the change."
       - "Look for what the change gets wrong: a bug in the lines it adds or alters, behaviour it breaks elsewhere through what it changed (a caller, a setting, a unit it depends on), a contradiction with the project's terms and guidelines, a case it was meant to handle and does not. A problem that was there before the change and that the change neither causes nor makes worse is not a finding."
       - "Confirm each finding against the code before reporting it — the lines it is about, and how they are reached — and drop what does not hold up. Where it rests on how something outside the code behaves (a tool's output, a library's lookup), find out by running it, not from memory."
-      - "Keep the findings already settled in .git/review-closed.md — inside the git directory, so it is not part of the repository yet outlasts a session — each with how it was closed: kept by the author's choice, with the reason; or dismissed as not holding up, with what showed it. Hand that list to every pass as already considered, so a pass does not report them again. A fixed finding needs no entry: the next pass sees the fix."
-      - "Report each pass's new findings to the author, each with the file and line and what goes wrong and when. The author decides each: fix it, keep it, or dismiss it."
+      - "Report each pass's new findings to the author, each with the file and line and what goes wrong and when. The author decides each: fix it now, or judge it unimportant and drop it. Findings are not stored anywhere; one the owner wants tracked, they file as an issue themselves. A later pass that raises one the author has already dropped in this review drops it again without asking."
       - "Before the next pass, check every fix on its own cases — the inputs it is meant to handle and those around it, run where they can be — so a pass does not spend itself on what a minute's trying would have shown. Then review the whole <diff> again, at the same depth as before, so green means the same every time."
-      - "A pass that reports nothing outside .git/review-closed.md is green. Note in the file the state it went green on — the commit the working tree is then committed as — which is what the steps after it check experimental against. The kept findings go into the pull request's description with their reasons; once it is merged, the file is emptied."
+      - "A pass with no finding the author has not already dropped is green. Tell the author the state it went green on — the commit the working tree is then committed as — which is what the steps after it check experimental against."
   - id: notify_contributor
     description: Tells the contributor whose change it is, with a desktop notification, that an operation they are waiting on has ended — for the steps whose operation runs for minutes to hours, when they are rarely watching the conversation
     arguments:
