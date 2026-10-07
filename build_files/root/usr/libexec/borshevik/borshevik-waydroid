@@ -326,7 +326,9 @@ EOF
 # Written by borshevik-waydroid: notes once that Android has signed in to Google.
 flag=/data/borshevik/google-signed-in
 [ -e "$flag" ] && exit 0
-until dumpsys account 2>/dev/null | grep -qF 'type=com.google}'; do
+# An account is listed as `Account {name=…, type=com.google}`; the bare type
+# also appears for Google's account authenticator, which is there signed in or not.
+until dumpsys account 2>/dev/null | grep -q 'Account {name=.*, type=com\.google}'; do
     sleep 3600
 done
 mkdir -p "${flag%/*}"
