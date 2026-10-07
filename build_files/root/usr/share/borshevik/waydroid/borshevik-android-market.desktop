@@ -1,0 +1,18 @@
+# Copied into /usr/local/share/applications by borshevik-waydroid install, and
+# removed by remove: market:// links open in Android's Play Store only while
+# Android is there. See @WaydroidApp#launcher in spec/.
+[Desktop Entry]
+Type=Application
+Name=Open in Google Play
+Name[ru]=Открыть в Google Play
+Name[uk]=Відкрити в Google Play
+Name[be]=Адкрыць у Google Play
+Name[ka]=Google Play-ში გახსნა
+Name[hy]=Բացել Google Play-ում
+Comment=Open a Google Play link in Android
+Comment[ru]=Открыть ссылку Google Play в Android
+Icon=waydroid
+Exec=waydroid app intent android.intent.action.VIEW %u
+Terminal=false
+NoDisplay=true
+MimeType=x-scheme-handler/market;

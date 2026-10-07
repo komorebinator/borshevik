@@ -1,7 +1,7 @@
 # <img src="assets/borshevik_logo.svg" alt="Logo" width="26"> Borshevik
 
 
-Borshevik is an immutable, laptop-first desktop image built on Fedora Atomic and the uBlue ecosystem, designed to be simple to use and ready to go right after installation. It’s delivered as a single, read-only system image with atomic updates and easy rollbacks. It includes stock Fedora GNOME tuned with a small set of GNOME Shell extensions, plus multimedia support, Chrome, Steam, a built-in VPN client with VLESS and other censorship-resistant protocols, and a curated Flatpak set — so you can install it and get straight to work, even if you’re new to Linux.
+Borshevik is an immutable, laptop-first desktop image built on Fedora Atomic and the uBlue ecosystem, designed to be simple to use and ready to go right after installation. It’s delivered as a single, read-only system image with atomic updates and easy rollbacks. It includes stock Fedora GNOME tuned with a small set of GNOME Shell extensions, plus multimedia support, Chrome, Steam, Android apps from Google Play, a built-in VPN client with VLESS and other censorship-resistant protocols, and a curated Flatpak set — so you can install it and get straight to work, even if you’re new to Linux.
 
 ## 🎯 Who is this image for?
 
@@ -24,11 +24,15 @@ Chrome comes preinstalled using the official RPM from Google. It runs natively o
 
 Steam comes preinstalled, so you can play right away without extra setup. Many games work out of the box, and other game stores are also available to install.
 
+## 🤖 Android Apps
+
+Borshevik can run Android apps in windows of their own, alongside your desktop apps. Android support is optional and installed on demand — from the Android tab of the Image Manager, or by checking it in the App Manager — and downloads about 1.4 GB. It runs on [Waydroid](https://waydro.id) with Google Play services, so apps install from Google Play and keep themselves up to date. Google asks for the device to be registered with your account once before Google Play signs in; the Image Manager shows the device ID and links to the registration page. Game controllers work too.
+
 ## 📦 Application Set
 
-Borshevik includes Borshevik App Manager — a simple tool that helps you quickly install a recommended set of Flatpak apps for different use cases (work, media, development, communication, and more). It’s especially useful if you’re new to Linux and want a solid “starter pack” without hunting for apps one by one.
+Borshevik includes Borshevik App Manager, which opens on first login. Its **New installation** tab offers a recommended set of Flatpak apps grouped by use case (work, media, development, communication, and more) and additional modules, such as support for Android apps — a solid starter pack without hunting for apps one by one.
 
-It also supports bulk installation from a custom list: you can paste (or generate on another machine) a list of Flathub app IDs, and the manager will install them all in one go — an easy way to replicate your setup across devices.
+Its **From another PC** tab carries your setup over from an older computer: copy its configuration there — with the App Manager on Borshevik, or with a short script on any other Linux — and paste it here to install the same apps and modules in one go. Pairing both computers with GSConnect gives them a shared clipboard to carry it.
 
 ## 🔒 VPN
 

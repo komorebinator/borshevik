@@ -26,6 +26,16 @@ done < <(
         done | sort
 )
 
+echo "python syntax"
+while IFS= read -r f; do
+    if out="$(python3 -c 'import ast, sys; ast.parse(open(sys.argv[1]).read(), sys.argv[1])' "$f" 2>&1)"; then pass "$f"; else fail "$f: $out"; fi
+done < <(
+    find build_files installer tests -type f \( -name '*.py' -o -perm -u+x \) 2>/dev/null |
+        while IFS= read -r f; do
+            [[ "$f" == *.py ]] || head -n1 "$f" | grep -qE '^#!.*\bpython' && echo "$f"
+        done | sort
+)
+
 echo "json"
 while IFS= read -r f; do
     if out="$(jq empty "$f" 2>&1)"; then pass "$f"; else fail "$f: $out"; fi
@@ -50,7 +60,7 @@ for f in *.toml; do
 done
 
 echo "desktop entries"
-for f in build_files/root/usr/share/applications/*.desktop; do
+for f in build_files/root/usr/share/applications/*.desktop build_files/root/usr/share/borshevik/*/*.desktop; do
     if out="$(desktop-file-validate "$f" 2>&1)" && [[ -z "$out" ]]; then pass "$f"; else fail "$f: $out"; fi
 done
 

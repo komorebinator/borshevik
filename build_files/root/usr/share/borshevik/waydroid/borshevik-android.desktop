@@ -1,0 +1,16 @@
+[Desktop Entry]
+Type=Application
+Name=Android
+Comment=Android apps on Borshevik
+Comment[ru]=Android-приложения в Borshevik
+Exec=waydroid show-full-ui
+Icon=waydroid
+Terminal=false
+Categories=System;Emulator;
+Keywords=android;waydroid;
+Actions=stop;
+
+[Desktop Action stop]
+Name=Stop Android
+Name[ru]=Остановить Android
+Exec=waydroid session stop

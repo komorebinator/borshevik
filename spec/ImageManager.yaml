@@ -1,4 +1,4 @@
-description: "The Image Manager — the one window through which a user sees and changes the OS image: updates, rollback, switching variant or channel, automatic updates, and promoting a build to stable. The app is @ImageManagerApp."
+description: "The Image Manager — the one window through which a user sees and changes the OS image: updates, rollback, switching variant or channel, automatic updates, and promoting a build to stable — and, beside it, the Android image (@WaydroidApp), installed, updated and removed the same way. The app is @ImageManagerApp."
 extends: "@DuckspecProject"
 terms_folder: ImageManager/
 goals:

@@ -1,17 +1,58 @@
 [org/gnome/desktop/app-folders]
-folder-children=['system', 'utilities', 'borshevik']
+folder-children=['settings', 'system', 'hardware', 'utilities', 'office', 'downloads', 'players', 'studio', 'help', 'borshevik', 'android']
+
+[org/gnome/desktop/app-folders/folders/settings]
+name='borshevik-settings.directory'
+translate=true
+apps=['org.gnome.Settings.desktop', 'org.gnome.Extensions.desktop', 'com.mattjakeman.ExtensionManager.desktop', 'org.gnome.tweaks.desktop', 'ca.desrt.dconf-editor.desktop', 'com.github.tchx84.Flatseal.desktop', 'it.mijorus.gearlever.desktop', 'page.codeberg.libre_menu_editor.LibreMenuEditor.desktop', 'io.github.flattool.Ignition.desktop', 'nl.emphisia.icon.desktop', 'org.freedesktop.MalcontentControl.desktop', 'org.gnome.World.PikaBackup.desktop', 'io.github.antimicrox.antimicrox.desktop', 'org.gustavoperedo.FontDownloader.desktop']
 
 [org/gnome/desktop/app-folders/folders/system]
-name='System-Tools.directory'
+name='borshevik-system.directory'
 translate=true
-categories=['System','Settings']
+apps=['io.missioncenter.MissionCenter.desktop', 'org.gnome.SystemMonitor.desktop', 'io.github.plrigaux.sysd-manager.desktop', 'htop.desktop', 'net.nokyan.Resources.desktop', 'org.gnome.Logs.desktop']
+
+[org/gnome/desktop/app-folders/folders/hardware]
+name='borshevik-hardware.directory'
+translate=true
+apps=['org.gnome.Firmware.desktop', 'org.gnome.DiskUtility.desktop', 'io.github.arunsivaramanneo.GPUViewer.desktop', 'io.github.thetumultuousunicornofdarkness.cpu-x.desktop', 'com.leinardi.gst.desktop', 'io.github.jonmagon.kdiskmark.desktop', 'org.gnome.PowerStats.desktop', 'xyz.z3ntu.razergenie.desktop', 'com.github.LongSoft.UEFITool.desktop']
 
 [org/gnome/desktop/app-folders/folders/utilities]
-name='Utilities.directory'
+name='borshevik-utilities.directory'
 translate=true
-categories=['Utility','Utilities']
+apps=['org.gnome.baobab.desktop', 'org.gnome.Loupe.desktop', 'org.gnome.Weather.desktop', 'org.gnome.Snapshot.desktop', 'org.fedoraproject.MediaWriter.desktop', 'io.gitlab.adhami3310.Impression.desktop', 'org.gnome.Characters.desktop', 'org.gnome.font-viewer.desktop', 'org.gnome.FileRoller.desktop', 'org.gnome.DejaDup.desktop', 'io.github.nokse22.inspector.desktop', 'io.github.vikdevelop.SaveDesktop.desktop', 'it.mijorus.smile.desktop', 'com.belmoussaoui.Decoder.desktop']
+
+[org/gnome/desktop/app-folders/folders/office]
+name='borshevik-office.directory'
+translate=true
+apps=['org.gnome.Calendar.desktop', 'org.gnome.Contacts.desktop', 'org.gnome.clocks.desktop', 'org.gnome.Calculator.desktop', 'org.libreoffice.LibreOffice.desktop', 'org.libreoffice.LibreOffice.writer.desktop', 'org.libreoffice.LibreOffice.calc.desktop', 'org.libreoffice.LibreOffice.impress.desktop', 'org.libreoffice.LibreOffice.draw.desktop', 'org.libreoffice.LibreOffice.math.desktop', 'org.libreoffice.LibreOffice.base.desktop', 'org.gnome.gitlab.cheywood.Buffer.desktop', 'io.appflowy.AppFlowy.desktop', 'it.mijorus.collector.desktop', 'app.drey.Dialect.desktop', 'org.gnome.NetworkDisplays.desktop', 'com.github.junrrein.PDFSlicer.desktop', 'com.github.jeromerobert.pdfarranger.desktop', 'org.gnome.Papers.desktop', 'org.gnome.Evince.desktop', 'org.gnome.TextEditor.desktop']
+
+[org/gnome/desktop/app-folders/folders/downloads]
+name='borshevik-downloads.directory'
+translate=true
+apps=['com.transmissionbt.Transmission.desktop', 'com.github.unrud.VideoDownloader.desktop', 'org.localsend.localsend_app.desktop', 'io.github.giantpinkrobots.varia.desktop', 'org.deluge_torrent.deluge.desktop', 'com.ktechpit.torrhunt.desktop', 'org.raspberrypi.rpi-imager.desktop', 'xyz.ketok.Speedtest.desktop']
+
+[org/gnome/desktop/app-folders/folders/players]
+name='borshevik-players.directory'
+translate=true
+apps=['org.videolan.VLC.desktop', 'org.gnome.Decibels.desktop', 'org.gnome.Showtime.desktop', 'io.github.celluloid_player.Celluloid.desktop', 'io.gitlab.daikhan.stable.desktop', 'io.github.diegopvlk.Cine.desktop', 'tv.kodi.Kodi.desktop', 'tv.plex.PlexDesktop.desktop', 'io.github.thaunknown.miru.desktop', 'io.webtorrent.WebTorrent.desktop', 'org.clementine_player.Clementine.desktop', 'de.haeckerfelix.Shortwave.desktop', 'io.github.seadve.Mousai.desktop', 'org.tenacityaudio.Tenacity.desktop', 'io.github.revisto.drum-machine.desktop']
+
+[org/gnome/desktop/app-folders/folders/studio]
+name='borshevik-studio.directory'
+translate=true
+apps=['org.shotcut.Shotcut.desktop', 'com.github.wwmm.easyeffects.desktop', 'com.saivert.pwvucontrol.desktop', 'com.dec05eba.gpu_screen_recorder.desktop', 'org.gimp.GIMP.desktop', 'com.obsproject.Studio.desktop', 'io.gitlab.theevilskeleton.Upscaler.desktop', 'org.inkscape.Inkscape.desktop', 'io.gitlab.adhami3310.Converter.desktop', 'io.github.nokse22.teleprompter.desktop', 'io.github.vani_tty1.memerist.desktop', 'io.github.sitraorg.sitra.desktop']
+
+[org/gnome/desktop/app-folders/folders/help]
+name='borshevik-help.directory'
+translate=true
+apps=['org.gnome.Yelp.desktop', 'org.gnome.Tour.desktop', 'yelp.desktop']
 
 [org/gnome/desktop/app-folders/folders/borshevik]
 name='Borshevik'
 translate=false
-apps=['org.borshevik.ImageManager.desktop','org.borshevik.AppManager.desktop']
+apps=['org.borshevik.ImageManager.desktop', 'org.borshevik.AppManager.desktop']
+
+[org/gnome/desktop/app-folders/folders/android]
+name='Android'
+translate=false
+apps=['borshevik-android.desktop', 'borshevik-android-apps.desktop']
+categories=['X-WayDroid-App']

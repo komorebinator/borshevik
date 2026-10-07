@@ -4,15 +4,13 @@ function strip(s) {
   return (s ?? "").toString().replace(/\r/g, "").trim();
 }
 
-export function parseCustomList(text) {
-  const out = [];
-  for (const line of (text ?? "").split("\n")) {
-    const s = strip(line);
-    if (!s || s.startsWith("#")) continue;
-    const id = strip(s.split(/\s+/)[0]);
-    if (id) out.push(id);
-  }
-  return out;
+// An entry this version can install: a Flathub application id.
+export function isValid(entry) {
+  return typeof entry?.id === "string" && entry.id.trim() !== "";
+}
+
+export function displayName(entry) {
+  return String(entry?.id ?? "");
 }
 
 function spawn(argv) {
@@ -35,36 +33,6 @@ async function communicate(proc) {
 
   const exitStatus = proc.get_exit_status();
   return { ok: exitStatus === 0, exitStatus, stdout: stdout ?? "", stderr: stderr ?? "" };
-}
-
-// Old Flatpak compatible: no --separator, no --no-heading
-export async function listInstalledFlathubApps() {
-  const argv = ["flatpak", "list", "--app", "--columns=application,origin"];
-  const proc = spawn(argv);
-  const res = await communicate(proc);
-  if (!res.ok)
-    throw new Error(res.stderr || res.stdout || `flatpak exited ${res.exitStatus}`);
-
-  const ids = [];
-  for (const line of res.stdout.split("\n")) {
-    const s = strip(line);
-    if (!s) continue;
-
-    const parts = s.split(/\s+/);
-    const appId = parts[0] ?? "";
-    const origin = parts[parts.length - 1] ?? "";
-
-    // Skip header-ish lines
-    const a = appId.toLowerCase();
-    const o = origin.toLowerCase();
-    if (a === "application" || a === "applicationid" || a === "id") continue;
-    if (o === "origin") continue;
-
-    if (!appId.includes(".")) continue;
-
-    if (origin === "flathub") ids.push(appId);
-  }
-  return ids;
 }
 
 // List all installed Flatpak apps (any origin) as app IDs.

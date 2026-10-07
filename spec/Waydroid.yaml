@@ -1,0 +1,13 @@
+description: Android apps on Borshevik through Waydroid — not part of the default setup, installed by a user who asks for it, from the Image Manager or by choosing an Android app in the App Manager (@WaydroidApp).
+extends: "@DuckspecProject"
+terms_folder: Waydroid/
+goals:
+  - Let a user who wants Android apps get them from a window, with the ARM translation and Google service replacement most apps need already in place
+  - Cost nothing to anyone who does not — no download, no running service, no failed unit
+  - Keep the Android image updated without the user thinking about it, and never over a metered connection
+uses:
+  - https://github.com/komorebinator/duckspec
+settings:
+  src: ..
+software:
+  - "@WaydroidApp"

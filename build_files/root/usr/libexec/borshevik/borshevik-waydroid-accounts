@@ -1,0 +1,66 @@
+#!/usr/bin/python3
+# Reads Android's Google state from Android's own databases on the host, for
+# borshevik-waydroid google, as root.
+# See @WaydroidApp#accounts in spec/.
+#
+#   borshevik-waydroid-accounts android-id <gservices.db>
+#       the Google Services Framework ID; exit 3 when there is none yet
+#   borshevik-waydroid-accounts google-account <accounts_ce.db>
+#       `yes` or `no`; exit 2 when the file cannot be read
+
+import os
+import shutil
+import sqlite3
+import sys
+import tempfile
+import time
+
+
+# Reads from a copy, with the files of its journal, so a database Android is
+# writing to is read whole — but not the WAL's index (-shm): copied a moment
+# apart from the WAL it could hide its newest frames, and SQLite rebuilds it
+# from the WAL when it is missing. A copy taken in the middle of a write can come out
+# torn, or a journal can vanish while it is copied: then it is copied again.
+# A database Android has just created may not hold its table yet: nothing in it.
+def query(db, sql):
+    for attempt in range(3):
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                copy = os.path.join(tmp, "copy.db")
+                for suffix in ("", "-wal", "-journal"):
+                    if os.path.exists(db + suffix):
+                        shutil.copyfile(db + suffix, copy + suffix)
+                return sqlite3.connect(copy).execute(sql).fetchone()
+        except sqlite3.OperationalError as e:
+            if "no such table" in str(e):
+                return None
+            error = e
+        except (sqlite3.DatabaseError, OSError) as e:
+            error = e
+        time.sleep(0.5)
+    raise error
+
+
+def main(args):
+    if len(args) != 2 or args[0] not in ("android-id", "google-account"):
+        print("usage: borshevik-waydroid-accounts android-id|google-account <db>", file=sys.stderr)
+        return 1
+    command, db = args
+    if command == "android-id":
+        row = query(db, "SELECT value FROM main WHERE name = 'android_id'") if os.path.exists(db) else None
+        if not row or not row[0]:
+            return 3
+        print(row[0])
+        return 0
+    if not os.access(db, os.R_OK):
+        return 2
+    row = query(db, "SELECT count(*) FROM accounts WHERE type = 'com.google'")
+    print("yes" if row and row[0] else "no")
+    return 0
+
+
+try:
+    sys.exit(main(sys.argv[1:]))
+except (sqlite3.DatabaseError, OSError) as e:
+    print(f"cannot read {sys.argv[2]}: {e}", file=sys.stderr)
+    sys.exit(1)

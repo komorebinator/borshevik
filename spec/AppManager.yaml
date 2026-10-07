@@ -1,9 +1,10 @@
-description: "The App Manager — how a fresh install gets its applications: a curated Flatpak selection offered once, on first login. The app is @AppManagerApp."
+description: "The App Manager — how a fresh install gets its applications and additional modules: a curated selection of Flatpak apps and modules such as Android support, or a setup carried over from another computer, Borshevik or not. The app is @AppManagerApp."
 extends: "@DuckspecProject"
 terms_folder: AppManager/
 goals:
   - Get a curated set of useful applications onto a fresh install without the user hunting through Flathub
   - Run once, on first login, and then stay out of the way
+  - Move a user's applications and modules from their old computer to a new Borshevik one without retyping them
 uses:
   - https://github.com/komorebinator/duckspec
 settings:

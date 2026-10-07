@@ -1,7 +1,7 @@
-description: "Prebuilt NVIDIA open kernel modules, published by uBlue, so Borshevik's build never compiles them. Not an OS base image: its filesystem is copied into the NVIDIA base layer's build and installed by @ImageBuild#build-base-nvidia. Taken from the same `coreos-stable` flavour as @UBlueAkmods, because the modules only load against the exact kernel they were built for (@ImageBuild#install-kernel). External dependency — not built by this project."
+description: "Prebuilt NVIDIA open kernel modules, published by uBlue, so Borshevik's build never compiles them. Not an OS base image: its filesystem — the modules and the userspace driver RPMs of the same build — is copied into the NVIDIA base layer's build and installed by @ImageBuild#build-base-nvidia. While @ImageBuild#install-kernel holds the kernel — temporarily — it is taken at the same pinned tag as @UBlueAkmods, built from the same @ImageBuild#containerfile#HELD_KERNEL, because the modules only load against the exact kernel they were built for; once the hold ends it returns to the rolling main-<FEDORA_MAJOR_VERSION> tag, which follows the base image's own kernel. External dependency — not built by this project."
 extends: "@ContainerImage"
 platform: OCI container image, published to ghcr.io/ublue-os
 repository: https://github.com/ublue-os/akmods
 registry: ghcr.io/ublue-os
 tags:
-  - "coreos-stable-<FEDORA_MAJOR_VERSION> — e.g. coreos-stable-44; must be the same flavour @UBlueAkmods supplies the kernel from"
+  - main-<FEDORA_MAJOR_VERSION>-<kernel version> — e.g. main-44-7.1.13-200.fc44; the same tag @UBlueAkmods is taken at, so the modules match the held kernel exactly; main-<FEDORA_MAJOR_VERSION>, rolling, once the hold ends

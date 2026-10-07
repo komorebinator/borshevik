@@ -21,6 +21,7 @@ uses:
   - BorshevikServices.yaml
   - GoogleChrome.yaml
   - Steam.yaml
+  - Waydroid.yaml
   - Installer.yaml
 software:
   - "@SystemConfig"

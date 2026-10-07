@@ -1,0 +1,56 @@
+#!/usr/bin/gjs -m
+// Keeps Android's colours those of GNOME: the accent colour as Android's
+// Material You colour, the style as its dark theme. Hands them to Android as
+// persist.borshevik.theme whenever either changes or a Waydroid session
+// appears; borshevik-theme.sh applies them inside Android.
+// See @WaydroidApp#theme-sync in spec/.
+
+import Gio from "gi://Gio";
+import GLib from "gi://GLib";
+
+// libadwaita's accent colours, as GNOME shows them.
+const ACCENTS = {
+  blue: "3584e4",
+  teal: "2190a4",
+  green: "3a944a",
+  yellow: "c88800",
+  orange: "ed5b00",
+  red: "e62d42",
+  pink: "d56199",
+  purple: "9141ac",
+  slate: "6f8396",
+};
+
+const settings = new Gio.Settings({ schema_id: "org.gnome.desktop.interface" });
+let sessionPresent = false;
+let handOver = null; // the `waydroid prop set` still waiting for Android, if any
+
+function theme() {
+  const color = ACCENTS[settings.get_string("accent-color")] ?? ACCENTS.blue;
+  const mode = settings.get_string("color-scheme") === "prefer-dark" ? "dark" : "light";
+  return `${color} ${mode}`;
+}
+
+// `waydroid prop set` waits by itself until Android can take the property, so
+// it may run for as long as Android takes to start; a newer value replaces it.
+function push() {
+  if (!sessionPresent) return;
+  handOver?.force_exit();
+  const value = theme();
+  const proc = Gio.Subprocess.new(["waydroid", "prop", "set", "persist.borshevik.theme", value],
+    Gio.SubprocessFlags.STDOUT_SILENCE | Gio.SubprocessFlags.STDERR_SILENCE);
+  handOver = proc;
+  proc.wait_async(null, () => {
+    if (handOver === proc) handOver = null;
+    if (proc.get_if_exited()) print(`handed Android ${value}`);
+  });
+}
+
+settings.connect("changed::accent-color", push);
+settings.connect("changed::color-scheme", push);
+
+Gio.bus_watch_name(Gio.BusType.SESSION, "id.waydro.Session", Gio.BusNameWatcherFlags.NONE,
+  () => { sessionPresent = true; push(); },
+  () => { sessionPresent = false; handOver?.force_exit(); });
+
+new GLib.MainLoop(null, false).run();

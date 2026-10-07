@@ -1,3 +1,4 @@
 enable borshevik-app-manager-first-run.service
 enable borshevik-enable-new-extensions.service
 enable borshevik-kill-gnome-if-hung.timer
+enable borshevik-android-theme.service

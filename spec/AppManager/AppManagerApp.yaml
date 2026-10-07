@@ -1,4 +1,4 @@
-description: "GJS/GTK4+libadwaita application for installing curated Flatpak apps from Flathub. It replaces GNOME Software's first-login app suggestions: it opens once on a user's first login (first-run) and is also available from the app grid. The curated list is not part of this repository — it is fetched at run time from https://borshevik.org/share/applications.json, which is maintained in the Borshevik website's repository (https://github.com/komorebinator/borshevik-landing), so changing what is offered needs no image build. One process per session through its GApplication id, org.borshevik.AppManager, but every activation opens a new window in it, so launching it again while it is open gives a second window."
+description: "GJS/GTK4+libadwaita application that gives a new install its applications and additional modules, in two ways, each a tab of its window. New installation: a curated selection of Flathub apps by category, and modules a user may want — Android support (@WaydroidApp) now, others such as Windows apps later. From another PC: a setup carried over from another computer as a configuration — copied there, pasted here — which a Borshevik machine produces itself and any other Linux machine produces by running a script this one gives it. Android apps are not among the curated apps: with Android installed they come from Google Play, which keeps them current, so the App Manager installs Android and nothing into it. It replaces GNOME Software's first-login app suggestions: it opens once on a user's first login (first-run) and is also available from the app grid. The curated list is not part of this repository — it is fetched at run time from https://borshevik.org/share/applications.json, whose format is described with the file (the Borshevik website's `applications` component) and is maintained in the Borshevik website's repository (https://github.com/komorebinator/borshevik-landing), so changing what is offered needs no image build. One process per session through its GApplication id, org.borshevik.AppManager, but every activation opens a new window in it, so launching it again while it is open gives a second window."
 extends: "@Application"
 platform: GJS
 src: build_files/root/usr/share/borshevik-app-manager/main.js
@@ -6,82 +6,130 @@ components:
   - id: window
     type: "@View"
     src: build_files/root/usr/share/borshevik-app-manager/window.js
-    description: "Main window: a stack of pages — loading, load-error, main, installing, results — through which one install run passes. The title carries the build number."
+    description: "Main window, wider than it is tall, so the category tiles sit several to a row. Its content is a stack of pages — tabs, installing, results — through which one run passes, from either tab; the header bar carries the switcher between the two tabs, hidden while a run is in progress or reported. Its height follows what it shows (_fitHeight), as the Image Manager's does, so the shorter tab is not left stretched to the taller one's height. The title carries the build number."
     fields:
       - id: BUILD
         type: string
         description: Build number shown in the title as "(vN)"; bumped by hand for each release of the app.
+      - id: KINDS
+        type: "{ [type: 'flatpak']: service }"
+        description: "The kinds of app this version installs, each with the service that installs it, in the order a run installs them. Every service has `isValid` (whether an entry carries what its kind needs), `displayName` (how an app is named in progress and the report) and `installApps`. Flatpak is the only kind: Android apps come from Google Play once Android is installed. That is also why the curated list is applications.json, plain Flathub ids, again rather than applications-v2.json, whose typed entries existed for the Android apps an App Manager of 2026-10-01 to 2026-10-03 installed from APKs."
+      - id: MODULES
+        type: "Array<{name: 'android', label, title, subtitle, isInstalled: () => boolean, then?: string[]}>"
+        description: "The additional modules this version offers, in the order a run installs them — each the name modules#run installs it by, with how to tell it is already installed without privileges (android: @WaydroidApp#control#stamp exists, the test the Image Manager uses). `then`, when present, is the command run once a run has installed the module — for android, `borshevik-image-manager --page android`, which opens the Image Manager on its Android tab, where the user registers the device with Google before Google Play will sign in (@ImageManagerApp#main-window#android-page). The one list of known modules: the modules group shows one row per entry and an imported configuration's modules outside it are reported as not supported. Adding a module means an entry here, its row's strings, and its line in modules#run's table."
       - id: this._categories
-        type: Array<{name, applications, default}>
+        type: "Array<{name, default, apps: Array<{type: 'flatpak', id}>}>"
         default: "[]"
-        description: The categories from the fetched list, as the main page offers them.
-      - id: this._categoryRows
-        type: Array<{row, sw, cat}>
+        description: The categories from the fetched list, as the new-installation tab offers them — each holding only the apps of kinds this version installs.
+      - id: this._tiles
+        type: Array<{button, cat}>
         default: "[]"
-        description: Each rendered category with its switch — what _collectSelectedApps reads to know what the user chose.
+        description: Each rendered category tile with its toggle — what _collectSelection reads to know which categories the user chose.
       - id: this._cancelCtl
         type: "{cancelled: boolean, currentProc: Gio.Subprocess|null}"
         description: Cancellation handle shared with flatpak-service#installApps — the window sets `cancelled` and kills `currentProc`; the service checks `cancelled` between apps.
       - id: this._mode
-        type: "'loading' | 'load_error' | 'main' | 'installing' | 'results'"
-        description: The page shown. While it is 'installing' the window cannot be closed and its title buttons are hidden, so an install run cannot be abandoned half-way by closing the window.
+        type: "'tabs' | 'installing' | 'results'"
+        description: The page shown. While it is 'installing' the window cannot be closed and its title buttons are hidden, so a run cannot be abandoned half-way by closing the window.
     components:
-      - id: loading-page
+      - id: new-installation-tab
         type: "@View"
-        description: Spinner and message while the list is fetched.
-      - id: load-error-page
-        type: "@View"
-        description: The fetch failed or returned no usable category — the message, the raw error (selectable) and Retry, which goes back to loading-page.
-        visible: false
-        states:
-          - id: fetch-failed
-            when: the category fetch failed
-            property_changes:
-              visible: true
-      - id: main-page
-        type: "@View"
-        description: One row per category — its name, a strip of its apps' icons and a switch, on by default when the list marks the category `default` — followed by the Custom section, and Install below.
+        description: "The first tab. While the curated list loads, a spinner; when loading fails, the error (selectable) and Retry. Then, scrolling together, the Borshevik logo — the one the Image Manager shows, /usr/share/pixmaps/borshevik_logo.svg — over 'Welcome to Borshevik Linux', the categories group and the modules group; Install below them, outside the scroll."
         components:
-          - id: custom-toggle
-            type: "@Toggle"
-            label: Custom
-            description: "Shows the Custom section's other rows when on and hides them when off: a text box for Flatpak app IDs (flatpak-service#parseCustomList), the command that lists a machine's Flathub apps in that format, and a button copying this machine's installed Flathub apps — together a way to carry one's app set to another machine."
+          - id: categories-group
+            type: "@View"
+            description: "Recommended apps: the welcome text, then one tile per category, instead of a row each across the whole window: tiles of one fixed width, following one another left to right, as many to a row as the window's width fits and reflowing when it changes — the tab spans the window's whole width rather than an Adw.PreferencesPage's 600 px, and a tile never stretches to fill a row. A tile is a toggle as a whole: clicking anywhere on it selects or clears the category, shown by an accent outline and a check mark. It holds the category's name and one row of its apps' icons at 24 px (_fetchAppIcon), each with the app's name as its tooltip, scrolling sideways when there are more than fit, so every tile is as tall as the others. A category the list marks `default` starts selected."
+          - id: modules-group
+            type: "@View"
+            description: "Additional modules: a row with a check box for each of MODULES — 'Android applications support', saying that Android apps then install from Google Play and that it downloads about 1.4 GB. Unchecked by default, for the download's sake. A module already installed is shown checked and insensitive, saying so, and a run never installs it again. What the rows show is the state when they were last refreshed — when the window opened and after each run — and a run goes by them, not by the machine at the moment Install is clicked: a module is installed only when its box is checked and its row is not greyed out, so nothing is installed that the user did not tick, even when the module was removed elsewhere while the window stayed open (it would otherwise still be ticked, greyed out, and installed again unasked). A module that became installed elsewhere meanwhile is skipped too. A refresh that finds a module no longer installed — removed elsewhere — takes off the tick it put there only to show the module installed — remembered as such for each row, not inferred from the row being greyed out — so the row comes back unticked rather than ticked by no one, while a tick the user put on is left alone."
           - id: install-button
             type: "@Button"
             label: Install
-            description: Starts _onInstallClicked; with nothing selected it only says so.
+            description: "Runs _runInstall with the apps of the selected categories and the modules checked and not installed. Insensitive while that is nothing — no category selected and no module to install — and following every tile and check box as it changes."
+      - id: other-pc-tab
+        type: "@View"
+        description: "The second tab, for bringing a setup over from another computer: the configuration is copied there and pasted here, and the clipboard the two machines share is what carries it. Its groups sit in a column no wider than 760 px, which forms read best at, scrolling when the window is shorter than they need."
+        components:
+          - id: pairing-group
+            type: "@View"
+            description: "Advice to pair the two computers in GSConnect first, which shares one clipboard between them, so what is copied on one can be pasted on the other; and a button opening GSConnect's own window, where pairing happens (`gnome-extensions prefs gsconnect@andyholmes.github.io`). GSConnect ships in the image enabled (@GnomeExtensions); the other computer needs GSConnect or KDE Connect."
+          - id: export-group
+            type: "@View"
+            description: "Export: a check box for each category of configuration, all checked to start with — Applications (apps installed from Flathub) and Modules (the additional modules installed); later ones, such as GNOME settings, go here as well. Then two buttons, both copying to the clipboard only what is checked, and both insensitive while nothing is: 'Copy this PC's configuration', the configuration of this machine (transfer-service#readThisPc); and 'Copy script for a non-Borshevik PC' (transfer-service#exportScript), with a hint under it that this is for a computer that does not run Borshevik and so has no App Manager: pasted into a terminal there, the script copies that computer's configuration to the clipboard, ready to be pasted into Import."
+          - id: import-group
+            type: "@View"
+            description: "Import: a text box where a configuration is pasted, and Import — styled and centred as Install, each tab's one action, and insensitive while the box holds nothing but blanks — which reads it (transfer-service#parseConfig) and, unless that fails — the reason shown under the box, nothing run — starts _runInstall at once with its apps and the modules it names that are not installed here. Modules this version does not offer are listed in the report as not supported rather than failing the import, so a configuration from a newer App Manager still installs what this one can."
       - id: installing-page
         type: "@View"
-        description: Which app is being installed or skipped, 'N of M', a progress bar, and Cancel — which stops after killing the app being installed, leaving the ones already done in place.
+        description: Which app is being installed or skipped, 'N of M', a progress bar, and Cancel — which stops after killing the app being installed, leaving the ones already done in place. While modules install it names the module — 'Installing Android' — with the latest line of its output under it and a pulsing bar; Cancel is unavailable then, as modules install as root where the user's session cannot stop it. A refused password takes the window from here straight back to the tab it was started from.
         visible: false
         states:
           - id: installing
-            when: an install run is in progress
+            when: a run is in progress
             property_changes:
               visible: true
       - id: results-page
         type: "@View"
-        description: "The report of the run, cancelled or not: already installed, installed, and failed with each failure's message; Copy report, and OK back to the main page."
+        description: "The report of the run, cancelled or not: modules installed, failed with the error, or not supported; apps already installed, installed, and failed with each failure's message; Copy report, and OK back to the tabs."
     functions:
+      - id: _fitHeight
+        description: "Makes the window as tall as what it shows needs at its current width — measured, since the tabs scroll and a scroller reports its content's height only as a natural size, which GTK does not raise a window to by itself — but no taller than the screen leaves room for, beyond which the tab scrolls, and no shorter than 400 px. Runs whenever the tab, the page or the first tab's loading state changes; leaves a maximized or full-screen window alone."
       - id: _loadCategories
-        description: Fetches the curated list. Accepts only an array; each category's name is taken in the UI language, then English, then its plain `name`, and a category with no name or no apps is dropped. Anything else — a network error, bad JSON, nothing left — is shown on load-error-page.
+        description: Fetches the curated list. Accepts only an array; each category's name is taken in the UI language, then English, then its plain `name`. A category's `applications` are Flathub ids, each kept when it is a non-empty string. A category with no name or no app left is dropped. Anything else — a network error, bad JSON, nothing left — is shown on new-installation-tab with Retry; other-pc-tab does not depend on the list and works without it.
       - id: _fetchAppIcon
-        description: An app's icon from Flathub's appstream API, cached under the user's cache directory so later runs fetch it only once.
-      - id: _collectSelectedApps
-        description: The apps of every category switched on, plus the custom list when Custom is on, without duplicates and in the order first met.
-      - id: _onInstallClicked
-        description: "Runs one install: reads what is already installed first (and carries on without that knowledge if it cannot), then flatpak-service#installApps, updating the installing page for each app. The progress callback drains the GLib main loop so the page repaints between apps. Ends on results-page."
+        description: A Flatpak app's icon from Flathub's appstream API, cached under the user's cache directory so later runs fetch it only once.
+      - id: _collectSelection
+        description: "What Install runs: the apps of every selected category, without duplicates — the same `type` and `id` counting once — in the order first met; and the modules checked that are not installed."
+      - id: _runModules
+        description: "Installs modules before any app: runs `pkexec borshevik-modules prepare` once with every module of the run (modules#run), so there is one password prompt however many there are, and nothing is asked when there are none. While it runs, the installing page names the module its latest `::module` line announced and shows the latest other line of output. A refusal — pkexec's 126 or 127 — means nothing was installed, and is reported to the caller. Otherwise each `::result` line records its module as installed or failed, and a module that reported nothing, or is still not installed afterwards, counts as failed. Runs at the click, so the password prompt comes before any app is installed rather than in the middle of the run."
+      - id: _runInstall
+        description: "One run, from either tab, with a set of apps and a set of modules: first _runModules; if it reports a refusal, the run ends there — nothing installed, back on the tab it came from with everything as it was, no results page — since a user who cancels the password prompt has changed their mind about the run. A failed module does not stop the apps, which do not depend on it. Then, for each kind in KINDS order that has apps, its service's installApps — for flatpak after reading what is already installed (carrying on without that knowledge if it cannot). The installing page is updated for each app; the progress callback drains the GLib main loop so the page repaints between apps. Ends on results-page, and then runs the `then` command of each module the run installed (MODULES), so a user who has just installed Android is shown how to register it."
   - id: flatpak-service
     type: "@Singleton"
-    description: Flatpak operations — parsing a pasted app-ID list, listing what is installed, and installing a selection.
+    description: Flatpak operations — listing what is installed and installing a selection.
     src: build_files/root/usr/share/borshevik-app-manager/flatpak.js
     functions:
-      - id: parseCustomList
-        description: One app ID per line; blank lines and lines starting with '#' are skipped, and only the first word of a line counts, so the output of the hinted command can be pasted as is.
-      - id: listInstalledFlathubApps
-        description: The installed apps whose origin is the flathub remote — what the copy button puts on the clipboard.
+      - id: isValid
+        description: Whether a curated-list entry is a Flatpak app this version can install — one with a non-empty `id`.
+      - id: displayName
+        description: How a Flatpak app is named in progress and the report — its id.
+      - id: listInstalledApps
+        description: The ids of every installed app, whatever its remote — what installApps skips.
       - id: installApps
         description: Installs the apps one at a time from flathub, non-interactively, skipping the ones already installed. Cancellation is checked before each app and again after the running install ends, so a cancel never starts another install. Returns what was installed, already installed and failed (with the error), and whether the run was cancelled.
+  - id: transfer-service
+    type: "@Singleton"
+    description: "The configuration that carries a setup from one computer to another, and the two ways of producing it. A configuration is readable JSON, so a user can see before importing what it will install, and edit it: an object with `borshevik-config`, the format's version (1), and a key per category of configuration exported — `applications`, an object with a list of ids per kind of app (`flatpak`: Flathub application ids); `modules`, a list of module names (`android`). A category not exported is absent. Both ways produce it with export-script, so a Borshevik machine and any other give the same format from the same code."
+    src: build_files/root/usr/share/borshevik-app-manager/transfer.js
+    fields:
+      - id: CONFIG_VERSION
+        type: number
+        default: 1
+        description: The `borshevik-config` version this App Manager writes and the highest it reads.
+      - id: CATEGORIES
+        type: "Array<'applications' | 'modules'>"
+        description: The categories of configuration, in the order export-group shows them; the names are the configuration's keys and export-script's arguments.
+    functions:
+      - id: parseConfig
+        description: "Reads a pasted configuration into the apps and modules to install, or throws a ConfigError whose code says what is wrong — notJson, notConfig, tooNew, empty — for import-group to show in the user's language. Refuses anything but a JSON object whose `borshevik-config` is a whole number from 1 to CONFIG_VERSION — a newer format may mean something this version would get wrong. Keeps only Flatpak ids of the reverse-DNS form Flathub uses, and only module names of letters, digits and dashes, so nothing pasted can reach a command line as an option. Kinds of app it does not know are skipped; module names it passes on whether this version offers them or not, which is the window's to judge (MODULES). A configuration with nothing left to install is refused too, so Import never runs empty — unless the caller allows it, as readThisPc does: a machine with nothing to carry over still has a configuration to show."
+      - id: readThisPc
+        description: "This machine's configuration for the checked categories: export-script run with `--print` and the categories as arguments, its output checked with parseConfig (empty allowed) before it is handed out, so a broken script is caught here rather than on the other computer."
+      - id: exportScript
+        description: "export-script as text to paste into a terminal on another computer: its body, with the checked categories written into it, wrapped in a quoted bash here-document (`bash <<'BORSHEVIK_EXPORT'` … `BORSHEVIK_EXPORT`), so pasted into an interactive shell it runs in a bash of its own — its `exit` and settings cannot touch the user's shell — and nothing in it is expanded on the way. Works where the shell understands here-documents — bash, zsh, sh; not fish."
+  - id: export-script
+    type: "@ShellScript"
+    src: build_files/root/usr/share/borshevik-app-manager/export-config.sh
+    description: "Prints a computer's configuration (transfer-service) for the categories it is given, and, unless run with `--print`, also copies it to the clipboard — the half of a transfer that runs on the computer the setup comes from, a Borshevik one or not. Takes the categories as arguments, or from its CATEGORIES line, which transfer-service#exportScript fills in when the arguments cannot be passed. Needs only bash and coreutils."
+    functions:
+      - id: run
+        description: "`export-config.sh [--print] [applications] [modules]`. applications: the ids of the apps installed from the flathub remote, when flatpak exists (none otherwise). modules: `android` when Android is installed — Borshevik's stamp (@WaydroidApp#control#stamp), or on another system a Waydroid initialised with a system image. Ids not of the form Flathub uses are left out, so the JSON it builds by hand needs no escaping. Without `--print`, puts the configuration on the clipboard with the first of wl-copy (in a Wayland session), xclip and xsel that exists, and says on stderr where it went; with none of them, says to copy the printed configuration by hand. Prints the configuration on stdout either way."
+  - id: modules
+    type: "@ShellScript"
+    src: build_files/root/usr/libexec/borshevik/borshevik-modules
+    description: "The one privileged entry point of window#_runModules: installs every module a run needs under a single pkexec, so the user gives the password once however many modules there are. It only dispatches — each module is installed by its own script, the one the Image Manager also runs, so a module installed from here is the same as one installed there."
+    functions:
+      - id: run
+        description: "`borshevik-modules prepare <module>...`. Refuses unless root. Accepts only module names from its own table, which maps each to the command that installs it — `android` to `/usr/libexec/borshevik/borshevik-waydroid install` (@WaydroidApp#control#install) — and rejects the whole call before doing anything when any argument is not in it: it runs as root on arguments that come from a user's process — an imported configuration among them — so it must never take a path or a command from them. Then, for each module in the order given: prints `::module <name>`, runs its command with the output passed through, and prints `::result <name> ok` or `::result <name> failed <exit status>`. A failed module does not stop the ones after it. Exits 0 when every module succeeded and 1 otherwise — never 126 or 127, which pkexec returns when the password is refused, so the caller can tell the two apart."
   - id: net-service
     type: "@Singleton"
     description: HTTP GET over libsoup with a timeout — JSON or raw bytes; any non-2xx status is an error.
@@ -102,3 +150,19 @@ components:
       - id: TRANSLATIONS
         type: "{ [lang: 'en'|'ru'|'uk'|'ka'|'hy'|'be']: { [key: string]: string } }"
         description: The dictionaries, one per language; @BorshevikWorkflow#validate checks that every language has exactly the keys of en.
+tests:
+  - id: transfer
+    description: "transfer-service under gjs and export-script under bash, outside any window: parseConfig keeping Flathub ids and module names and dropping option-shaped ones, passing on a module it does not know, and refusing text that is not JSON, a non-object, a missing or too new version and a configuration with nothing to install; readThisPc giving what export-script prints; export-script with `--print` printing valid JSON with only the categories asked for; exportScript's text, run by bash, printing the same configuration as export-script itself."
+    command: bash tests/app-manager-transfer.sh
+    expect: exits 0 and prints 'all checks pass'
+  - id: tried-by-the-author
+    description: "Manual, on the author's machine running the working tree (recipes#run): both tabs at the window's default size and narrower, tiles toggling, an install run of a few apps, Android support checked on a machine without it, a configuration copied on one computer and imported on another through GSConnect, and the script run on a computer without Borshevik."
+    command: the author on their own machine, the app run by recipes#run
+    expect: the author confirms the window looks right and each path works
+recipes:
+  - id: run
+    description: Runs the App Manager straight from the repository working tree, beside an installed one if it is open, so a change can be tried on this machine without building an image.
+    instructions:
+      - "Run `gjs -m build_files/root/usr/share/borshevik-app-manager/main.js --gapplication-app-id=org.borshevik.AppManager.Devel` from the repository root in the host session, in the background so the window stays open; add `--lang <code>` for another language. The application accepts another id (CAN_OVERRIDE_APP_ID) for this: under its own id, launching it while the installed App Manager runs only opens another window of the installed version"
+      - "Never run it under `dbus-run-session` or any other private session bus to get around the single instance — see @ImageManagerApp#recipes#run for what that breaks. A copy on its own bus also cannot reach GNOME Shell, so its GSConnect button does nothing"
+      - "Watch its output for JS errors and report them, then let the user judge the window itself; for a layout question, measure it — a probe importing window.js can build the window and print its widgets' sizes — rather than ask the user after every change"

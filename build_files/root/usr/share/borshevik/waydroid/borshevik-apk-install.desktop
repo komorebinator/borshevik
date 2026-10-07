@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=Install in Android
+Name[ru]=Установить в Android
+Name[uk]=Встановити в Android
+Name[be]=Усталяваць у Android
+Name[ka]=Android-ში დაყენება
+Name[hy]=Տեղադրել Android-ում
+Comment=Install an Android app into Android, after asking
+Comment[ru]=Установить приложение Android в Android, предварительно спросив
+Icon=waydroid
+Exec=borshevik-apk-install %f
+Terminal=false
+NoDisplay=true
+MimeType=application/vnd.android.package-archive;

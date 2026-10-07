@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=Android Apps
+Name[ru]=Приложения Android
+Name[uk]=Застосунки Android
+Name[be]=Прыкладанні Android
+Name[ka]=Android აპლიკაციები
+Name[hy]=Android հավելվածներ
+Comment=See, update and uninstall the apps in Android
+Comment[ru]=Посмотреть, обновить и удалить приложения в Android
+Exec=waydroid app intent android.settings.MANAGE_APPLICATIONS_SETTINGS ""
+Icon=/usr/share/borshevik/waydroid/android-settings.png
+Terminal=false
+Categories=Settings;
+Keywords=android;apps;uninstall;

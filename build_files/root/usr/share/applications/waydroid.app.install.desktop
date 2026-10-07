@@ -1,0 +1,10 @@
+# Replaces the waydroid package's APK installer without its MimeType, so Open
+# With never offers it: it installs at once, without asking, and does nothing
+# when Android is not running. Borshevik's own, borshevik-apk-install, takes
+# APKs once Android is installed. See @WaydroidApp#launcher in spec/.
+[Desktop Entry]
+Type=Application
+Name=Install in Waydroid
+NoDisplay=true
+Exec=waydroid app install %f
+Icon=waydroid

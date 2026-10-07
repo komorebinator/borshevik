@@ -1,4 +1,4 @@
-description: "Borshevik's systemd units and the scripts they run, and how they are switched on in the image: boot-time units for kernel arguments and MOK enrollment, login-time user units for the App Manager's first run, newly shipped extensions and the GNOME Shell watchdog."
+description: "Borshevik's systemd units and the scripts they run, and how they are switched on in the image: boot-time units for kernel arguments and MOK enrollment, login-time user units for the App Manager's first run, newly shipped extensions and the GNOME Shell watchdog. Android's update timer is not among them: it is off until Android is installed, and is described with @WaydroidApp."
 extends: "@Software"
 platform: systemd / bash
 src: build_files/root/usr/lib/systemd/
@@ -82,11 +82,11 @@ components:
     src: build_files/scripts/enable-services.sh
     functions:
       - id: run
-        description: "Enables setup-kargs.service system-wide, then applies `systemctl --global preset` to borshevik-app-manager-first-run.service, borshevik-enable-new-extensions.service and borshevik-kill-gnome-if-hung.timer — preset, not enable, so the decision comes from @Services#user-preset. The watchdog's .service is deliberately not preset; the timer pulls it in. setup-ublue-mok.service is enabled only when IMAGE_NAME is borshevik-nvidia, which is what keeps MOK enrollment out of the standard variant. Run at image build time from @ImageBuild#build-addons."
+        description: "Enables setup-kargs.service system-wide, then applies `systemctl --global preset` to borshevik-app-manager-first-run.service, borshevik-enable-new-extensions.service and borshevik-kill-gnome-if-hung.timer — preset, not enable, so the decision comes from @Services#user-preset. The watchdog's .service is deliberately not preset; the timer pulls it in. Disables waydroid-container.service, which Fedora's presets enable with the waydroid package: Android is installed only by those who ask for it, and @WaydroidApp#control#install enables the service then. setup-ublue-mok.service is enabled only when IMAGE_NAME is borshevik-nvidia, which is what keeps MOK enrollment out of the standard variant. Run at image build time from @ImageBuild#build-addons."
   - id: user-preset
     type: "@ConfigFile"
     src: build_files/root/usr/lib/systemd/user-preset/90-borshevik.preset
-    description: "Preset file holding `enable` for app-manager-first-run, extension-autoenable#service and gnome-watchdog#timer. @Services#enable-services applies it per unit with `systemctl --global preset <unit>` at build time, so these are on for every user account, including ones created later."
+    description: Preset file holding `enable` for app-manager-first-run, extension-autoenable#service, gnome-watchdog#timer and @WaydroidApp#theme-sync. @Services#enable-services applies it per unit with `systemctl --global preset <unit>` at build time, so these are on for every user account, including ones created later. theme-sync is enabled on every machine and keeps itself from starting where Android is not installed, by its own condition.
   - id: extension-autoenable
     type: "@Singleton"
     description: "Enables every GNOME Shell extension the image ships, once per extension per user. The image's default enabled-extensions (written by @ShellCustomizations' apply-dconf step) is only a system-db default: the first time a user toggles any extension, their own user-db list takes over and a system default is never read again, so an extension added to the image later stayed off for everyone who had ever touched their extensions. This offers each system extension to each user exactly once and remembers it, enabling it only if the user's lists have never named it, so a decision to switch one off is kept — whether made before this service existed or after."
@@ -106,3 +106,20 @@ components:
         triggers: login to a regular GNOME session — WantedBy and After gnome-session@gnome.target, nothing else; enabled globally via user-preset
         executes: /usr/libexec/borshevik/borshevik-enable-new-extensions.sh
         description: "Oneshot service. Runs on every login rather than once, because the image can gain an extension with any update; the state file, not the unit, is what makes each extension a one-time offer. Started by gnome-session@gnome.target, which gnome-session reaches only after org.gnome.Shell@user.service — a Type=notify unit — reports GNOME Shell ready, so the shell is there to pick up the change to enabled-extensions; the greeter (gnome-session@gnome-login.target) and initial setup never start it. It must not want or be ordered on graphical-session.target: that target can come up before GNOME does — the watchdog timer's service wants it, and fires at once when a user logs in more than a minute after boot — and while any unit holding it is still running, gnome-session-init-worker finds a graphical session already active and aborts the login. Hooked there, this service did exactly that: GNOME Shell was not up yet, so each `gnome-extensions enable` D-Bus-activated the Extensions app, which failed to open a display, and the run took seconds instead of the watchdog's milliseconds."
+      - id: vm-scenario
+        type: "@ShellScript"
+        src:
+          - tests/scenarios/new-extensions/prepare.sh
+          - tests/scenarios/new-extensions/guest.sh
+          - tests/scenarios/new-extensions/paths
+        description: "The new-extensions scenario of @BorshevikWorkflow#scenarios, for the case this service exists for at its hardest: a user to whom every extension the image ships is new, so the service has to enable all of them at once in the running shell — the case in which enabling them one by one had left some enabled twice. Run whenever a change touches the service, its unit or preset, how units are enabled, the image's default enabled-extensions, or which extensions the image ships and how they are installed."
+        functions:
+          - id: prepare
+            description: "Before tester's login: sets tester's enabled-extensions and disabled-extensions to empty lists, through a private D-Bus session as tester, so the user-db overrides the image's default and every shipped extension is one this user has never been offered. tester has no offered-extensions state file at this point — it is created on a disk overlay that is new for every run, and the service writes the file only at the login — so nothing is recorded as offered either."
+          - id: run
+            description: "After the login and the checks — which in this run already show every extension ACTIVE, no extension error and the service's success (@BorshevikWorkflow#image-checks 7 to 9): every directory under /usr/share/gnome-shell/extensions is in tester's enabled-extensions, and none twice; disabled-extensions is still empty, so nothing the service did turned an extension off; the offered-extensions state file holds every shipped uuid exactly once; and the service's journal for this boot logs `enabled <uuid>` for each of them, showing that it was the service, in this login, that enabled them, rather than a default left over."
+tests:
+  - id: in-vm
+    description: The checks every test-machine run makes cover these units for an existing user (@BorshevikWorkflow#image-checks); extension-autoenable#vm-scenario adds the user to whom every extension is new, selected by itself whenever a change touches its paths.
+    command: tests/test-image-in-vm.sh run --scenarios new-extensions
+    expect: the checks pass, and the report's `== scenario new-extensions` section ends with 'all checks pass'

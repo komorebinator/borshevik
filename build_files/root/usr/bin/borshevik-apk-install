@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Opens an APK in the installer that asks before installing it into Android.
+# See @WaydroidApp#apk-installer in spec/.
+set -euo pipefail
+
+exec gjs -m /usr/share/borshevik/waydroid/apk-installer/main.js "$@"

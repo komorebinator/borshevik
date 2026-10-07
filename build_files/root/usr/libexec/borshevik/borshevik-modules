@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# The App Manager's single privileged entry point: installs every module a run
+# needs under one pkexec, so the password is asked for once. Only dispatches —
+# each module is installed by its own script, the one the Image Manager runs.
+# See @AppManagerApp#modules in spec/.
+#
+#   borshevik-modules prepare <module>...
+#
+# Prints `::module <name>` before each module and `::result <name> ok` or
+# `::result <name> failed <status>` after it. Exits 0 when every module
+# succeeded, 1 otherwise — never 126 or 127, which pkexec returns when the
+# password is refused.
+set -uo pipefail
+
+# Runs as root on arguments that come from a user's process: only names in this
+# table are accepted, never a path or a command.
+declare -A MODULES=(
+    [android]="/usr/libexec/borshevik/borshevik-waydroid install"
+)
+
+if [[ $EUID -ne 0 ]]; then
+    echo "borshevik-modules must run as root" >&2
+    exit 1
+fi
+
+if [[ "${1:-}" != "prepare" || $# -lt 2 ]]; then
+    echo "usage: borshevik-modules prepare <module>..." >&2
+    exit 2
+fi
+shift
+
+for name in "$@"; do
+    if [[ -z "${MODULES[$name]+x}" ]]; then
+        echo "unknown module: $name" >&2
+        exit 2
+    fi
+done
+
+failed=0
+for name in "$@"; do
+    echo "::module $name"
+    # shellcheck disable=SC2086 # the table's commands are split on purpose
+    ${MODULES[$name]}
+    status=$?
+    if [[ $status -eq 0 ]]; then
+        echo "::result $name ok"
+    else
+        echo "::result $name failed $status"
+        failed=1
+    fi
+done
+exit "$failed"

@@ -1,4 +1,4 @@
-description: GJS/GTK4+libadwaita application for managing the Borshevik OS image — checking for updates, applying updates, rolling back, rebasing to a different channel or variant, promoting a build to stable, and toggling automatic updates. Single-instance through its GApplication id, org.borshevik.ImageManager, so launching it again only presents the open window. Everything it does to the system goes through rpm-ostree, systemd and GNOME's session manager; it holds no state of its own between runs.
+description: "GJS/GTK4+libadwaita application for managing the Borshevik OS image — checking for updates, applying updates, rolling back, rebasing to a different channel or variant, promoting a build to stable, and toggling automatic updates — and, on a tab of its own, the same for Android (@WaydroidApp): installing it, updating its image, and removing it. Single-instance through its GApplication id, org.borshevik.ImageManager, so launching it again only presents the open window. `--page android` (or `system`) opens it on that tab, or switches the open window to it — passed to the running instance as its show-page action — which is how the App Manager sends a user who has just installed Android to the Android tab and its registration steps (@AppManagerApp#window#MODULES). main.js hands GApplication the program name before the arguments, as C's argv has it, since gjs's ARGV leaves it out and an option would otherwise be taken for the name. Everything it does to the system goes through rpm-ostree, systemd, GNOME's session manager and @WaydroidApp#control; it holds no state of its own between runs."
 extends: "@Application"
 platform: GJS
 src:
@@ -7,7 +7,7 @@ src:
 components:
   - id: main-window
     type: "@View"
-    description: Main window — shows which image is running and how long the system has been up, checks for and applies updates, links to reporting an issue, and hosts rollback, reboot and the entry points to settings and promotion. On construction it reads the status and then runs a non-interactive update check in the background, so the window opens already knowing whether an update exists; a failure of that check is shown in status-label rather than raised. Refreshes the status when settings-window reports a finished rebase.
+    description: "Main window, with two tabs switched from header-bar: System, made of every element below except android-page, and Android, which is android-page. The System tab shows which image is running and how long the system has been up, checks for and applies updates, links to reporting an issue, and hosts rollback, reboot and the entry points to settings and promotion. On construction it reads the status and then runs a non-interactive update check in the background, so the window opens already knowing whether an update exists; a failure of that check is shown in status-label rather than raised. Refreshes the status when settings-window reports a finished rebase."
     src: build_files/root/usr/share/borshevik-image-manager/main_window.js
     fields:
       - id: this._facts
@@ -33,7 +33,7 @@ components:
     components:
       - id: header-bar
         type: "@View"
-        description: Menu with Settings, About, and Promote to stable — the last shown only while the booted image is a Borshevik variant on the `latest` channel, since promotion moves `:stable` onto a build from `:latest` and has no meaning for anything else.
+        description: The tab switcher, System and Android, in its middle. Menu with Settings, About, and Promote to stable — the last shown only while the booted image is a Borshevik variant on the `latest` channel, since promotion moves `:stable` onto a build from `:latest` and has no meaning for anything else.
       - id: header-section
         type: "@View"
         description: The running system at a glance, centred at the top.
@@ -106,7 +106,45 @@ components:
         type: "@Toggle"
         label: Automatic updates
         description: Mirrors whether rpm-ostreed-automatic.timer is enabled — on by default, see @BorshevikWorkflow#channels#stable for what it does. Toggling enables or disables the timer at once (`systemctl enable/disable --now`) and puts the switch back if that fails. When the timer's state cannot be read the row is disabled, and marked unavailable when the unit does not exist.
+      - id: android-page
+        src: build_files/root/usr/share/borshevik-image-manager/android_page.js
+        type: "@View"
+        description: "The Android tab: everything about Android on this machine — taller than the System tab, so the tabs' stack is not vertically homogeneous and switching tabs gives the window back its default height, which GTK raises to what the shown tab needs, rather than leave the System tab stretched to this one's height with its content bunched at the top — keeping the width the window has, or its default width while it is not yet shown, as when the App Manager opens it straight on this tab; under the waydroid icon — or a stock phone icon where the waydroid package's icon is missing, so the tab never shows a broken image — reading its state through waydroid and changing it through @WaydroidApp#control under pkexec, each run in progress-window. Reads the state when the tab is first shown, again after every operation, and again whenever it is shown and what waydroid#operations says — the operation running, or the last one to end — differs from what it last read — an install, upgrade or removal run from elsewhere may have started and finished while the tab was not looking, leaving busyOperation as it was, and a tab still offering Install over an installed Android would download and install it again — and drops a Google registration ID it shows once any operation has ended since, here or elsewhere: every install brings a new ID, and only the last operation is recorded, so an install followed by an upgrade shows as the upgrade — then, when Android is installed, checks for an update in the background the way the System tab does for the OS."
+        fields:
+          - id: this._android
+            type: "{installed: boolean, busy: 'install'|'upgrade'|'remove'|null, version: string|null, systemTime: string|null, vendorTime: string|null, runtime: {state: 'running'|'suspended'|'stopped', uptime: number|null}, signedInLocally: boolean|null (null until first read), check: {phase: 'idle'|'checking'|'available'|'no_updates'|'error', downloadSize: string|null, message: string}, autoUpdates: {enabled: boolean|null, busy: boolean}, softwareRendering: boolean, google: {phase: 'hidden'|'reading'|'shown'|'not_yet'|'error', id: string|null, signedIn: boolean|null, message: string}}"
+            description: "What the tab shows: whether Android is installed (waydroid#isInstalled), whether an operation started elsewhere is changing it now (waydroid#busyOperation), its Android version and the build times of its system and vendor images, formatted, whether it is running now and for how long (waydroid#runtimeState), whether it has signed in to Google as far as can be read without the password (waydroid#signedInLocally), the last update check, the state of @WaydroidApp#update#timer, whether this machine would get software rendering only, and, once asked for, the Google registration ID and whether Android has signed in to Google."
+        components:
+          - id: not-installed-section
+            type: "@View"
+            description: "What installing Android means before anyone commits to it: that it runs Android apps in a window, that it downloads some 1.4 GB, that it comes with Google Play and Google's services and with ARM translation, so most apps from Play run, and that Play needs this device registered once with the user's Google account, which the tab helps with after installing. On a machine where this._android.softwareRendering is true it says plainly that Android will be slow here. Below, Install, which runs @WaydroidApp#control#install."
+            visible: false
+            states:
+              - id: android-absent
+                when: this._android.installed is false and this._android.busy is null
+                property_changes:
+                  visible: true
+          - id: installed-section
+            type: "@View"
+            description: "Android version and the build times of the system image and of the vendor image, each on a row of its own, since they are approved and updated apart; under them, on a line of its own, Android's state now — running for how long, suspended, or stopped — read again every few seconds while the tab is shown, with, unless stopped, a stop icon that asks for confirmation (running apps close) and then runs `waydroid session stop` as the user, no password needed; a Google registration group, its text kept to a line or two so the rows stay tidy, which tells by that text alone whether Android has signed in to Google — the one sign that registration went through, since nothing reports registration itself — known without the password whenever waydroid#signedInLocally can tell, and otherwise once waydroid#googleStatus has been read: until then one sentence that Google Play works once this device is registered with the user's Google account; once signed in, one sentence that Android is signed in to Google, and the registration page row gone with nothing in its place. Its rows: Device ID, with Show, which asks for the password and runs waydroid#googleStatus, then shows the ID selectable with Copy beside it, at the row's end like any suffix; and, while Android has not signed in, Open registration page, which opens https://www.google.com/android/uncertified in the browser, its subtitle the rest of the steps in one line — paste the ID there, then restart Android and sign in to Play; when Android has not checked in yet the ID row says to start Android once with network and try again; the same software-rendering note as not-installed-section while this._android.softwareRendering is true, so a user wondering why Android is slow finds the reason here; Check for updates, which becomes Update once a check finds one, with its download size, and runs @WaydroidApp#control#upgrade; a switch for automatic Android updates mirroring @WaydroidApp#update#timer and toggling it with `systemctl enable/disable --now`, the same way auto-updates-row does for the OS; and Remove Android, which asks for confirmation in a destructive dialog saying that all Android apps and their data go with it, then runs @WaydroidApp#control#remove."
+            visible: false
+            states:
+              - id: android-present
+                when: this._android.installed is true and this._android.busy is null
+                property_changes:
+                  visible: true
+          - id: busy-section
+            type: "@View"
+            description: "Shown instead of both other sections while an operation started elsewhere — the App Manager installing Android for an app, the update timer, another window — is changing Android: a spinner and which it is, Android being installed, updated or removed, and no buttons, so nobody starts a second operation over it (control would refuse anyway). The tab reads waydroid#busyOperation again every few seconds while it is shown and reads the whole state afresh once it ends."
+            visible: False
+            states:
+              - id: android-busy
+                when: this._android.busy is not null
+                property_changes:
+                  visible: True
     functions:
+      - id: showPage
+        description: Shows the tab named `system` or `android`; any other name changes nothing. Called by the application's show-page action. Asked for the Android tab while it is already shown — the App Manager opening it after installing Android — it has the tab look again (android-page), since switching to the tab already shown changes nothing and would not.
       - id: _checkForUpdates
         description: "Re-reads the status first, so that an update automatic updates have already staged is known before the check and its download size is not reported again. Then runs `rpm-ostree update --check` unprivileged and classifies the result. Some rpm-ostree versions exit non-zero when a deployment is already staged, so a failing exit counts as no updates, not an error, when the output says there are none or when a deployment is staged or pending. rpm-ostree also reports an update as available when that very update is already staged; in that case the staged digest is compared with the registry's current one (rpm-ostree#getRegistryDigest) and, if they match, the result is no updates — otherwise the user would be offered to download what is waiting for a reboot. The download size shown is rpm-ostree#getDownloadSize for the booted origin, not the size rpm-ostree prints: rpm-ostree counts the layers missing from the booted image only, so it overstates the download whenever a staged or rollback deployment already holds most of them — the usual case, since automatic updates stage every day — and with a deployment staged it prints no layer sizes at all. The size rpm-ostree prints, preferring that of the added layers, is used only when getDownloadSize fails."
       - id: _runWithProgress
@@ -166,6 +204,29 @@ components:
         description: "Whether a reboot would change the running system: a deployment is staged or pending. This is the condition behind update-ready-row, and the Update Indicator extension shows its panel icon on the same condition, so the two never disagree about whether an update is waiting."
       - id: getDownloadSize
         description: "How much an update to a reference would download, counted the way the pull itself decides: ostree-container fetches only the layers whose blob it does not already hold as an `ostree/container/blob/` ref in /sysroot/ostree/repo, whichever deployment brought them. So it sums the sizes `skopeo inspect` gives for the reference's layers, leaving out every layer whose digest is among those refs (`ostree refs`, readable without privileges). Returns the formatted size, or null on any failure."
+  - id: waydroid
+    type: "@Singleton"
+    src: build_files/root/usr/share/borshevik-image-manager/waydroid.js
+    description: Reads Android's state without privileges and builds the commands that change it — the counterpart of rpm-ostree for @WaydroidApp.
+    functions:
+      - id: isInstalled
+        description: Whether @WaydroidApp#control#stamp exists, and the Android version it holds. The only test the app uses, for the reason given on @WaydroidApp.
+      - id: busyOperation
+        description: The operation changing Android right now, as operations reads it.
+      - id: operations
+        description: "What @WaydroidApp#control#busy says, read once: the operation changing Android right now — 'install', 'upgrade' or 'remove' — or null when the file holds none or its pid is no longer alive; and the last operation to end since boot, with when, as one value that changes with every operation, or null when none has run. The second tells the Android tab that an install, upgrade or removal ran while it was not looking, whether it began and ended unseen or not."
+      - id: readImage
+        description: The installed system and vendor images' build times, as /var/lib/waydroid/waydroid.cfg records them (system_datetime, vendor_datetime) — what `waydroid upgrade` itself compares against.
+      - id: checkForUpdate
+        description: Reads the pair the booted Borshevik approves from @WaydroidApp#config's `images`, rather than through waydroid.cfg's channel URLs, which on a machine installed before still name ota.waydro.id. An image needs updating when its recorded datetime differs from the approved entry's — older or newer alike, the second when a broken build was withdrawn — the same test @WaydroidApp#control#upgrade acts on, so what the tab offers is what an upgrade installs. Returns whether either differs and the sum of those entries' `size`, formatted; an error when config cannot be read. Reads only local files and needs no privileges, so the tab checks on its own without asking for a password.
+      - id: googleStatus
+        description: Runs @WaydroidApp#control#google under pkexec and returns the registration ID and whether Android holds a Google account, or that Android has not checked in yet (its exit status 3), or an error — and that the password was refused, which the tab treats as nothing asked.
+      - id: signedInLocally
+        description: "Whether Android has signed in to Google, read without privileges and without Android running: true when @WaydroidApp#control#google-watch's flag exists in the user's Android data, false otherwise — including while Android has not booted since the flag was introduced. Works for every user, the flag being readable by its owner whatever their uid."
+      - id: runtimeState
+        description: "Whether Android is running now, without privileges: 'running' or 'suspended' (Waydroid froze the container while Android sleeps) from `waydroid status`'s Container line while a session runs, 'stopped' otherwise; and, unless stopped, how long it has run, in seconds — the elapsed time of the container's lxc-start process, which every user can read from ps."
+      - id: hasHardwareRendering
+        description: Whether Android would get hardware rendering here — the answer of @WaydroidApp#control#rendering, asked rather than worked out again, so the tab's warning and what install does agree.
   - id: app-state
     type: "@Singleton"
     description: Pure derivation of what the window shows from the parsed status and the last check, with no GTK in it.
@@ -215,11 +276,11 @@ tests:
     expect: no JS errors in the output, and the author confirms the changed behaviour works in the window
 guidelines:
   - Every asynchronous GIO call — subprocess communicate and wait, line reads, D-Bus calls — goes through an explicit callback and `_finish` wrapper, never GJS's implicit promisification. The implicit form behaves differently across GJS versions, and for Gio.Subprocess.wait_async it can resolve before the child is reaped, after which reading the exit status fails with the assertion `pid == 0`.
-  - "The rpm-ostree operations that change the system — update, rollback, rebase — are first run unprivileged and retried under pkexec only when their output reads as an authorization failure (util#isAuthorizationError). The auto-updates switch runs systemctl unprivileged only, leaving authorization to systemd's own polkit check."
+  - The rpm-ostree operations that change the system — update, rollback, rebase — are first run unprivileged and retried under pkexec only when their output reads as an authorization failure (util#isAuthorizationError). @WaydroidApp#control is run under pkexec from the start, as it refuses to run without root and an unprivileged first try could only fail. The auto-updates switches, of the OS and of Android, run systemctl unprivileged only, leaving authorization to systemd's own polkit check.
 recipes:
   - id: run
     description: Runs the Image Manager straight from the repository working tree, so a change can be tried on this machine without building an image
     instructions:
-      - "If the installed Image Manager (application id org.borshevik.ImageManager) is already running, ask the user to close it first — GApplication is single-instance, so a second launch only presents the existing window of the installed version and the change is never seen"
-      - "Run `gjs -m build_files/root/usr/share/borshevik-image-manager/main.js` from the repository root in the host session, in the background so the window stays open; the app resolves its i18n dictionaries relative to its own main.js, so they come from the working tree too"
+      - "Run `gjs -m build_files/root/usr/share/borshevik-image-manager/main.js --gapplication-app-id=org.borshevik.ImageManager.Devel` from the repository root in the host session, in the background so the window stays open; add `--page android` to open it on that tab. The application accepts another id (CAN_OVERRIDE_APP_ID) for this: under its own id a second launch only presents the window of an installed Image Manager already running, and the change is never seen. The app resolves its i18n dictionaries relative to its own main.js, so they come from the working tree too"
+      - "Never run it under `dbus-run-session` or any other private session bus to get around the single instance. GTK starts the portals on the bus it is given; on an empty one that brings up a second xdg-document-portal, which takes over /run/user/<uid>/doc and leaves it unmounted when it exits — after which every Flatpak app that needs it, Firefox and GNOME Boxes among them, fails to start ('bwrap: Can't find source path /run/user/<uid>/doc/by-app/…') until the user's xdg-document-portal.service is restarted (2026-10-03)"
       - "Watch its output for JS errors and report them, then let the user judge the window itself — how it looks and behaves is theirs to confirm"
