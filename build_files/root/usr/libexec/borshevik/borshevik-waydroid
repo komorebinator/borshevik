@@ -34,6 +34,10 @@ APPS_ENTRY_DEST=/usr/local/share/applications/borshevik-android-apps.desktop
 APK_ENTRY_SRC="${SHARE}/borshevik-apk-install.desktop"
 APK_ENTRY_DEST=/usr/local/share/applications/borshevik-apk-install.desktop
 MIMEAPPS_DEST=/usr/local/share/applications/mimeapps.list
+# What opens a market:// link while Android is installed, by its line in the
+# same mimeapps.list; the package's own handler has no MimeType in the image.
+MARKET_ENTRY_SRC="${SHARE}/borshevik-android-market.desktop"
+MARKET_ENTRY_DEST=/usr/local/share/applications/borshevik-android-market.desktop
 APK_MIME=application/vnd.android.package-archive
 UPDATE_TIMER=borshevik-waydroid-update.timer
 # The user service handing Android GNOME's colours.
@@ -384,16 +388,19 @@ write_keylayouts() {
     rm -rf "$tmp"
 }
 
-# Sets or unsets the APK association in /usr/local's mimeapps.list, and nothing
-# else there: the file may hold an administrator's own defaults, an APK default
-# of their own among them, which set leaves in place and unset does not touch.
-# It is created when missing and deleted when unsetting leaves nothing in it;
+# Sets or unsets Android's associations in /usr/local's mimeapps.list — APKs
+# to the installer, market:// links to Android — and nothing else there: the
+# file may hold an administrator's own defaults, one of their own for either
+# type among them, which set leaves in place and unset does not touch. It is
+# created when missing and deleted when unsetting leaves nothing in it;
 # rewritten only when it changes, through a new file put in its place.
-apk_association() { # set | unset
-    python3 - "$MIMEAPPS_DEST" "$APK_MIME" "$(basename "$APK_ENTRY_DEST")" "$1" <<'EOF'
+associations() { # set | unset
+    python3 - "$MIMEAPPS_DEST" "$1" \
+        "${APK_MIME}=$(basename "$APK_ENTRY_DEST")" \
+        "x-scheme-handler/market=$(basename "$MARKET_ENTRY_DEST")" <<'EOF'
 import os, sys
-path, mime, entry, action = sys.argv[1:5]
-ours = f"{mime}={entry}"
+path, action, *ours = sys.argv[1:]
+DA = "[Default Applications]"
 # What the whole file this script used to copy there said of itself; untrue now.
 LEGACY = ("# Copied into /usr/local/share/applications by borshevik-waydroid install, and",
           "# removed by remove: APKs open in the installer only while Android is there.")
@@ -406,52 +413,55 @@ def read():
 
 old = read()
 # Split on newlines only, so every line keeps what it ends in, a CR included;
-# the line added ends the way the file's lines do, and the file ends as it did.
+# the lines added end the way the file's lines do, and the file ends as it did.
 lines = (old or "").split("\n")
 final_newline = old is None or old.endswith("\n")
 if lines and lines[-1] == "":
     lines.pop()
-crlf = bool(lines) and all(l.endswith("\r") for l in lines)
-ours_line = ours + ("\r" if crlf else "")
-header_line = "[Default Applications]" + ("\r" if crlf else "")
-had_header = any(l.strip() == "[Default Applications]" for l in lines)
+cr = "\r" if lines and all(l.endswith("\r") for l in lines) else ""
+had_header = any(l.strip() == DA for l in lines)
 lines = [l for l in lines if l.strip() not in LEGACY]
 key = lambda l: l.split("=", 1)[0].strip()
-# An APK default of someone else's, in [Default Applications]; lines in other
-# sections only offer or hide applications.
-section, theirs = None, False
+# A line as mimeapps.list means it: `type=entry`, with or without the `;` that
+# may end a list of entries.
+norm = lambda l: f"{key(l)}={l.split('=', 1)[1].strip().rstrip(';').strip()}" if "=" in l else l.strip()
+mine = lambda l: norm(l) in ours
+# A default of someone else's for one of the types, in [Default Applications];
+# lines in other sections only offer or hide applications.
+section, theirs = None, set()
 for l in lines:
     if l.strip().startswith("[") and l.strip().endswith("]"):
         section = l.strip()
-    elif section == "[Default Applications]" and key(l) == mime and l.strip() != ours:
-        theirs = True
+    elif section == DA and "=" in l and not mine(l):
+        theirs.add(key(l))
+wanted = [o + cr for o in ours if key(o) not in theirs] if action == "set" else []
 out, section, placed = [], None, False
 for line in lines:
     stripped = line.strip()
     if stripped.startswith("[") and stripped.endswith("]"):
-        if section == "[Default Applications]" and action == "set" and not placed and not theirs:
+        if section == DA and wanted and not placed:
             end = len(out)
             while end and not out[end - 1].strip():
                 end -= 1
-            out.insert(end, ours_line)
+            out[end:end] = wanted
             placed = True
         section = stripped
-    elif section == "[Default Applications]" and stripped == ours:
+    elif section == DA and mine(line):
         continue
     out.append(line)
-if action == "set" and not placed and not theirs:
-    if section != "[Default Applications]":
-        out.append(header_line)
-    out.append(ours_line)
+if wanted and not placed:
+    if section != DA:
+        out.append(DA + cr)
+    out.extend(wanted)
 # Unsetting takes out a [Default Applications] left empty, which set added.
 if action == "unset" and had_header:
-    i = next(n for n, l in enumerate(out) if l.strip() == "[Default Applications]")
+    i = next(n for n, l in enumerate(out) if l.strip() == DA)
     rest = out[i + 1:]
     end = next((n for n, l in enumerate(rest) if l.strip().startswith("[")), len(rest))
     if not any(l.strip() for l in rest[:end]):
         out = out[:i] + rest[end:]
 
-keep = any(l.strip() and l.strip() != "[Default Applications]" for l in out)
+keep = any(l.strip() and l.strip() != DA for l in out)
 new = "\n".join(out) + ("\n" if final_newline else "") if keep else None
 if new == old:
     sys.exit(0)
@@ -472,8 +482,9 @@ install_entries() {
     install -D -m 0644 "$ANDROID_ENTRY_SRC" "$ANDROID_ENTRY_DEST"
     install -D -m 0644 "$APPS_ENTRY_SRC" "$APPS_ENTRY_DEST"
     install -D -m 0644 "$APK_ENTRY_SRC" "$APK_ENTRY_DEST"
+    install -D -m 0644 "$MARKET_ENTRY_SRC" "$MARKET_ENTRY_DEST"
     # Someone else's file: a failure there is reported, and stops nothing.
-    apk_association set || echo "could not make APKs open in Android through ${MIMEAPPS_DEST}" >&2
+    associations set || echo "could not make APKs and market:// links open in Android through ${MIMEAPPS_DEST}" >&2
 }
 
 cmd_install() {
@@ -585,8 +596,8 @@ cmd_remove() {
     require_root remove
     take_busy remove
     rm -f "$STAMP"
-    rm -f "$ANDROID_ENTRY_DEST" "$APPS_ENTRY_DEST" "$APK_ENTRY_DEST"
-    apk_association unset || echo "could not take the APK association out of ${MIMEAPPS_DEST}" >&2
+    rm -f "$ANDROID_ENTRY_DEST" "$APPS_ENTRY_DEST" "$APK_ENTRY_DEST" "$MARKET_ENTRY_DEST"
+    associations unset || echo "could not take Android's associations out of ${MIMEAPPS_DEST}" >&2
 
     step "Stopping Android"
     systemctl disable --now "$UPDATE_TIMER" 2>/dev/null || true

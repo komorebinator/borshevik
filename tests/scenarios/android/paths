@@ -9,10 +9,13 @@ build_files/root/usr/lib/systemd/system/borshevik-waydroid-update.*
 build_files/root/usr/share/borshevik/waydroid/**
 build_files/root/usr/share/applications/Waydroid.desktop
 build_files/root/usr/share/applications/waydroid.app.install.desktop
+build_files/root/usr/share/applications/waydroid.market.desktop
 build_files/root/usr/bin/borshevik-apk-install
 build_files/root/usr/libexec/borshevik/borshevik-android-theme
 build_files/root/usr/lib/systemd/user/borshevik-android-theme.service
 build_files/scripts/install-waydroid-script.sh
+# where the image's MIME cache is rebuilt after the package entries are replaced
+build_files/scripts/finalize-image.sh
 # where the waydroid package is layered
 build_files/scripts/install-rpm-packages.sh
 build_files/root/usr/share/borshevik-image-manager/waydroid.js

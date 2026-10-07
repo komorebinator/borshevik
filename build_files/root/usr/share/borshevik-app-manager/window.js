@@ -252,13 +252,18 @@ class AppWindow extends Adw.ApplicationWindow {
   }
 
   // Module rows as the machine stands: one already installed is checked and
-  // cannot be unchecked, and a run never installs it again.
+  // cannot be unchecked, and a run never installs it again. One no longer
+  // installed loses the tick that only showed it installed, so it is not
+  // left ticked by no one.
   _refreshModules() {
-    for (const { row, check, mod } of this._moduleRows) {
+    for (const entry of this._moduleRows) {
+      const { row, check, mod } = entry;
       const installed = mod.isInstalled();
       row.set_title(this._i18n.t(mod.title));
       row.set_subtitle(this._i18n.t(installed ? "moduleInstalled" : mod.subtitle));
       if (installed) check.set_active(true);
+      else if (entry.tickedAsInstalled) check.set_active(false);
+      entry.tickedAsInstalled = installed;
       row.set_sensitive(!installed);
     }
     this._updateInstallButton();

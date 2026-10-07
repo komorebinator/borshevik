@@ -1,0 +1,12 @@
+# Replaces the waydroid package's market:// handler without its MimeType: it
+# claimed market:// links on every machine, and without Android it ran a
+# `waydroid app intent` that failed and showed nothing. Borshevik's own,
+# borshevik-android-market, takes them once Android is installed.
+# See @WaydroidApp#launcher in spec/.
+[Desktop Entry]
+Type=Application
+Name=Waydroid Market
+Comment=Android Market Protocol Handler
+NoDisplay=true
+Exec=waydroid app intent android.intent.action.VIEW %u
+Icon=waydroid

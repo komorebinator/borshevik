@@ -127,6 +127,12 @@ check_installed() { # suffix
         fail "apk-entry$s" "entry $([[ -f "$APK_ENTRY" ]] && echo present || echo missing), mimeapps.list $([[ -f "$MIMEAPPS" ]] && echo present || echo missing), APKs open with '$apk_default', the other default $(grep -qxF "$FOREIGN_DEFAULT" "$MIMEAPPS" 2>/dev/null && echo kept || echo lost)"
     fi
 
+    # market:// links open in Android's Play Store while Android is installed
+    local market_default
+    market_default="$(as_user xdg-mime query default x-scheme-handler/market 2>/dev/null)"
+    [[ "$market_default" == borshevik-android-market.desktop ]] && ok "market-entry$s" \
+        || fail "market-entry$s" "market:// links open with '$market_default'"
+
     bridge="$(cat /var/lib/waydroid/waydroid.cfg /var/lib/waydroid/waydroid_base.prop 2>/dev/null |
         sed -n 's/^ro\.dalvik\.vm\.native\.bridge[[:space:]]*=[[:space:]]*//p' | tail -n1)"
     [[ "$bridge" == "$(expected_bridge)" ]] && ok "translation$s" \
@@ -215,6 +221,8 @@ systemctl is-active -q "$CONTAINER" && problems+="$CONTAINER is active; "
 grep -qx 'NoDisplay=true' /usr/share/applications/Waydroid.desktop || problems+="the package's Waydroid entry is not hidden; "
 grep -q '^MimeType=' /usr/share/applications/waydroid.app.install.desktop && problems+="the package's APK installer still takes APKs; "
 [[ "$(as_user xdg-mime query default "$APK_MIME" 2>&1)" == borshevik-apk-install.desktop ]] && problems+="APKs open in the installer without Android; "
+market_default="$(as_user xdg-mime query default x-scheme-handler/market 2>/dev/null)"
+[[ -n "$market_default" ]] && problems+="market:// links open with '$market_default' without Android; "
 [[ -z "$problems" ]] && ok clean || fail clean "$problems"
 mkdir -p "$(dirname "$MIMEAPPS")"
 printf '[Default Applications]\n%s\n' "$FOREIGN_DEFAULT" > "$MIMEAPPS"
@@ -507,6 +515,10 @@ problems=""
 grep -qF "${APK_MIME}=" "$MIMEAPPS" 2>/dev/null && problems+="the APK association left in mimeapps.list; "
 grep -qxF "$FOREIGN_DEFAULT" "$MIMEAPPS" 2>/dev/null || problems+="the other default in mimeapps.list lost; "
 [[ "$(as_user xdg-mime query default "$APK_MIME" 2>&1)" == borshevik-apk-install.desktop ]] && problems+="APKs still open in the installer; "
+[[ -e /usr/local/share/applications/borshevik-android-market.desktop ]] && problems+="the market:// entry left; "
+market_default="$(as_user xdg-mime query default x-scheme-handler/market 2>/dev/null)"
+[[ -n "$market_default" ]] && problems+="market:// links still open with '$market_default'; "
+grep -qF "x-scheme-handler/market=" "$MIMEAPPS" 2>/dev/null && problems+="the market:// association left in mimeapps.list; "
 [[ "$(systemctl is-enabled "$TIMER" 2>&1)" == disabled ]] || problems+="$TIMER still $(systemctl is-enabled "$TIMER" 2>&1); "
 [[ "$(systemctl is-enabled "$CONTAINER" 2>&1)" == disabled ]] || problems+="$CONTAINER still $(systemctl is-enabled "$CONTAINER" 2>&1); "
 systemctl is-active -q "$CONTAINER" && problems+="$CONTAINER still active; "
