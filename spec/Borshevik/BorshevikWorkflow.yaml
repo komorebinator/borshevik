@@ -28,8 +28,12 @@ steps:
     when: the change is present in the terms, verify_project is clean, and the sources do not yet implement it
     operation: "@Software#build"
   - id: implemented
-    description: "The sources carry the change and the project validates — the spec through @DuckspecProject#validate, the repository through @BorshevikWorkflow#validate — but nobody has seen it run and nothing is recorded. A change to one of the GJS applications (@ImageManagerApp, @AppManagerApp) is tried now, by running the new version straight from the working tree on this machine (@ImageManagerApp#recipes#run), which takes seconds where an image build takes the better part of an hour; the author looks at it and either confirms it or asks for more changes, which send it back to `requested`. A change that only exists once an image is built — packages, services, build scripts, dconf, the Containerfile — cannot be run this way and goes straight to commit, which the reading of the steps reports as this step skipped; it is first seen running at `testing`."
-    when: the working tree carries the change, @DuckspecProject#validate passes, tests/validate.sh exits 0, it is not committed, and the author has not yet confirmed it running from the working tree
+    description: "The sources carry the change and the project validates — the spec through @DuckspecProject#validate, the repository through @BorshevikWorkflow#validate — but nobody has reviewed it, seen it run, or recorded it. It is reviewed first (@BorshevikWorkflow#review_changes), while it is still small and nothing has been built from it, so what the review finds costs an edit rather than an image build and another round of testing."
+    when: the working tree carries the change, @DuckspecProject#validate passes, tests/validate.sh exits 0, it is not committed, and it has not been reviewed since it was last edited
+    operation: "@BorshevikWorkflow#review_changes(diff=the working tree against HEAD)"
+  - id: reviewed
+    description: "The uncommitted change has been reviewed and nothing the review found is left open, but nobody has seen it run. A change to one of the GJS applications (@ImageManagerApp, @AppManagerApp) is tried now, by running the new version straight from the working tree on this machine (@ImageManagerApp#recipes#run), which takes seconds where an image build takes the better part of an hour; the author looks at it and either confirms it or asks for more changes, which send it back to `requested`. A change that only exists once an image is built — packages, services, build scripts, dconf, the Containerfile — cannot be run this way and goes straight to commit, which the reading of the steps reports as this step skipped; it is first seen running at `testing`."
+    when: the working tree carries the change, validates, is not committed, has been reviewed since it was last edited with no finding left open, and the author has not yet confirmed it running from the working tree
     operation: "@Software#run"
   - id: tried_locally
     description: The author has run the new version from the working tree and confirmed it works, but nothing is recorded yet.
@@ -48,8 +52,12 @@ steps:
     when: an image built from experimental carrying the change is on `:latest`, and @BorshevikWorkflow#test-image-in-vm has not passed on that image
     operation: "@BorshevikWorkflow#try_in_vm"
   - id: testing
-    description: "An image carrying the change is on `:latest`, has passed in the virtual machine, and the author runs it on a real machine — rebasing with the Image Manager — to see that it works. Only the author can say it does; nothing here checks it. Once it does, the change goes to main."
+    description: "An image carrying the change is on `:latest`, has passed in the virtual machine, and the author runs it on a real machine — rebasing with the Image Manager — to see that it works. Only the author can say it does; nothing here checks it. Once it does, everything experimental carries for main is reviewed together (@BorshevikWorkflow#review_changes): each change was reviewed on its own before it was committed, so this is the last look, at how the changes sit together and at whatever reached the branch unreviewed."
     when: an image built from experimental carrying the change is on `:latest`, @BorshevikWorkflow#test-image-in-vm has passed on it, and the author has not yet confirmed it works on a machine running it
+    operation: "@BorshevikWorkflow#review_changes(diff=origin/main...experimental)"
+  - id: ready_for_main
+    description: "The author has confirmed the change on a real machine, and the whole of experimental against main has been reviewed with no finding left open. A finding fixed at this point is a new change, which goes through the steps from `requested` — a new image, the virtual machine and the author's machine again — before experimental is ready; one the author chose to keep is named in the pull request's description with the reason."
+    when: the author has confirmed the change works on a machine running it, and experimental against main has been reviewed since experimental last changed, with no finding left open
     operation: "@GitHub#open_pull_request(head=experimental, base=main)"
   - id: in_review
     description: A pull request from experimental to main carries the tested change.
@@ -221,6 +229,16 @@ recipes:
       - Read the two ISO names from the job summary of the latest successful publish-iso.yml run for <run_id>, and make sure the author confirmed both in @BorshevikWorkflow#try_iso
       - "Load the project registered for https://github.com/komorebinator/borshevik-landing and, following that project's own workflow, change which ISOs it offers to these two. Its deploy refuses to switch to files that are not on the server, so a switch made before the upload finished fails there instead of breaking the download buttons"
       - "Once the website's deploy has succeeded and borshevik.org offers the two new names, clean up everything the trial left on this machine, without being asked: power off any virtual machine @BorshevikWorkflow#try-iso still has running (a qemu-system-x86_64 whose -name is one of the run's ISOs, and its spicy viewer); delete ${XDG_CACHE_HOME:-~/.cache}/borshevik-iso entirely — the ISOs and the virtual machines' disks, tens of GB; stop the website's local preview container, borshevik-landing-preview, if it is running; and remove every git worktree made for the change whose branch has been merged. Report what was removed. Nothing on the server is cleaned here: images the site no longer offers are removed from it separately"
+  - id: review_changes
+    description: "Reviews a change — and only the change: what its diff adds, removes or alters. Code it does not touch is out of scope, however it looks; reviewing a change is not auditing the project, and findings in untouched code are not reported. The means are the agent's choice — its own reading, a review tool, another model, or several of them — and none is named here, so that whatever reviews best at the time can be used."
+    arguments:
+      - id: diff
+        description: "what to review: the working tree against HEAD before a commit, or `origin/main...experimental` before a pull request"
+    instructions:
+      - "Take <diff>, fetching origin first when it names a remote branch. Read enough of the surrounding code and of the terms to judge the change, but judge only the change."
+      - "Look for what the change gets wrong: a bug in the lines it adds or alters, behaviour it breaks elsewhere through what it changed (a caller, a setting, a unit it depends on), a contradiction with the project's terms and guidelines, a case it was meant to handle and does not. A problem that was there before the change and that the change neither causes nor makes worse is not a finding."
+      - "Confirm each finding against the code before reporting it — the lines it is about, and how they are reached — and drop what does not hold up."
+      - "Report the findings, each with the file and line, what goes wrong and when, or say that there are none. Fix the ones the author agrees with as part of the change; one the author chooses to keep is closed by that choice, with its reason."
   - id: notify_contributor
     description: Tells the contributor whose change it is, with a desktop notification, that an operation they are waiting on has ended — for the steps whose operation runs for minutes to hours, when they are rarely watching the conversation
     arguments:
