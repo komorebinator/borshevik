@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # The android scenario, run inside the test VM as root after tester's login.
 # See @WaydroidApp#vm-scenario in spec/. Unlike image-checks it changes the
-# system: it installs Android, removes it and installs it again, downloading a
-# few GB on the way. Logs of the long steps go to /var/tmp/scenario-android/,
-# which test-image-in-vm copies into the run directory.
+# system: it cuts an install short, installs Android, removes it and installs
+# it again, downloading a few GB on the way. Logs of the long steps go to
+# /var/tmp/scenario-android/, which test-image-in-vm copies into the run
+# directory.
 set -u
 
 user=tester
@@ -205,6 +206,60 @@ EOF
         || fail "not-busy$s" "$BUSY holds '$(cat "$BUSY")', not the record of an ended operation"
 }
 
+# What remove's system part takes away, and a failed install too: prints what
+# is still there, nothing when all of it is gone.
+system_part_gone() {
+    local problems="" market_default
+    [[ -e "$STAMP" ]] && problems+="stamp left; "
+    [[ -e /var/lib/waydroid ]] && problems+="/var/lib/waydroid left; "
+    [[ -e /var/lib/borshevik/waydroid-ota ]] && problems+="/var/lib/borshevik/waydroid-ota left; "
+    [[ -e "$ENTRY" || -e "$APPS_ENTRY" ]] && problems+="an Android entry left; "
+    [[ -e "$APK_ENTRY" ]] && problems+="the APK entry left; "
+    grep -qF "${APK_MIME}=" "$MIMEAPPS" 2>/dev/null && problems+="the APK association left in mimeapps.list; "
+    grep -qxF "$FOREIGN_DEFAULT" "$MIMEAPPS" 2>/dev/null || problems+="the other default in mimeapps.list lost; "
+    [[ "$(as_user xdg-mime query default "$APK_MIME" 2>&1)" == borshevik-apk-install.desktop ]] && problems+="APKs still open in the installer; "
+    [[ -e /usr/local/share/applications/borshevik-android-market.desktop ]] && problems+="the market:// entry left; "
+    market_default="$(as_user xdg-mime query default x-scheme-handler/market 2>/dev/null)"
+    [[ -n "$market_default" ]] && problems+="market:// links still open with '$market_default'; "
+    grep -qF "x-scheme-handler/market=" "$MIMEAPPS" 2>/dev/null && problems+="the market:// association left in mimeapps.list; "
+    [[ "$(systemctl is-enabled "$TIMER" 2>&1)" == disabled ]] || problems+="$TIMER still $(systemctl is-enabled "$TIMER" 2>&1); "
+    systemctl is-active -q "$TIMER" && problems+="$TIMER still active; "
+    [[ "$(systemctl is-enabled "$CONTAINER" 2>&1)" == disabled ]] || problems+="$CONTAINER still $(systemctl is-enabled "$CONTAINER" 2>&1); "
+    systemctl is-active -q "$CONTAINER" && problems+="$CONTAINER still active; "
+    firewall-cmd --permanent --zone=trusted --list-interfaces 2>/dev/null | grep -qw waydroid0 && problems+="waydroid0 still trusted; "
+    printf '%s' "$problems"
+}
+
+# Runs control in a process group of its own and, once <ready> holds, sends
+# SIGTERM to the whole group, as a logout or a shutdown does, then waits until
+# every process in it has ended. Sets cut_rc to control's exit status and
+# cut_in_time to 1 when control was still running at the signal. <ready> may
+# use $pgid, the group's id.
+cut_short() { # log name, ready (a command), control's arguments...
+    local name="$1" ready="$2" pid pgid
+    shift 2
+    cut_rc="" cut_in_time=""
+    setsid "$CONTROL" "$@" >"$logs/$name.log" 2>&1 < /dev/null &
+    pid=$!
+    pgid="$pid"
+    for _ in $(seq 2400); do
+        kill -0 "$pid" 2>/dev/null || break
+        if eval "$ready"; then
+            kill -0 "$pid" 2>/dev/null && cut_in_time=1
+            kill -TERM -- "-$pid" 2>/dev/null
+            break
+        fi
+        sleep 0.05
+    done
+    wait "$pid"
+    cut_rc=$?
+    for _ in $(seq 120); do
+        pgrep -g "$pid" >/dev/null || break
+        sleep 0.5
+    done
+    echo "$cut_rc" >"$logs/$name.rc"
+}
+
 config_properties() {
     python3 -c 'import json, sys; [print(f"{k}={v}") for k, v in json.load(open(sys.argv[1]))["properties"].items()]' "$CONFIG"
 }
@@ -245,7 +300,18 @@ else
     fail modules-refuse "exit $rc: $out"
 fi
 
-# --- 3. install as the App Manager does --------------------------------------
+# --- 3. an install cut short -------------------------------------------------
+# A logout or shutdown while waydroid init is downloading Android: the install
+# undoes what it had done, ends with the signal's status rather than a success,
+# and leaves the busy lock free, so the install that follows runs.
+cut_short install-cut '{ pgrep -g "$pgid" -f "bin/waydroid init" >/dev/null && sleep 5; }' install
+problems="$(system_part_gone)"
+[[ -n "$cut_in_time" ]] || problems+="install ended on its own before it could be cut short; "
+[[ "$cut_rc" -eq 143 ]] || problems+="exit $cut_rc, not 143 (SIGTERM): $(tail_of install-cut); "
+grep -qE '^done install [0-9]+$' "$BUSY" || problems+="$BUSY holds '$(cat "$BUSY")', not the record of an ended install; "
+[[ -z "$problems" ]] && ok install-cut-short || fail install-cut-short "$problems"
+
+# --- 4. install as the App Manager does --------------------------------------
 logged prepare "$MODULES" prepare android; rc=$?
 if [[ "$rc" -eq 0 ]] && grep -qx '::module android' "$logs/prepare.log" \
     && grep -qx '::result android ok' "$logs/prepare.log"; then
@@ -254,10 +320,10 @@ else
     fail modules-prepare "exit $rc: $(tail_of prepare)"
 fi
 
-# --- 4. what the install left -------------------------------------------------
+# --- 5. what the install left -------------------------------------------------
 check_installed ""
 
-# --- 5. the Image Manager's waydroid.js --------------------------------------
+# --- 6. the Image Manager's waydroid.js --------------------------------------
 res="$(gjs_as_user image-manager "
 import * as w from 'file:///usr/share/borshevik-image-manager/waydroid.js';
 async function main() {
@@ -280,7 +346,7 @@ else
     fail image-manager-js "${res:-no output} $(head -c 300 "$logs/image-manager.err")"
 fi
 
-# --- 6. the APK installer's install.js, as tester ------------------------------
+# --- 7. the APK installer's install.js, as tester ------------------------------
 # An APK of its own rather than one from a list: F-Droid's client, pinned. F-Droid
 # moves old builds to its archive after a while; then pin the current one (its
 # suggestedVersionCode, from https://f-droid.org/api/v1/packages/org.fdroid.fdroid).
@@ -426,7 +492,7 @@ for ns, kv in json.load(open(sys.argv[1])).get("android_settings", {}).items():
     fi
 }
 
-# --- 7. the update service's conditions ---------------------------------------
+# --- 8. the update service's conditions ---------------------------------------
 # Each ExecCondition of the unit is run on its own, so the session condition is
 # tested whatever the machine's connection makes of the metered one.
 mapfile -t conditions < <(systemctl cat "$SERVICE" | sed -n 's/^ExecCondition=//p')
@@ -466,7 +532,7 @@ else
     fail update-service "start exit $rc, Result=$result"
 fi
 
-# --- 8. upgrade ------------------------------------------------------------------
+# --- 9. upgrade ------------------------------------------------------------------
 # refused while another operation holds the busy lock, having changed nothing
 # The scenario holds the lock itself, on a descriptor of its own that no
 # child keeps after it is closed - a background `flock ... sleep` would leave
@@ -503,36 +569,20 @@ else
     fail upgrade-to-approved "exit $rc, vendor_datetime '$recorded', approved $approved_vendor: $(tail_of upgrade-back)"
 fi
 
-# --- 9. remove as the Image Manager does, for tester ------------------------------
+# --- 10. remove as the Image Manager does, for tester ------------------------------
 logged remove env PKEXEC_UID="$uid" "$CONTROL" remove; rc=$?
-problems=""
+problems="$(system_part_gone)"
 [[ "$rc" -eq 0 ]] || problems+="exit $rc: $(tail_of remove); "
-[[ -e "$STAMP" ]] && problems+="stamp left; "
-[[ -e /var/lib/waydroid ]] && problems+="/var/lib/waydroid left; "
-[[ -e /var/lib/borshevik/waydroid-ota ]] && problems+="/var/lib/borshevik/waydroid-ota left; "
-[[ -e "$ENTRY" || -e "$APPS_ENTRY" ]] && problems+="an Android entry left; "
-[[ -e "$APK_ENTRY" ]] && problems+="the APK entry left; "
-grep -qF "${APK_MIME}=" "$MIMEAPPS" 2>/dev/null && problems+="the APK association left in mimeapps.list; "
-grep -qxF "$FOREIGN_DEFAULT" "$MIMEAPPS" 2>/dev/null || problems+="the other default in mimeapps.list lost; "
-[[ "$(as_user xdg-mime query default "$APK_MIME" 2>&1)" == borshevik-apk-install.desktop ]] && problems+="APKs still open in the installer; "
-[[ -e /usr/local/share/applications/borshevik-android-market.desktop ]] && problems+="the market:// entry left; "
-market_default="$(as_user xdg-mime query default x-scheme-handler/market 2>/dev/null)"
-[[ -n "$market_default" ]] && problems+="market:// links still open with '$market_default'; "
-grep -qF "x-scheme-handler/market=" "$MIMEAPPS" 2>/dev/null && problems+="the market:// association left in mimeapps.list; "
-[[ "$(systemctl is-enabled "$TIMER" 2>&1)" == disabled ]] || problems+="$TIMER still $(systemctl is-enabled "$TIMER" 2>&1); "
-[[ "$(systemctl is-enabled "$CONTAINER" 2>&1)" == disabled ]] || problems+="$CONTAINER still $(systemctl is-enabled "$CONTAINER" 2>&1); "
-systemctl is-active -q "$CONTAINER" && problems+="$CONTAINER still active; "
-firewall-cmd --permanent --zone=trusted --list-interfaces 2>/dev/null | grep -qw waydroid0 && problems+="waydroid0 still trusted; "
 [[ -e "$home/.local/share/waydroid" ]] && problems+="$user's ~/.local/share/waydroid left; "
 ls "$home"/.local/share/applications/waydroid.*.desktop >/dev/null 2>&1 && problems+="$user's Android app launchers left; "
 [[ -z "$problems" ]] && ok remove || fail remove "$problems"
 
-# --- 10. install again, as the Image Manager does -----------------------------
+# --- 11. install again, as the Image Manager does -----------------------------
 logged install "$CONTROL" install; rc=$?
 [[ "$rc" -eq 0 ]] && ok reinstall || fail reinstall "exit $rc: $(tail_of install)"
 check_installed "-again"
 
-# --- 11. nothing failed along the way ------------------------------------------
+# --- 12. nothing failed along the way ------------------------------------------
 units="$(systemctl --failed --no-legend --plain | awk '{print $1}' | tr '\n' ' ')"
 [[ -z "$units" ]] && ok system-units || fail system-units "$units"
 
