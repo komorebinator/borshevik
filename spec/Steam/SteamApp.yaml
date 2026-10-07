@@ -1,12 +1,12 @@
-description: Steam gaming client as integrated in Borshevik — layered via rpm-ostree at image build time from the RPM Fusion nonfree repository the @UniversalBlueGnome base already provides.
+description: Steam gaming client as integrated in Borshevik — installed with dnf5 at image build time from the negativo17 fedora-multimedia repository the @UniversalBlueGnome base already provides.
 extends: "@Software"
 platform: RPM
 src: build_files/scripts/install-steam.sh
 components:
   - id: installer
     type: "@ShellScript"
-    description: Layers steam and steam-devices. Enables no repository of its own — RPM Fusion nonfree comes with the base image.
+    description: Installs steam and steam-devices. Enables no repository of its own — fedora-multimedia comes with the base image.
     src: build_files/scripts/install-steam.sh
     functions:
       - id: run
-        description: "A single `rpm-ostree -y install steam steam-devices` — steam-devices supplying the udev rules for controllers. The whole script is that one command under `set -ouex pipefail`; RPM Fusion nonfree is already configured by @UniversalBlueGnome, so nothing here adds a repository."
+        description: "A single `dnf5 -y install steam steam-devices` under `set -ouex pipefail` — steam-devices supplying the udev rules for controllers. dnf5, not rpm-ostree: Steam's 32-bit libraries must be the exact version of their 64-bit twins in the base, and @UniversalBlueGnome can lag Fedora's updates repository, which keeps only the newest build — in 2026-10 openssl-libs, SDL3 and others were behind, and every nightly base build failed. rpm-ostree never upgrades a package of the base, so it cannot resolve that, and replacing them by name (as @ImageBuild#install-kernel does the kernel) would need a list that changes with every lag; dnf5 upgrades the 64-bit ones it needs to the updates' version by itself."
