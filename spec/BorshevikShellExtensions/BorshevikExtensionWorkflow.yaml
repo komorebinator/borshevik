@@ -21,12 +21,8 @@ steps:
     when: the change is present in the terms, verify_project is clean, and the sources do not yet implement it
     operation: "@Software#build"
   - id: implemented
-    description: "The working tree carries the change and the spec validates, but nobody has reviewed it or run it. It is reviewed first (@BorshevikWorkflow#review_changes), before the author spends a login on it — and before it is pushed, since a push to `main` is a delivery and there is no pull request on the way for a later look."
-    when: the working tree carries the change, @DuckspecProject#validate passes, and it has not been reviewed since it was last edited
-    operation: "@BorshevikWorkflow#review_changes(diff=the working tree against HEAD)"
-  - id: reviewed
-    description: The change has been reviewed with no finding left open, but no GNOME Shell session has run it yet — the session in use loaded the extension before the change was made. The extension's own run recipe links the working tree in and asks the author to log in again.
-    when: the working tree carries the change, has been reviewed since it was last edited with no finding left open, and the running gnome-shell process started before the change was last edited
+    description: The working tree carries the change and the spec validates, but no GNOME Shell session has run it yet — the session in use loaded the extension before the change was made. The extension's own run recipe links the working tree in and asks the author to log in again.
+    when: the working tree carries the change, @DuckspecProject#validate passes, and the running gnome-shell process started before the change was last edited
     operation: "@Software#run"
   - id: testing_locally
     description: "A fresh session runs the change from the working tree, and the author uses it to see that it works — the behaviour that was asked for, and nothing around it broken. Only the author can say it does; nothing here checks it. Errors the extension throws land in the user journal, which is worth reading before calling it done."

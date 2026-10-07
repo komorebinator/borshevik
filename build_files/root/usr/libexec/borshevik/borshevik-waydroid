@@ -11,11 +11,30 @@
 #                                  and whether Android has signed in to it
 set -euo pipefail
 
-# Never exit with 126 or 127: pkexec returns those when the password is
-# refused, and callers tell a cancelled prompt from a broken install by them.
-# An operation that held the busy lock leaves in the busy file, on the way out,
-# which operation ended and when.
-trap 'rc=$?; if [[ -n "${BUSY_HELD:-}" ]]; then printf "done %s %s\n" "$BUSY_HELD" "$(date +%s%N)" > "$BUSY"; fi; if [[ $rc -eq 126 || $rc -eq 127 ]]; then exit 1; fi' EXIT
+# On the way out: an install that failed undoes what it did to the system; an
+# operation that held the busy lock leaves in the busy file which operation
+# ended and when; and the script never exits with 126 or 127, which pkexec
+# returns when the password is refused and callers tell a cancelled prompt
+# from a broken install by.
+on_exit() {
+    local rc=$?
+    # Silently, so the error that ended the install stays the last line: the
+    # App Manager reports a failed module by it. By INSTALLING alone, which only
+    # the stamp's writing clears: killed by a signal — the App Manager's window
+    # closed, a logout — the script reaches here with $? still 0.
+    if [[ -n "${INSTALLING:-}" ]]; then
+        set +e
+        remove_system >/dev/null 2>&1
+    fi
+    if [[ -n "${BUSY_HELD:-}" ]]; then
+        printf "done %s %s\n" "$BUSY_HELD" "$(date +%s%N)" > "$BUSY"
+    fi
+    # Only these are rewritten; any other status, a signal's included, stands.
+    if [[ $rc -eq 126 || $rc -eq 127 ]]; then
+        exit 1
+    fi
+}
+trap on_exit EXIT
 
 STAMP=/var/lib/borshevik/waydroid-installed
 WAYDROID_DIR=/var/lib/waydroid
@@ -49,7 +68,7 @@ SYSTEM_CHANNEL="file://${CHANNEL_DIR}/system"
 VENDOR_CHANNEL="file://${CHANNEL_DIR}/vendor"
 GSF_DB=.local/share/waydroid/data/data/com.google.android.gsf/databases/gservices.db
 ACCOUNTS_DB=.local/share/waydroid/data/system_ce/0/accounts_ce.db
-# Reads both, for this script and for the Image Manager.
+# Reads both, for `google`.
 ACCOUNTS_TOOL=/usr/libexec/borshevik/borshevik-waydroid-accounts
 # `<operation> <pid>` while install, upgrade or remove runs, under an flock;
 # `done <operation> <nanoseconds since the epoch>` once one has ended. Read by
@@ -133,13 +152,16 @@ translation_layer() { # cpu vendor
 }
 
 # The ARM translation layer, for one Android version.
+# waydroid_script downloads the layer's archive into $XDG_CACHE_HOME, or else
+# into a home root does not have, and keeps it: here it gets a directory of its
+# own in /tmp, which the next boot clears.
 install_addons() {
     local version="$1" translation vendor
     vendor="$(cpu_vendor)"
     translation="$(translation_layer "$vendor")"
     step "CPU vendor ${vendor:-unknown}: using ${translation} for ARM apps"
     step "Installing ${translation} for Android ${version}"
-    "${WAYDROID_SCRIPT_DIR}/venv/bin/python3" "${WAYDROID_SCRIPT_DIR}/main.py" \
+    XDG_CACHE_HOME="$(mktemp -d)" "${WAYDROID_SCRIPT_DIR}/venv/bin/python3" "${WAYDROID_SCRIPT_DIR}/main.py" \
         -a "$version" install "$translation"
 }
 
@@ -490,6 +512,8 @@ install_entries() {
 cmd_install() {
     require_root install
     take_busy install
+    # From here a failure undoes what the install did (on_exit), until the stamp.
+    INSTALLING=1
     rm -f "$STAMP"
 
     step "Downloading and installing the Android image"
@@ -535,6 +559,7 @@ cmd_install() {
     chmod 0755 "$(dirname "$STAMP")"
     echo "$version" > "$STAMP"
     chmod 0644 "$STAMP"
+    INSTALLING=
     start_theme_sync
     step "Android ${version} is installed"
 }
@@ -592,9 +617,9 @@ cmd_upgrade() {
     step "Android ${after} is up to date"
 }
 
-cmd_remove() {
-    require_root remove
-    take_busy remove
+# What remove undoes on the system, and a failed install too: everything but
+# the user's own Android data.
+remove_system() {
     rm -f "$STAMP"
     rm -f "$ANDROID_ENTRY_DEST" "$APPS_ENTRY_DEST" "$APK_ENTRY_DEST" "$MARKET_ENTRY_DEST"
     associations unset || echo "could not take Android's associations out of ${MIMEAPPS_DEST}" >&2
@@ -607,6 +632,12 @@ cmd_remove() {
 
     step "Removing the Android image"
     rm -rf "$WAYDROID_DIR" "$CHANNEL_DIR"
+}
+
+cmd_remove() {
+    require_root remove
+    take_busy remove
+    remove_system
 
     if [[ -n "${PKEXEC_UID:-}" ]]; then
         local home

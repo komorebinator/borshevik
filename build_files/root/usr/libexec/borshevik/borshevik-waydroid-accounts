@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # Reads Android's Google state from Android's own databases on the host, for
-# borshevik-waydroid google (as root) and the Image Manager (as the user).
+# borshevik-waydroid google, as root.
 # See @WaydroidApp#accounts in spec/.
 #
 #   borshevik-waydroid-accounts android-id <gservices.db>
@@ -17,7 +17,9 @@ import time
 
 
 # Reads from a copy, with the files of its journal, so a database Android is
-# writing to is read whole. A copy taken in the middle of a write can come out
+# writing to is read whole — but not the WAL's index (-shm): copied a moment
+# apart from the WAL it could hide its newest frames, and SQLite rebuilds it
+# from the WAL when it is missing. A copy taken in the middle of a write can come out
 # torn, or a journal can vanish while it is copied: then it is copied again.
 # A database Android has just created may not hold its table yet: nothing in it.
 def query(db, sql):
@@ -25,7 +27,7 @@ def query(db, sql):
         try:
             with tempfile.TemporaryDirectory() as tmp:
                 copy = os.path.join(tmp, "copy.db")
-                for suffix in ("", "-wal", "-shm", "-journal"):
+                for suffix in ("", "-wal", "-journal"):
                     if os.path.exists(db + suffix):
                         shutil.copyfile(db + suffix, copy + suffix)
                 return sqlite3.connect(copy).execute(sql).fetchone()
