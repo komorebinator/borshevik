@@ -18,6 +18,7 @@ import { AndroidPage } from './android_page.js';
 import { readOsRelease, readUptimeSeconds, formatUptime, pickLogoCandidates, firstExistingPath, requestRebootInteractive, isAuthorizationError, runCommandCapture } from './util.js';
 
 const ISSUE_NEW_URL = 'https://github.com/komorebinator/borshevik/issues/new';
+const DEFAULT_WIDTH = 580;
 const DEFAULT_HEIGHT = 500;
 
 export const MainWindow = GObject.registerClass(
@@ -26,7 +27,7 @@ class MainWindow extends Adw.ApplicationWindow {
     super({
       application: app,
       title: app.i18n.t('app_name'),
-      default_width: 580,
+      default_width: DEFAULT_WIDTH,
       default_height: DEFAULT_HEIGHT
     });
 
@@ -117,7 +118,8 @@ class MainWindow extends Adw.ApplicationWindow {
     this._stack.add_titled_with_icon(this._androidPage, 'android',
       i18n.t('tab_android'), 'phone-symbolic');
     this._stack.connect('notify::visible-child-name', () => {
-      this.set_default_size(this.get_width(), DEFAULT_HEIGHT);
+      // Not yet shown, the window has no width of its own: keep the default.
+      this.set_default_size(this.get_width() || DEFAULT_WIDTH, DEFAULT_HEIGHT);
       if (this._stack.get_visible_child_name() === 'android')
         this._androidPage.activate();
     });

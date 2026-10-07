@@ -516,7 +516,7 @@ cmd_install() {
     waydroid upgrade -o
 
     step "Turning on automatic Android updates"
-    systemctl enable "$UPDATE_TIMER"
+    systemctl enable --now "$UPDATE_TIMER"
 
     install_entries
 

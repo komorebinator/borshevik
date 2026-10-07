@@ -106,8 +106,8 @@ check_installed() { # suffix
     [[ "$(systemctl is-enabled "$CONTAINER" 2>&1)" == enabled && "$(systemctl is-active "$CONTAINER")" == active ]] \
         && ok "container$s" || fail "container$s" "$CONTAINER is $(systemctl is-enabled "$CONTAINER" 2>&1)/$(systemctl is-active "$CONTAINER")"
 
-    [[ "$(systemctl is-enabled "$TIMER" 2>&1)" == enabled ]] \
-        && ok "timer$s" || fail "timer$s" "$TIMER is $(systemctl is-enabled "$TIMER" 2>&1)"
+    [[ "$(systemctl is-enabled "$TIMER" 2>&1)" == enabled ]] && systemctl is-active -q "$TIMER" \
+        && ok "timer$s" || fail "timer$s" "$TIMER is $(systemctl is-enabled "$TIMER" 2>&1) and $(systemctl is-active "$TIMER" 2>&1)"
 
     if firewall-cmd --permanent --zone=trusted --list-interfaces 2>/dev/null | grep -qw waydroid0; then
         ok "firewall$s"

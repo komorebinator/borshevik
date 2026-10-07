@@ -437,8 +437,11 @@ class AppWindow extends Adw.ApplicationWindow {
     for (const { button, cat } of this._tiles) {
       if (button.get_active()) apps.push(...cat.apps);
     }
+    // By the rows as last refreshed: a greyed-out row is a module that was
+    // installed then, ticked only to show it, and is skipped even if it has
+    // been removed since — nothing is installed that the user did not tick.
     const modules = this._moduleRows
-      .filter(({ check, mod }) => check.get_active() && !mod.isInstalled())
+      .filter(({ row, check, mod }) => check.get_active() && row.get_sensitive() && !mod.isInstalled())
       .map(({ mod }) => mod.name);
     return { apps: this._dedupe(apps), modules };
   }
