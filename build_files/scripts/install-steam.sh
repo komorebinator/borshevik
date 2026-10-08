@@ -6,4 +6,9 @@ set -ouex pipefail
 # whose repository keeps only the newest build (openssl-libs, SDL3 and others
 # behind in 2026-10). rpm-ostree never upgrades a package of the base, so it
 # cannot resolve that; dnf5 brings the 64-bit ones up to the updates' version.
-dnf5 -y install steam steam-devices
+#
+# Without vendor changes: a package of the base may be upgraded only by its own
+# vendor's build. Left free, dnf5 took fedora-multimedia's libheif, of a higher
+# epoch, which brought dozens of 32-bit codecs and replaced the base's
+# libheif-ffmpeg and noopenh264.
+dnf5 -y --setopt=allow_vendor_change=False install steam steam-devices
