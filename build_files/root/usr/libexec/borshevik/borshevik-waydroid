@@ -365,6 +365,57 @@ EOF
     chmod 0644 "${OVERLAY_SYSTEM}/etc/init/borshevik-google.rc" "${OVERLAY_SYSTEM}/etc/borshevik-google.sh"
 }
 
+# Turns Android's half-restart after a crash into a restart of the whole
+# container. When system_server dies, Android restarts zygote inside the
+# running container, and in Waydroid that comes back without display, input
+# or network (waydroid/waydroid#432); a fresh container brings all three back.
+# An init service asks the host's hardware service to restart the container
+# whenever zygote restarts, at most three times in ten minutes, so a crash at
+# every boot cannot loop.
+write_recover() {
+    mkdir -p "${OVERLAY_SYSTEM}/etc/init"
+    cat > "${OVERLAY_SYSTEM}/etc/init/borshevik-recover.rc" <<'EOF'
+service borshevik_recover /system/bin/sh /system/etc/borshevik-recover.sh
+    user root
+    group root
+    oneshot
+    disabled
+
+on property:init.svc.zygote=restarting
+    start borshevik_recover
+EOF
+    cat > "${OVERLAY_SYSTEM}/etc/borshevik-recover.sh" <<'EOF'
+#!/system/bin/sh
+# Written by borshevik-waydroid: zygote restarting means Android is coming back
+# half-restarted; ask Waydroid to restart the whole container instead.
+record=/data/borshevik/crash-restarts
+now=$(date +%s)
+recent=
+count=0
+if [ -f "$record" ]; then
+    while read -r t; do
+        case "$t" in ''|*[!0-9]*) continue ;; esac
+        [ $((now - t)) -lt 600 ] || continue
+        recent="$recent$t
+"
+        count=$((count + 1))
+    done < "$record"
+fi
+if [ "$count" -ge 3 ]; then
+    log -p w -t borshevik "zygote restarted; not restarting the container: three restarts in ten minutes"
+    exit 0
+fi
+mkdir -p "${record%/*}"
+chmod 0755 "${record%/*}"
+printf '%s%s\n' "$recent" "$now" > "$record"
+chmod 0644 "$record"
+log -p w -t borshevik "zygote restarted; asking Waydroid to restart the container"
+# The reboot transaction: the host runs lxc-stop and lxc-start, this script with it.
+service call waydroidhardware 4 > /dev/null
+EOF
+    chmod 0644 "${OVERLAY_SYSTEM}/etc/init/borshevik-recover.rc" "${OVERLAY_SYSTEM}/etc/borshevik-recover.sh"
+}
+
 # Game controllers' key layouts that Android loads only after finding their
 # driver in /proc/config.gz, which the container does not have, so it falls
 # back to layouts for the generic HID driver and the buttons come out wrong.
@@ -545,6 +596,7 @@ cmd_install() {
     write_first_boot
     write_theme
     write_google_watch
+    write_recover
     write_keylayouts
 
     apply_settings
@@ -591,6 +643,7 @@ cmd_upgrade() {
     write_first_boot
     write_theme
     write_google_watch
+    write_recover
     apply_settings
     install_entries
     waydroid upgrade
