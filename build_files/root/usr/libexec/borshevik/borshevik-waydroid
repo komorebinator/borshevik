@@ -370,28 +370,36 @@ EOF
 # running container, and in Waydroid that comes back without display, input
 # or network (waydroid/waydroid#432); a fresh container brings all three back.
 # An init service asks the host's hardware service to restart the container
-# whenever zygote restarts, at most three times in ten minutes, so a crash at
-# every boot cannot loop.
-write_recover() {
+# whenever zygote is stopped or restarted outside a shutdown, at most three
+# times in ten minutes, so a crash at every boot cannot loop.
+write_crash_watchdog() {
     mkdir -p "${OVERLAY_SYSTEM}/etc/init"
-    cat > "${OVERLAY_SYSTEM}/etc/init/borshevik-recover.rc" <<'EOF'
-service borshevik_recover /system/bin/sh /system/etc/borshevik-recover.sh
+    cat > "${OVERLAY_SYSTEM}/etc/init/borshevik-crash-watchdog.rc" <<'EOF'
+service borshevik_crash_watchdog /system/bin/sh /system/etc/borshevik-crash-watchdog.sh
     user root
     group root
     oneshot
     disabled
 
+# A half-restart can stall in stopping, init failing to kill zygote's group in
+# the container, before it ever reaches restarting.
+on property:init.svc.zygote=stopping
+    start borshevik_crash_watchdog
+
 on property:init.svc.zygote=restarting
-    start borshevik_recover
+    start borshevik_crash_watchdog
 EOF
-    cat > "${OVERLAY_SYSTEM}/etc/borshevik-recover.sh" <<'EOF'
+    cat > "${OVERLAY_SYSTEM}/etc/borshevik-crash-watchdog.sh" <<'EOF'
 #!/system/bin/sh
-# Written by borshevik-waydroid: zygote restarting means Android is coming back
-# half-restarted; ask Waydroid to restart the whole container instead.
+# Written by borshevik-waydroid: zygote stopped or restarting means Android is
+# coming back half-restarted; ask Waydroid to restart the whole container instead.
+# An orderly shutdown or reboot stops zygote too, and is Android's to finish.
+[ -n "$(getprop sys.powerctl)" ] && exit 0
 record=/data/borshevik/crash-restarts
 now=$(date +%s)
 recent=
 count=0
+last=0
 if [ -f "$record" ]; then
     while read -r t; do
         case "$t" in ''|*[!0-9]*) continue ;; esac
@@ -399,21 +407,24 @@ if [ -f "$record" ]; then
         recent="$recent$t
 "
         count=$((count + 1))
+        last=$t
     done < "$record"
 fi
+# One crash passes through stopping and restarting both: answer it once.
+[ $((now - last)) -lt 60 ] && exit 0
 if [ "$count" -ge 3 ]; then
-    log -p w -t borshevik "zygote restarted; not restarting the container: three restarts in ten minutes"
+    log -p w -t borshevik "zygote went down outside a shutdown; not restarting the container: three restarts in ten minutes"
     exit 0
 fi
 mkdir -p "${record%/*}"
 chmod 0755 "${record%/*}"
 printf '%s%s\n' "$recent" "$now" > "$record"
 chmod 0644 "$record"
-log -p w -t borshevik "zygote restarted; asking Waydroid to restart the container"
+log -p w -t borshevik "zygote went down outside a shutdown; asking Waydroid to restart the container"
 # The reboot transaction: the host runs lxc-stop and lxc-start, this script with it.
 service call waydroidhardware 4 > /dev/null
 EOF
-    chmod 0644 "${OVERLAY_SYSTEM}/etc/init/borshevik-recover.rc" "${OVERLAY_SYSTEM}/etc/borshevik-recover.sh"
+    chmod 0644 "${OVERLAY_SYSTEM}/etc/init/borshevik-crash-watchdog.rc" "${OVERLAY_SYSTEM}/etc/borshevik-crash-watchdog.sh"
 }
 
 # Game controllers' key layouts that Android loads only after finding their
@@ -596,7 +607,7 @@ cmd_install() {
     write_first_boot
     write_theme
     write_google_watch
-    write_recover
+    write_crash_watchdog
     write_keylayouts
 
     apply_settings
@@ -643,7 +654,7 @@ cmd_upgrade() {
     write_first_boot
     write_theme
     write_google_watch
-    write_recover
+    write_crash_watchdog
     apply_settings
     install_entries
     waydroid upgrade
