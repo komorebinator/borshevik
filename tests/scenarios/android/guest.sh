@@ -188,6 +188,8 @@ EOF
         && ok "first-boot$s" || fail "first-boot$s" "borshevik.rc or borshevik-defaults.sh missing from the overlay"
     [[ -f /var/lib/waydroid/overlay/system/etc/init/borshevik-google.rc && -f /var/lib/waydroid/overlay/system/etc/borshevik-google.sh ]] \
         && ok "google-watch$s" || fail "google-watch$s" "borshevik-google.rc or borshevik-google.sh missing from the overlay"
+    [[ -f /var/lib/waydroid/overlay/system/etc/init/borshevik-crash-watchdog.rc && -f /var/lib/waydroid/overlay/system/etc/borshevik-crash-watchdog.sh ]] \
+        && ok "crash-watchdog$s" || fail "crash-watchdog$s" "borshevik-crash-watchdog.rc or borshevik-crash-watchdog.sh missing from the overlay"
 
     # Fedora's kernel builds hid-playstation, so the DualSense's layout is
     # copied without the kernel config check Android cannot pass
@@ -489,6 +491,49 @@ for ns, kv in json.load(open(sys.argv[1])).get("android_settings", {}).items():
         ok "google-watch-running"
     else
         fail google-watch-running "borshevik_google is '$watch', flag $([[ -e "$flag" ]] && echo present || echo absent)"
+    fi
+
+    # Last, as it restarts Android: a SurfaceFlinger crash, as in Waydroid's,
+    # makes control#crash-watchdog restart the whole container rather than leave
+    # Android half-restarted without display, input or network. Waydroid
+    # freezes the container while Android sleeps, and a command attached to a
+    # frozen one never runs, so each is preceded by a thaw.
+    in_android() {
+        [[ "$(lxc-info -P /var/lib/waydroid/lxc -n waydroid -sH 2>/dev/null)" == FROZEN ]] \
+            && lxc-unfreeze -P /var/lib/waydroid/lxc -n waydroid
+        timeout 20 lxc-attach -P /var/lib/waydroid/lxc -n waydroid --clear-env -v PATH=/system/bin:/system/xbin -- "$@"
+    }
+    local init_before init_after sf gateway record answered="" problems=""
+    init_before="$(lxc-info -P /var/lib/waydroid/lxc -n waydroid -pH)"
+    sf="$(in_android /system/bin/pidof surfaceflinger 2>/dev/null | tr -d '\r')"
+    gateway="$(ip -4 -o addr show waydroid0 | awk '{print $4}' | cut -d/ -f1)"
+    record="$home/.local/share/waydroid/data/borshevik/crash-restarts"
+    if [[ -z "$sf" ]]; then
+        fail crash-watchdog-restart "no surfaceflinger running to crash"
+        return
+    fi
+    in_android /system/bin/kill -ABRT "$sf" 2>/dev/null
+    for _ in $(seq 60); do
+        init_after="$(lxc-info -P /var/lib/waydroid/lxc -n waydroid -pH 2>/dev/null)"
+        [[ -n "$init_after" && "$init_after" != "$init_before" ]] && break
+        sleep 3
+    done
+    [[ -n "$init_after" && "$init_after" != "$init_before" ]] || problems+="the container was not restarted within three minutes (init pid $init_before); "
+    session_running || problems+="the session ended; "
+    booted 180 || problems+="Android did not boot again; "
+    for _ in $(seq 20); do
+        in_android /system/bin/ping -c1 -W2 "$gateway" >/dev/null 2>&1 && { answered=1; break; }
+        sleep 3
+    done
+    [[ -n "$answered" ]] || problems+="Android's network did not come back (no answer from $gateway); "
+    [[ "$(grep -c '^[0-9]' "$record" 2>/dev/null)" == 1 ]] || problems+="crash-restarts holds '$(tr '\n' ' ' < "$record" 2>/dev/null)', not one entry; "
+    if [[ -z "$problems" ]]; then
+        ok crash-watchdog-restart
+    else
+        { in_android /system/bin/getprop | grep -E 'init\.svc\.(zygote|surfaceflinger|borshevik_crash_watchdog|vendor\.hwcomposer)'
+          in_android /system/bin/logcat -d -b all | grep -iE 'borshevik|zygote|surfaceflinger.*(restart|died|exit)|init *:.*(zygote|borshevik)' | tail -80
+        } >"$logs/crash-watchdog.txt" 2>&1
+        fail crash-watchdog-restart "$problems(see crash-watchdog.txt)"
     fi
 }
 
