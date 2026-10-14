@@ -1,0 +1,41 @@
+name: Clean Images
+
+# Deletes images older than 20 days, keeping latest, stable and the stable-* history.
+# A tag's child manifests and cosign signatures are kept and deleted with it: stable is
+# a manifest list around the promoted build, which must outlive its own date tag.
+
+on:
+  schedule:
+    - cron: '00 05 * * *'
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: Only list what would be deleted
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  clean:
+    name: Delete images older than 20 days
+    # The schedule deletes only once the repository variable CLEAN_IMAGES is `enabled`,
+    # set by hand after a dry run was looked at; a run by hand always goes ahead.
+    if: github.event_name != 'schedule' || vars.CLEAN_IMAGES == 'enabled'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Clean GHCR
+        uses: dataaxiom/ghcr-cleanup-action@d52806a0dc70b430571a37da1fde39733ffd640f # v1.2.2
+        with:
+          packages: borshevik,borshevik-nvidia,borshevik-base,borshevik-base-nvidia
+          older-than: 20 days
+          use-regex: true
+          delete-tags: '.*'
+          exclude-tags: '^(latest|stable|stable-.*)$'
+          delete-untagged: true
+          delete-orphaned-images: true
+          validate: true
+          # a scheduled run has no inputs and deletes; a run by hand is a dry run unless unticked
+          dry-run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry-run }}

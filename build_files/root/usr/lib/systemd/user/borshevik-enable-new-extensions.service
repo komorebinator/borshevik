@@ -4,6 +4,7 @@ Description=Enable GNOME Shell extensions newly shipped by Borshevik
 # graphical-session.target: holding it before gnome-session starts makes
 # gnome-session-init-worker abort the login ("A graphical session is already running").
 After=gnome-session@gnome.target
+PartOf=gnome-session@gnome.target
 
 [Service]
 Type=oneshot

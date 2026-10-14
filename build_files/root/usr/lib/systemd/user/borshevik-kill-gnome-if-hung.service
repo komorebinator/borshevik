@@ -1,7 +1,6 @@
 [Unit]
 Description=Kill GNOME Shell if it stops responding (D-Bus timeout)
-After=graphical-session.target
-Wants=graphical-session.target
+# Wants and follows nothing; its timer is what hangs off the session (@Services#guidelines).
 
 [Service]
 Type=oneshot

@@ -1,0 +1,8 @@
+# Files whose change means the first-login scenario must run: Borshevik's user units
+# (@Services#guidelines), the App Manager's first run (@Services#app-manager-first-run,
+# @AppManagerApp#first-run), and how user units are switched on.
+build_files/root/usr/lib/systemd/user/**
+build_files/root/usr/bin/borshevik-app-manager-first-run
+build_files/root/usr/lib/systemd/user-preset/90-borshevik.preset
+build_files/scripts/enable-services.sh
+tests/scenarios/first-login/**
