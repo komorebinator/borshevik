@@ -1,11 +1,15 @@
 [Unit]
 Description=Kill GNOME if hung
+# Started and stopped by the GNOME session, so it counts from the session and never
+# fires at the login itself (@Services#guidelines). No After=: a timer is ordered
+# before timers.target, which the session's target already comes after.
+PartOf=gnome-session@gnome.target
 
 [Timer]
-OnBootSec=1min
+OnActiveSec=1min
 OnUnitActiveSec=1min
 AccuracySec=5s
 Unit=borshevik-kill-gnome-if-hung.service
 
 [Install]
-WantedBy=timers.target
+WantedBy=gnome-session@gnome.target

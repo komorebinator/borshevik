@@ -1,7 +1,8 @@
 [Unit]
 Description=Borshevik App Manager (first run)
-Wants=graphical-session.target
-After=graphical-session.target
+# Pulled in by the GNOME session, never pulling its targets in: see @Services#guidelines.
+After=gnome-session@gnome.target
+PartOf=gnome-session@gnome.target
 ConditionPathExists=!%h/.local/state/borshevik/app-manager-first-run.done
 
 [Service]
@@ -9,4 +10,4 @@ Type=oneshot
 ExecStart=/usr/bin/borshevik-app-manager-first-run
 
 [Install]
-WantedBy=graphical-session.target
+WantedBy=gnome-session@gnome.target

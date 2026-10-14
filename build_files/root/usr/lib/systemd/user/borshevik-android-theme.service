@@ -11,6 +11,7 @@ PartOf=gnome-session@gnome.target
 [Service]
 ExecStart=/usr/libexec/borshevik/borshevik-android-theme
 Restart=on-failure
+TimeoutStopSec=5
 
 [Install]
 WantedBy=gnome-session@gnome.target

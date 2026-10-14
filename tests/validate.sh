@@ -64,6 +64,58 @@ for f in build_files/root/usr/share/applications/*.desktop build_files/root/usr/
     if out="$(desktop-file-validate "$f" 2>&1)" && [[ -z "$out" ]]; then pass "$f"; else fail "$f: $out"; fi
 done
 
+# The rule for user units (@Services#guidelines): the GNOME session pulls them in, and none pulls
+# a session target in — one that does brings graphical-session.target up before GNOME, and
+# gnome-session then aborts the login ("A graphical session is already running!").
+echo "user units"
+USER_UNITS=build_files/root/usr/lib/systemd/user
+for f in "$USER_UNITS"/*.service "$USER_UNITS"/*.timer; do
+    if out="$(python3 - "$f" "$USER_UNITS" <<'PY'
+import configparser, glob, os, re, sys
+
+path, units_dir = sys.argv[1], sys.argv[2]
+name = os.path.basename(path)
+
+def read(p):
+    parser = configparser.ConfigParser(strict=False, interpolation=None, delimiters=("=",))
+    parser.optionxform = str
+    parser.read(p)
+    return parser
+
+def values(parser, section, key):
+    if not parser.has_section(section) or not parser.has_option(section, key):
+        return []
+    return parser.get(section, key).split()
+
+unit = read(path)
+session = re.compile(r"^(graphical-session(-pre)?|gnome-session.*)\.target$")
+problems = []
+for key in ("Wants", "Requires", "BindsTo"):
+    pulled = [t for t in values(unit, "Unit", key) if session.match(t)]
+    if pulled:
+        problems.append(f"{key}= pulls in {' '.join(pulled)}")
+
+# a service some timer here starts is the timer's to schedule, and hangs off nothing itself
+started_by_timer = any(
+    values(read(t), "Timer", "Unit") == [name]
+    or (not values(read(t), "Timer", "Unit") and os.path.basename(t)[:-6] == name[:-8])
+    for t in glob.glob(os.path.join(units_dir, "*.timer"))
+) if name.endswith(".service") else False
+
+target = "gnome-session@gnome.target"
+if not started_by_timer:
+    needed = ["PartOf", "WantedBy"] if name.endswith(".timer") else ["After", "PartOf", "WantedBy"]
+    for key in needed:
+        section = "Install" if key == "WantedBy" else "Unit"
+        if target not in values(unit, section, key):
+            problems.append(f"no {key}={target}")
+if problems:
+    print("; ".join(problems))
+    sys.exit(1)
+PY
+)"; then pass "$f"; else fail "$f: $out"; fi
+done
+
 # Every module is imported, which parses it and resolves its imports. The two main.js files are
 # left out: importing them starts the application.
 echo "gjs modules"
