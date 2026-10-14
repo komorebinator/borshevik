@@ -48,12 +48,16 @@ jobs:
 
           src="ghcr.io/${OWNER}/${VARIANT}@${SRC_DIGEST}"
           dst="ghcr.io/${OWNER}/${VARIANT}:stable"
+          # The history of stable: never deleted; a second move the same day overwrites it.
+          dated="${dst}-$(date -u +%d.%m.%Y)"
 
           echo "Promote:"
           echo "  $src"
           echo "   -> $dst"
+          echo "   -> $dated"
 
-          docker buildx imagetools create --tag "$dst" "$src"
+          # One manifest under both tags, so the dated one is covered by the same signature.
+          docker buildx imagetools create --tag "$dst" --tag "$dated" "$src"
 
       - name: Install cosign
         uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
