@@ -1,6 +1,12 @@
 name: Publish ISOs
 
 on:
+  # Every successful build-iso run on main is uploaded by itself: the upload is invisible to visitors.
+  workflow_run:
+    workflows: [Build ISOs]
+    types: [completed]
+    branches: [main]
+  # By hand, to upload a run again.
   workflow_dispatch:
     inputs:
       run_id:
@@ -16,8 +22,14 @@ concurrency:
   group: publish-iso
   cancel-in-progress: false
 
+env:
+  RUN_ID: ${{ inputs.run_id || github.event.workflow_run.id }}
+
 jobs:
   publish:
+    name: Publish ISO
+    # A failed build-iso run has no complete pair to publish.
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       # The root filesystem has too little free space for both ISOs.
@@ -29,7 +41,6 @@ jobs:
       - name: Download the run's artifacts
         env:
           GH_TOKEN: ${{ github.token }}
-          RUN_ID: ${{ inputs.run_id }}
         run: |
           gh run download "$RUN_ID" -R "$GITHUB_REPOSITORY" -D /mnt/iso-download
           find /mnt/iso-download -type f \( -name '*.iso' -o -name '*.iso-CHECKSUM' \) -exec mv -t /mnt/iso {} +
@@ -98,7 +109,6 @@ jobs:
 
       - name: Summary
         env:
-          RUN_ID: ${{ inputs.run_id }}
           STANDARD: ${{ steps.names.outputs.standard }}
           NVIDIA: ${{ steps.names.outputs.nvidia }}
         run: |
