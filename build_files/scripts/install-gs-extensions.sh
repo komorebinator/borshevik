@@ -3,7 +3,8 @@
 # Installs GNOME Shell extensions listed in extensions/list.json.
 # Supports:
 #   • branch   – shallow git-clone of a branch/tag
-#   • asset    – named .zip asset from the latest GitHub release
+#   • asset    – named .zip asset from the latest GitHub release, or from
+#                the release named by `tag`
 #   • archive  – "zip" (default) or "tar": zipball/tarball of latest release
 #   • script   – run a custom install script you provide alongside list.json
 # Optional fields:
@@ -43,6 +44,7 @@ jq -c '.[]' "$EXT_JSON" | while read -r ENTRY; do
     branch=$(jq -r '.branch  // empty' <<<"$ENTRY")
     commit=$(jq -r '.commit  // empty' <<<"$ENTRY")
     asset=$(jq -r '.asset   // empty' <<<"$ENTRY")
+    tag=$(jq -r '.tag     // empty' <<<"$ENTRY")
     archive=$(jq -r '.archive // "zip"' <<<"$ENTRY")
     dir=$(jq -r '.dir     // empty' <<<"$ENTRY")
     script_rel=$(jq -r '.script // empty' <<<"$ENTRY")
@@ -63,7 +65,8 @@ jq -c '.[]' "$EXT_JSON" | while read -r ENTRY; do
         api_rel="https://api.github.com/repos/$repo_path/releases/latest"
 
         if [[ -n "$asset" ]]; then
-            echo " • Downloading asset '$asset' from $repo_path"
+            echo " • Downloading asset '$asset' from $repo_path${tag:+ (release $tag)}"
+            [[ -n "$tag" ]] && api_rel="https://api.github.com/repos/$repo_path/releases/tags/$tag"
             dl=$(curl -fsSL "${auth[@]}" "$api_rel" |
                 jq -r --arg a "$asset" '.assets[]? | select(.name==$a) | .browser_download_url' | head -n1)
             [[ -n "$dl" ]] || {

@@ -8,12 +8,12 @@ components:
     src: build_files/scripts/install-gs-extensions.sh
     functions:
       - id: run
-        description: Installs every extension in extensions-list into the system extensions folder, applying default-patches and handing over to own-builds where an extension has one. Some extensions declare an older GNOME Shell than the image ships but work on it; for those the installed metadata is rewritten to the image's gnome-shell version, since GNOME Shell refuses to load an extension that does not list its version.
+        description: Installs every extension in extensions-list into the system extensions folder — a release's asset from the release its `tag` names, or the latest one — applying default-patches and handing over to own-builds where an extension has one. Some extensions declare an older GNOME Shell than the image ships but work on it; for those the installed metadata is rewritten to the image's gnome-shell version, since GNOME Shell refuses to load an extension that does not list its version.
   - id: extensions-list
     type: "@ConfigFile"
     format: JSON
     src: build_files/scripts/gs-extensions/list.json
-    description: Which extensions ship and where each comes from — a release, a tag or a branch of its upstream repository, including Borshevik's own extensions, which are separate projects worked on as @BorshevikExtensionWorkflow describes. An entry pinned to a tag stays put; one that follows a branch or the latest release changes with every image build, so a new upstream commit reaches users without any change in this repository.
+    description: "Which extensions ship and where each comes from — a release, a tag or a branch of its upstream repository, including Borshevik's own extensions, which are separate projects worked on as @BorshevikExtensionWorkflow describes. An entry pinned to a tag stays put; one that follows a branch or the latest release changes with every image build, so a new upstream commit reaches users without any change in this repository. An entry taking a release's asset takes the latest release's unless it names one by `tag`. Blur my Shell is pinned to v75: v76 rewrote its settings and default-patches no longer apply to it, and Borshevik is to replace it with an extension of its own rather than follow it."
   - id: default-patches
     type: "@Patch"
     src:
