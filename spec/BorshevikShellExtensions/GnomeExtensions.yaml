@@ -13,7 +13,7 @@ components:
     type: "@ConfigFile"
     format: JSON
     src: build_files/scripts/gs-extensions/list.json
-    description: "Which extensions ship and where each comes from — a release, a tag or a branch of its upstream repository, including Borshevik's own extensions, which are separate projects worked on as @BorshevikExtensionWorkflow describes. An entry pinned to a tag stays put; one that follows a branch or the latest release changes with every image build, so a new upstream commit reaches users without any change in this repository. An entry taking a release's asset takes the latest release's unless it names one by `tag`. Blur my Shell is pinned to v75: v76 rewrote its settings and default-patches no longer apply to it, and Borshevik is to replace it with an extension of its own rather than follow it."
+    description: Which extensions ship and where each comes from — a release, a tag or a branch of its upstream repository, including Borshevik's own extensions, which are separate projects worked on as @BorshevikExtensionWorkflow describes. An entry pinned to a tag stays put; one that follows a branch or the latest release changes with every image build, so a new upstream commit reaches users without any change in this repository. An entry taking a release's asset takes the latest release's unless it names one by `tag`.
   - id: default-patches
     type: "@Patch"
     src:
