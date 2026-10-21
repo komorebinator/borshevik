@@ -204,6 +204,15 @@ EOF
         ok "keylayouts$s"
     fi
 
+    # every root config.json distrusts is in the approved image, so each has a
+    # whiteout (a 0:0 character device) in the overlay
+    local cas=/var/lib/waydroid/overlay/system/etc/security/cacerts whiteouts expected
+    whiteouts="$(find "$cas" -maxdepth 1 -type c 2>/dev/null | while read -r f; do
+        [[ "$(stat -c '%t:%T' "$f")" == 0:0 ]] && echo x; done | wc -l)"
+    expected="$(python3 -c 'import json, sys; print(len(json.load(open(sys.argv[1])).get("distrusted_certificates", [])))' "$CONFIG")"
+    [[ "$whiteouts" == "$expected" ]] && ok "distrusted-cas$s" \
+        || fail "distrusted-cas$s" "$whiteouts whiteouts in $cas, config.json distrusts $expected"
+
     grep -qE '^done (install|upgrade) [0-9]+$' "$BUSY" && ok "not-busy$s" \
         || fail "not-busy$s" "$BUSY holds '$(cat "$BUSY")', not the record of an ended operation"
 }
@@ -427,6 +436,19 @@ android_session_checks() {
 for ns, kv in json.load(open(sys.argv[1])).get("android_settings", {}).items():
     for k, v in kv.items(): print(ns, k, v)' "$CONFIG")
     [[ -z "$problems" ]] && ok android-settings || fail android-settings "$problems"
+
+    # the roots whited out in the overlay are gone from the trust store Android
+    # itself sees, which only holds once overlayfs honours the whiteouts
+    problems=""
+    local f name
+    for f in /var/lib/waydroid/overlay/system/etc/security/cacerts/*; do
+        [[ -c "$f" ]] || continue
+        name="$(basename "$f")"
+        timeout 20 lxc-attach -P /var/lib/waydroid/lxc -n waydroid --clear-env -v PATH=/system/bin:/system/xbin \
+            -- /system/bin/ls "/system/etc/security/cacerts/$name" >/dev/null 2>&1 \
+            && problems+="$name still in Android's trust store; "
+    done
+    [[ -z "$problems" ]] && ok android-distrusted-cas || fail android-distrusted-cas "$problems"
 
     # theme-sync hands Android GNOME's colours and the theme service applies
     # them, also when the accent changes while Android runs. tester's session

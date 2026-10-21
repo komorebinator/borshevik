@@ -472,6 +472,44 @@ write_keylayouts() {
     rm -rf "$tmp"
 }
 
+# Root certificates config.json distrusts, taken out of Android's trust store,
+# which Android 13 changes only with a new system image: a whiteout (a 0:0
+# character device) in the system overlay hides the image's file of the same
+# name. Every whiteout there is this function's, so all are rewritten.
+CACERTS_OVERLAY="${OVERLAY_SYSTEM}/etc/security/cacerts"
+distrusted_cas_digest() {
+    { ls "$CACERTS_OVERLAY" 2>/dev/null || true; } | sha256sum
+}
+write_distrusted_cas() {
+    local tmp f file name
+    mkdir -p "$CACERTS_OVERLAY"
+    for f in "$CACERTS_OVERLAY"/*; do
+        if [[ -c "$f" && "$(stat -c '%t:%T' "$f")" == "0:0" ]]; then
+            rm -f "$f"
+        fi
+    done
+    tmp="$(mktemp -d)"
+    debugfs -R "rdump /system/etc/security/cacerts $tmp" "${WAYDROID_DIR}/images/system.img" >/dev/null 2>&1 || true
+    # `<file> <fingerprint>` for every certificate in the image, matched against
+    # config.json at once; prints `<file>\t<name>` for each it distrusts.
+    for f in "$tmp"/cacerts/*; do
+        [[ -f "$f" ]] || continue
+        printf '%s %s\n' "$(basename "$f")" \
+            "$(openssl x509 -in "$f" -noout -fingerprint -sha256 2>/dev/null | sed 's/.*=//; s/://g')"
+    done | python3 -c 'import json, sys
+distrusted = {c["sha256"].lower(): c["name"]
+              for c in json.load(open(sys.argv[1])).get("distrusted_certificates", [])}
+for line in sys.stdin:
+    file, _, fingerprint = line.strip().partition(" ")
+    if fingerprint.lower() in distrusted:
+        print(f"{file}\t{distrusted[fingerprint.lower()]}")' "$CONFIG" \
+    | while IFS=$'\t' read -r file name; do
+        mknod "${CACERTS_OVERLAY}/${file}" c 0 0
+        step "Android no longer trusts ${name}"
+    done
+    rm -rf "$tmp"
+}
+
 # Sets or unsets Android's associations in /usr/local's mimeapps.list — APKs
 # to the installer, market:// links to Android — and nothing else there: the
 # file may hold an administrator's own defaults, one of their own for either
@@ -609,6 +647,7 @@ cmd_install() {
     write_google_watch
     write_crash_watchdog
     write_keylayouts
+    write_distrusted_cas
 
     apply_settings
     waydroid upgrade -o
@@ -661,10 +700,13 @@ cmd_upgrade() {
 
     # `waydroid upgrade` has already restarted a running Android, before what
     # follows changed its overlay; restart it again once anything did.
-    local layouts restart= before after version_changed=
+    local layouts cas restart= before after version_changed=
     layouts="$(keylayouts_digest)"
     write_keylayouts
     [[ "$(keylayouts_digest)" != "$layouts" ]] && restart=1
+    cas="$(distrusted_cas_digest)"
+    write_distrusted_cas
+    [[ "$(distrusted_cas_digest)" != "$cas" ]] && restart=1
     before="$(<"$STAMP")"
     after="$(android_version)"
     [[ "$after" != "$before" ]] && version_changed=1
