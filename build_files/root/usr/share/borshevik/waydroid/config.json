@@ -30,6 +30,16 @@
       "show_ime_with_hard_keyboard": "0"
     }
   },
+  "distrusted_certificates": [
+    {
+      "name": "emSign ECC Root CA - G3",
+      "sha256": "86a1ecba089c4a8d3bbe2734c612ba341d813e043cf9e8a862cd5c57a36bbe6b"
+    },
+    {
+      "name": "AAA Certificate Services",
+      "sha256": "d7a7a0fb5d7e2731d771e9484ebcdef71d5f0c3e0a2948782bc83ee0ea699ef4"
+    }
+  ],
   "software_rendering": {
     "ro.hardware.gralloc": "default",
     "ro.hardware.egl": "swiftshader"
