@@ -38,7 +38,7 @@ components:
     src: build_files/scripts/build-base.sh
     functions:
       - id: run
-        description: "The base layer's steps, in order: install-kernel first, so everything layered afterwards resolves against the kernel the image will actually ship; then install-ca-certificates, while it is in place; then install-rpm-packages, @GoogleChromeApp#installer, @SteamApp#installer and cleanup; finally enables podman.socket."
+        description: "The base layer's steps, in order: configure-repos first, since every package transaction after it reads the repositories it leaves; then install-kernel, before anything is layered, so everything layered afterwards resolves against the kernel the image will actually ship; then install-ca-certificates, while it is in place; then install-rpm-packages, @GoogleChromeApp#installer, @SteamApp#installer and cleanup; finally enables podman.socket."
   - id: build-base-nvidia
     type: "@ShellScript"
     description: Installs the NVIDIA driver on the base layer.
@@ -53,6 +53,13 @@ components:
     functions:
       - id: run
         description: "The final layer's steps, in order: os-info, @HiddifyApp#installer, @WaydroidApp#waydroid-script, @GnomeExtensions#installer, @ShellCustomizations#apply-schemas and #apply-dconf — the latter after the extensions, since it enables whatever extensions are installed at that moment — @Services#enable-services, and finalize-image last."
+  - id: configure-repos
+    type: "@ShellScript"
+    description: Sets which package repositories of the uBlue base stay enabled, before the base layer's first package transaction. What it changes is kept in the image, so the NVIDIA stage, the final layer and installed systems see the same repositories.
+    src: build_files/scripts/configure-repos.sh
+    functions:
+      - id: run
+        description: "Disables fedora-cisco-openh264, and does nothing when the base no longer ships it. The build installs nothing from it, and it broke builds: one server behind codecs.fedoraproject.org, 54.205.131.252, which GitHub's runners resolve to, answers 404 for its metadata for every Fedora release, and rpm-ostree refreshes every enabled repository on each call and fails the transaction on it, ignoring the repository's skip_if_unavailable, which dnf5 honours (tried 2026-10-21 against that server) — both base builds of 2026-10-21 failed this way. Disabled for good rather than for the build alone, by the author's choice: the openh264 packages the base ships stay installed, and a user who wants another one enables the repository on their machine."
   - id: install-kernel
     type: "@ShellScript"
     description: "Temporary (added 2026-09, pinned 2026-10): replaces the base image's kernel with a 7.1 kernel from @UBlueAkmods, at the version @ImageBuild#containerfile#HELD_KERNEL names. Exists only to avoid the amdgpu HDMI 4:2:0 regression in Fedora's 7.2 kernels, not as a kernel policy, and is meant to be removed. Once Fedora ships a kernel carrying the fix — 7.3 — for this release, these go together: this script, its call in build-base.sh, the akmods COPY and HELD_KERNEL in @ImageBuild#containerfile, and the pinned tag on @UBlueAkmodsNvidiaOpen, which returns to main-<FEDORA_MAJOR_VERSION> so the NVIDIA modules again match the base image's own kernel; @UBlueAkmods then leaves the build altogether."
