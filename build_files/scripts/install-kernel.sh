@@ -1,41 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ###########################################################################
-# TEMPORARY WORKAROUND - added 2026-09, delete when no longer needed.
-#
-# This script exists only to keep Borshevik off Fedora's 7.2 kernels. It is not
-# a design decision about kernel policy; without the regression below, Borshevik
-# takes whatever kernel the @UniversalBlueGnome base image ships.
-#
-# REMOVE WHEN: Fedora ships a kernel carrying the fix - 7.3.x, or a 7.2.x that
-# reverts upstream commit 7e5760f084d0. Verify either way: set a 4:2:0-only
-# 4K@60 mode on such a TV and see whether a picture appears, or read the
-# drm_mode_is_420_only branch in drivers/gpu/drm/amd/display/ and check it no
-# longer demands force_yuv_pixel_format.
-#
-# TO REVERT: delete this script, its call in build-base.sh, the COPY of
-# ghcr.io/ublue-os/akmods and the HELD_KERNEL ARGs in the Containerfile, and
-# restore the akmods-nvidia-open tag there to main-<FEDORA_MAJOR_VERSION>.
-# ###########################################################################
-
-# Replaces the kernel inherited from the base image with a 7.1 kernel from
-# uBlue's akmods cache, at the tag pinned to HELD_KERNEL in the Containerfile:
-# the stock Fedora kernel, held on the last series without the regression.
-#
-# Why: taking Fedora's newest kernel unreviewed every night is how the amdgpu
-# HDMI regression in 7.2 reached users. Upstream commit 7e5760f084d0 made
-# YCbCr 4:2:0 conditional on a debugfs override, so a 4K TV whose 4K@60 exists
-# only as 4:2:0 gets RGB it cannot accept - no picture at all, no error logged.
-# Fixed upstream in 7.3 by rewrite, with no backport to 7.2.x (still none in
-# 7.2.8, checked 2026-10-01).
-#
-# Pinned to one version, never a rolling tag: this first followed coreos-stable,
-# and when Fedora CoreOS moved to 7.2.5 the build quietly installed a 7.2 kernel
-# with the very regression this script exists for.
-#
-# The NVIDIA akmods image is taken at the same HELD_KERNEL tag: its modules are
-# built against one exact kernel version.
+# Replaces the kernel inherited from the base image with the one in uBlue's
+# akmods cache, at AKMODS_TAG in the Containerfile - the tag the NVIDIA modules
+# are taken at too. So that tag alone decides the kernel, and the modules come
+# from the same uBlue build as it: the base image's kernel and uBlue's rolling
+# akmods tags are built apart and can for a while name different kernels, and
+# modules built for one kernel do not load on another. Which kernel that is,
+# and why it is held, is said at AKMODS_TAG.
 
 SEARCH_DIR="/tmp/akmods-kernel"
 

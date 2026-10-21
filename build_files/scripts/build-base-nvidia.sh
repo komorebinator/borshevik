@@ -39,3 +39,18 @@ if [[ "$installed" != "$ver" ]]; then
     exit 1
 fi
 echo "NVIDIA driver ${ver}: modules and userspace match"
+
+# The modules must be built for the one kernel the image ships, which comes from
+# the akmods cache at the same AKMODS_TAG. kmod-nvidia requires that exact
+# kernel, so a cache built for another one could have pulled a second kernel in
+# from the repositories rather than fail.
+mapfile -t KERNELS < <(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-core)
+if [[ ${#KERNELS[@]} -ne 1 ]]; then
+    echo "Expected one kernel, found: ${KERNELS[*]}" >&2
+    exit 1
+fi
+if ! find "/usr/lib/modules/${KERNELS[0]}" -name 'nvidia.ko*' | grep -q .; then
+    echo "No NVIDIA module for kernel ${KERNELS[0]} - the akmods caches name different kernels" >&2
+    exit 1
+fi
+echo "NVIDIA modules built for kernel ${KERNELS[0]}"
