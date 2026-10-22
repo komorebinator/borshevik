@@ -56,6 +56,16 @@ logged="$(journalctl -b _SYSTEMD_USER_UNIT=borshevik-enable-new-extensions.servi
 missing="$(comm -23 <(echo "$shipped") <(echo "$logged") | tr '\n' ' ')"
 [[ -z "$missing" ]] && ok service-enabled-them || fail service-enabled-them "the service did not log enabling: $missing"
 
+# 6. the extensions GNOME had switched off as a whole are on again, by the service
+switch="$(as_user gsettings get org.gnome.shell disable-user-extensions)"
+if [[ "$switch" == "false" ]] &&
+    journalctl -b _SYSTEMD_USER_UNIT=borshevik-enable-new-extensions.service _UID="$uid" -o cat 2>/dev/null |
+        grep -qxF "re-enabled user extensions"; then
+    ok re-enabled
+else
+    fail re-enabled "disable-user-extensions is $switch; the service did not log re-enabling them"
+fi
+
 if [[ "$failed" -eq 0 ]]; then
     echo "all checks pass"
 fi
