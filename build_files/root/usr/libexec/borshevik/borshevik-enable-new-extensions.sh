@@ -18,6 +18,25 @@ STATE="${XDG_STATE_HOME:-$HOME/.local/state}/borshevik/offered-extensions"
 mkdir -p "$(dirname "$STATE")"
 touch "$STATE"
 
+status=0
+
+# Let the desktop come up first.
+sleep 5
+
+if [[ "$(gsettings get org.gnome.shell disable-user-extensions)" == "true" ]]; then
+    if gsettings set org.gnome.shell disable-user-extensions false; then
+        echo "re-enabled user extensions"
+    else
+        echo "could not re-enable user extensions; will retry at next login" >&2
+        status=1
+    fi
+fi
+
+# The shell reads the settings as they are when it handles a change, and does not wait for a
+# pass still enabling: a write to enabled-extensions soon after the one above would have both
+# passes enable the same extensions twice. This gives the first pass time to finish.
+sleep 10
+
 # Printed as GVariant, e.g. ['a@b', 'c@d'] or @as [].
 enabled_list="$(gsettings get org.gnome.shell enabled-extensions)"
 disabled_list="$(gsettings get org.gnome.shell disabled-extensions)"
@@ -40,8 +59,6 @@ for dir in "$EXT_DIR"/*/; do
     fi
 done
 
-status=0
-
 if [[ ${#new[@]} -gt 0 ]]; then
     # One write for all of them: the shell enables each newly listed extension once. Enabling them
     # one by one with `gnome-extensions enable` raced in the shell and enabled some twice.
@@ -59,18 +76,6 @@ if [[ ${#new[@]} -gt 0 ]]; then
         done
     else
         echo "could not enable ${new[*]}; will retry at next login" >&2
-        status=1
-    fi
-fi
-
-# After the write above, never before: while this is true the shell enables nothing from
-# enabled-extensions, and clearing it last has the shell enable every extension once. Cleared
-# first, the two writes could have the shell start enabling the same extensions twice.
-if [[ "$(gsettings get org.gnome.shell disable-user-extensions)" == "true" ]]; then
-    if gsettings set org.gnome.shell disable-user-extensions false; then
-        echo "re-enabled user extensions"
-    else
-        echo "could not re-enable user extensions; will retry at next login" >&2
         status=1
     fi
 fi
