@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-TIMEOUT=10
+TIMEOUT=60
 GRACE=2
 
-timeout "${TIMEOUT}s" gdbus call --session \
+timeout "${TIMEOUT}s" gdbus call --session --timeout "${TIMEOUT}" \
   --dest org.gnome.Shell \
   --object-path /org/gnome/Shell \
   --method org.freedesktop.DBus.Properties.Get \

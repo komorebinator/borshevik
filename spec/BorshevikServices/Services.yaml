@@ -71,7 +71,7 @@ components:
         src: build_files/root/usr/libexec/borshevik/borshevik-kill-gnome-if-hung.sh
         functions:
           - id: run
-            description: Asks GNOME Shell over D-Bus for its version; if no answer comes within 10 seconds, terminates the user's gnome-shell and kills it if it is still there two seconds later.
+            description: Asks GNOME Shell over D-Bus for its version; if no answer comes within a minute, terminates the user's gnome-shell and kills it if it is still there two seconds later. A minute, not less, because what stalls the shell in practice is a GPU hang on Meteor Lake — i915's GuC stops answering TLB invalidations (https://gitlab.freedesktop.org/drm/i915/kernel/-/work_items/14469) — and the kernel resets the GPU only 20–40 seconds in, after which the shell usually carries on by itself; with 10 seconds the watchdog killed sessions before that reset could save them. gdbus is given the same timeout, since its own default of 25 seconds would end the wait early and count as no answer, and gnome-watchdog#service's start timeout stays above the wait plus the grace, or systemd stops the probe before it decides.
       - id: service
         type: "@SystemdUnit"
         src: build_files/root/usr/lib/systemd/user/borshevik-kill-gnome-if-hung.service
