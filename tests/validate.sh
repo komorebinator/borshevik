@@ -200,6 +200,18 @@ report('image-manager', dictionaries, glob.glob(os.path.join(image_manager, '*.j
 EOF
 )
 
+# plymouth's client aborts on a message over 255 bytes, so the MOK message would never show; the
+# boot then reboots into the blue screen with no word of what to do there.
+echo "boot messages"
+MOK_SCRIPT=build_files/root/usr/libexec/borshevik/setup-ublue-mok.sh
+for lang in en ru; do
+    bytes="$(bash -c 'eval "$(sed -n "/^PASSWORD=/p; /^instructions()/,/^}/p; /^message()/,/^}/p" "$1")"
+        printf %s "$(message 10 "$2")"' _ "$MOK_SCRIPT" "$lang" | wc -c)"
+    if ((bytes == 0)); then fail "MOK message ($lang): could not be built from $MOK_SCRIPT"
+    elif ((bytes <= 255)); then pass "MOK message ($lang): $bytes bytes"
+    else fail "MOK message ($lang): $bytes bytes, over plymouth's 255"; fi
+done
+
 echo
 if ((FAILED)); then echo "validation failed"; exit 1; fi
 echo "all checks pass"

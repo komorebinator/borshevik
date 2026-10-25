@@ -24,23 +24,23 @@ components:
         description: Oneshot service running the script on every boot.
   - id: mok-enrollment
     type: "@Singleton"
-    description: Enrolls the uBlue MOK key for NVIDIA Secure Boot on first boot.
+    description: Gets the uBlue MOK key enrolled so the NVIDIA kernel modules load under Secure Boot, the way @Services#behaviour#nvidia-key promises. Checked on every boot.
     components:
       - id: script
         type: "@ShellScript"
-        description: Enrolls the uBlue Machine Owner Key so NVIDIA modules load under Secure Boot.
+        description: Tells the user how to enroll the uBlue Machine Owner Key, queues it and reboots into shim's MokManager.
         src: build_files/root/usr/libexec/borshevik/setup-ublue-mok.sh
         functions:
           - id: run
-            description: Exits immediately when `mokutil --sb-state` does not report Secure Boot as enabled, and again when `mokutil --test-key` shows /etc/pki/akmods/certs/akmods-ublue.der is already enrolled. Otherwise it prompts interactively via systemd-ask-password for a temporary PIN, looping until a non-empty one is given — this service blocks the boot on user input by design, since the same PIN must be typed into the UEFI MOK manager on the next start. Cancelling the prompt exits 130 and leaves the key unenrolled, so the prompt comes back on the next boot. With a PIN it clears any pending MOK timeout, sets the MOK password from the PIN's hash, imports the key with it, and reboots.
+            description: "Exits at once when `mokutil --sb-state` does not report Secure Boot as enabled, and when `mokutil --test-key` on /etc/pki/akmods/certs/akmods-ublue.der exits non-zero. In mokutil 0.7.2, the version Fedora ships, that status means the key is enrolled already — or only in a pending enrollment request, which gives the same status, so while a request is pending the script does not ask. Upstream has since inverted the status (commits 4d2b704b and 9ae73db1, 2025, not released as of 0.7.2): with Fedora's next mokutil this check turns upside down and must be looked at again — the author's decision (2026-10-25) to keep the check as it is until then. Otherwise it shows @Services#behaviour#nvidia-key's message on the boot splash with `plymouth display-message`, updating the countdown's remaining seconds once a second — the old message hidden and the new one shown, since the theme shows one message at a time. The whole message stays within 255 bytes in either language, Cyrillic taking two bytes a letter, because plymouth's client aborts on a longer one (an assertion in ply_boot_client_queue_request, plymouth 24.004) and nothing shows — tried 2026-10-25, when the first, longer wording left the boot screen blank and the countdown rebooted into the blue screen unannounced; @BorshevikWorkflow#validate measures it. The splash is Fedora's bgrt theme, whose label-freetype plugin and Noto Sans font in the initramfs draw Cyrillic and line breaks. It watches for the two keys with `plymouth watch-keystroke`: r/R and к/К, s/S and ы/Ы — к and ы being what those keys give under a ru console keymap, which a system rebased onto Borshevik may keep. Enter and Esc are not used because plymouth hands neither to keystroke watchers: Esc toggles its details view, Enter only answers a prompt. The language comes from LANG in /etc/locale.conf — Russian for ru, English otherwise. When plymouth is not running (`plymouth --ping` fails), the message is printed on the console, in English since the console font may have no Cyrillic, and the countdown runs with no keys. On R or the end of the countdown it sets MokManager to wait with no timeout (`mokutil --timeout -1`), imports the key with the hash of the password borshevik, and reboots. The key is queued only then, not before the countdown, so skipping leaves no request to cancel and a machine switched off during the countdown boots normally and asks again. It does not call `mokutil --password`, which would add a screen for setting a MokManager password to the blue screen. On S it exits 0 and the boot goes on."
       - id: service
         type: "@SystemdUnit"
         src: build_files/root/usr/lib/systemd/system/setup-ublue-mok.service
         unit_type: service
         scope: system
-        triggers: boot
+        triggers: every boot, before the display manager and setup-kargs; not in recovery mode
         executes: /usr/libexec/borshevik/setup-ublue-mok.sh
-        description: "Oneshot service. Enrolls the uBlue MOK key for NVIDIA Secure Boot. Only active on borshevik-nvidia."
+        description: Oneshot service running the script on every boot, with its output on the console as well as in the journal. Enabled only on borshevik-nvidia (@Services#enable-services).
   - id: app-manager-first-run
     type: "@SystemdUnit"
     src: build_files/root/usr/lib/systemd/user/borshevik-app-manager-first-run.service
@@ -137,3 +137,31 @@ tests:
     expect: the checks pass, and the report's `== scenario new-extensions` section ends with 'all checks pass'
 guidelines:
   - "Every user unit Borshevik ships hangs off the GNOME session the same way: `After=`, `PartOf=` and `WantedBy=gnome-session@gnome.target`, and no `Wants=`, `Requires=` or `BindsTo=` on graphical-session.target or any gnome-session target — a long-running one also sets `TimeoutStopSec=5`, so a logout is never held up by it (gnome-session(1)). The session pulls the unit in; the unit never pulls the session's targets. gnome-session reaches gnome-session@gnome.target only after GNOME Shell reports itself ready, so whatever the unit does finds the shell there, and the greeter's own session (gnome-session@gnome-login.target) never starts it. The other direction breaks logins: since GNOME 50, gnome-session aborts with 'A graphical session is already running!' when it finds graphical-session.target already active as it starts (gnome-session commit 3b7140d), and a unit that wants that target brings it up early — then every unit the target wants starts with it, before GNOME exists, and holds it. A fresh install from the 13.10.2026 ISO lost two logins to it (2026-10-14). Two exceptions, both forced: a timer takes `PartOf=` and `WantedBy=` but no `After=`, since a timer is ordered before timers.target, which gnome-session@gnome.target comes after, and the two orderings would form a cycle; and the service a timer starts takes none of the three, the timer deciding when it runs. A timer counts from its own start (`OnActiveSec=`), so it fires inside the session and never at the login itself. tests/validate.sh refuses a unit that breaks this (@BorshevikWorkflow#validate)."
+behaviour:
+  - id: nvidia-key
+    description: "On the NVIDIA image with Secure Boot on, a boot that finds the uBlue key — the one the NVIDIA kernel modules are signed with — not enrolled yet shows a message on the boot screen, in the system's language, before the login screen: the driver's key has to be confirmed; on the blue screen the user chooses Enroll MOK, Continue, Yes, types the password borshevik and chooses Reboot; R restarts now, S skips this time; and a countdown of 10 seconds, its number going down each second. R, or the end of the countdown, restarts into shim's MokManager — the blue screen — which waits with no timeout. S lets the boot go on without the driver. Every boot checks again, so a user who skipped, left the blue screen with Continue boot or mistyped the password is told again at the next boot rather than left with a silently missing driver. It goes ahead by itself instead of waiting for an answer because without the NVIDIA driver the session may not come up at all, so a boot nobody watches had better end at the blue screen than at a dead desktop — the author's decision (2026-10-25). It replaced a prompt for a PIN the user made up and had to type again on the blue screen: that prompt gave up after 90 seconds and the boot went on without the key queued, so whoever stepped away during the first boot got a system without the driver (found 2026-10-25, issue #76). The password is fixed, as Bluefin and Bazzite fix theirs to universalblue, and that weakens nothing: it only proves that whoever asked for the key is at the console, only root can ask, and a person still confirms the key on the blue screen. A word rather than digits because MokManager reads keys as a US keyboard, and borshevik has none of the letters QWERTZ or AZERTY move, while digits typed on a numeric keypad are lost when the firmware leaves NumLock off. The blue screen itself cannot go: shim shows it so that whoever is at the computer confirms a new key."
+    scenarios:
+      - id: nobody-at-the-keyboard
+        given: a borshevik-nvidia install with Secure Boot on and the uBlue key not enrolled
+        when: the machine boots and nobody touches the keyboard
+        then: the message shows on the boot screen with its countdown; 10 seconds later the machine restarts into the blue screen, which stays until someone answers it and accepts the password borshevik
+      - id: restart-now
+        given: the message is on the boot screen, its countdown running
+        when: the user presses R
+        then: the machine restarts at once into the blue screen
+      - id: skip
+        given: the message is on the boot screen, its countdown running
+        when: the user presses S
+        then: the message goes away and the boot goes on to the login screen without the NVIDIA driver; the next restart is an ordinary one, without the blue screen, and the boot after it shows the message again
+      - id: left-with-continue-boot
+        given: the blue screen opened after the message
+        when: the user chooses Continue boot instead of enrolling
+        then: the boot that follows shows the message again
+      - id: enrolled
+        given: the key was enrolled on the blue screen with the password borshevik
+        when: the machine boots
+        then: no message; the boot goes on as usual, with the NVIDIA driver
+      - id: secure-boot-off
+        given: a borshevik-nvidia install with Secure Boot off
+        when: the machine boots
+        then: no message and no blue screen

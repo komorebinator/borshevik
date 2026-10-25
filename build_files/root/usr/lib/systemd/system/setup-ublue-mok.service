@@ -1,5 +1,5 @@
 [Unit]
-Description=Entoll uBlue MOK keys required for drivers
+Description=Enroll the uBlue MOK key the NVIDIA driver is signed with
 After=plymouth-start.service
 Before=graphical.target display-manager.service plymouth-quit.service
 Conflicts=shutdown.target
