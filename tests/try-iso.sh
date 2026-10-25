@@ -67,6 +67,8 @@ Trying $iso (run $run_id). Check that:
   1. the installer finishes$([ "$boot_only" -eq 1 ] && echo " (already done: booting the installed disk)")
   2. the installed system boots to GNOME and gets through first login
   3. \`rpm-ostree status\` shows ghcr.io/komorebinator/$variant:stable
+  4. installed in Russian with encryption: the installer has only the us layout, the
+     passphrase prompt shows us, and the desktop switches between us and ru
 Close the viewer window when done; that powers the machine off. Boot the installed system again with: $0 --boot $run_id $variant
 
 EOF
