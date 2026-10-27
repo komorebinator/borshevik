@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-TIMEOUT=60
+TIMEOUT=40
 GRACE=2
 
 timeout "${TIMEOUT}s" gdbus call --session --timeout "${TIMEOUT}" \
