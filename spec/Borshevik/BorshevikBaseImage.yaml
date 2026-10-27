@@ -1,4 +1,4 @@
-description: "Base layer of the standard variant, built by the borshevik-base stage of @ImageBuild#containerfile on @UniversalBlueGnome: @ImageBuild#build-base (kernel, curated RPMs, Chrome, Steam, cleanup), plus the Borshevik signing key the whole lineage verifies with (@SystemConfig#cosign-key). Its kernel is not @UniversalBlueGnome's but the one @ImageBuild#install-kernel takes from @UBlueAkmods at @ImageBuild#containerfile#AKMODS_TAG. Likewise its ca-certificates is normally the base image's, and while @ImageBuild#install-ca-certificates is in place it is at least the build that script names."
+description: "Base layer of the standard variant, built by the borshevik-base stage of @ImageBuild#containerfile on @UniversalBlueGnome: @ImageBuild#build-base (kernel, curated RPMs, Chrome, Steam, cleanup), plus the Borshevik signing key the whole lineage verifies with (@SystemConfig#cosign-key). Its kernel is not @UniversalBlueGnome's but the one @ImageBuild#install-kernel takes from @UBlueAkmods at @ImageBuild#containerfile#AKMODS_TAG."
 extends: "@UniversalBlueGnome"
 registry: ghcr.io/komorebinator
 tags:
