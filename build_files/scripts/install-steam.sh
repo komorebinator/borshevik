@@ -11,4 +11,8 @@ set -ouex pipefail
 # vendor's build. Left free, dnf5 took fedora-multimedia's libheif, of a higher
 # epoch, which brought dozens of 32-bit codecs and replaced the base's
 # libheif-ffmpeg and noopenh264.
-dnf5 -y --setopt=allow_vendor_change=False install steam steam-devices
+#
+# gamescope and mangohud are recommended by fedora-multimedia's steam since
+# 1.0.0.87-4 for a gamescope session's performance overlay; Borshevik has no
+# such session and Steam uses neither in GNOME, so they are left out by name.
+dnf5 -y --setopt=allow_vendor_change=False install steam steam-devices -x gamescope -x mangohud
