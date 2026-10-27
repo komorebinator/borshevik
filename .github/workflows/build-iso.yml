@@ -72,6 +72,7 @@ jobs:
           iso_name: ${{ steps.iso-name.outputs.name }}
           additional_templates: |
             /github/workspace/installer/lorax_templates/partitioning.tmpl
+            /github/workspace/installer/lorax_templates/keyboard.tmpl
             ${{ env.SWITCH_TPL }}
 
       - name: Move ISOs to Upload Directory

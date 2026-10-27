@@ -1,0 +1,28 @@
+append etc/anaconda/conf.d/90-borshevik-keyboard.conf \
+  "[User Interface]\\nhidden_spokes =\\n    KeyboardSpoke"
+append usr/share/anaconda/borshevik-keyboard.py \
+"import os, langtable\\n\
+root = os.environ['ANA_INSTALL_PATH']\\n\
+lang = 'en_US.UTF-8'\\n\
+with open(root + '/etc/locale.conf') as f:\\n\
+    for line in f:\\n\
+        if line.startswith('LANG='):\\n\
+            lang = line.split('=', 1)[1].strip().strip('\"')\\n\
+found = langtable.list_keyboards(languageId=lang)\\n\
+first = found[0].replace(' ', '') if found else 'us'\\n\
+pairs = [first] if langtable.supports_ascii(first) else ['us', first]\\n\
+layouts = ','.join(p.split('(')[0] for p in pairs)\\n\
+variants = ','.join(p.split('(')[1].rstrip(')') if '(' in p else '' for p in pairs)\\n\
+conf = ['Section \"InputClass\"', '        Identifier \"system-keyboard\"', '        MatchIsKeyboard \"on\"']\\n\
+conf.append('        Option \"XkbLayout\" \"' + layouts + '\"')\\n\
+if variants.strip(','):\\n\
+    conf.append('        Option \"XkbVariant\" \"' + variants + '\"')\\n\
+if len(pairs) > 1:\\n\
+    conf.append('        Option \"XkbOptions\" \"grp:alt_shift_toggle\"')\\n\
+conf.append('EndSection')\\n\
+os.makedirs(root + '/etc/X11/xorg.conf.d', exist_ok=True)\\n\
+with open(root + '/etc/X11/xorg.conf.d/00-keyboard.conf', 'w') as f:\\n\
+    f.write(chr(10).join(conf) + chr(10))\\n\
+print('LANG=' + lang + ' keyboards=' + str(found) + ' -> ' + str(pairs))"
+append usr/share/anaconda/interactive-defaults.ks \
+  "\\nkeyboard --vckeymap=us --xlayouts=us\\n%post --nochroot\\npython3 /usr/share/anaconda/borshevik-keyboard.py\\n%end"

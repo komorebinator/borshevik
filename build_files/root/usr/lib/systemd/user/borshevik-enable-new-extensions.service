@@ -1,5 +1,5 @@
 [Unit]
-Description=Enable GNOME Shell extensions newly shipped by Borshevik
+Description=Enable GNOME Shell extensions newly shipped by Borshevik, and all of them if GNOME switched them off
 # Only once GNOME Shell is up, and only in a regular GNOME session. Never on
 # graphical-session.target: holding it before gnome-session starts makes
 # gnome-session-init-worker abort the login ("A graphical session is already running").

@@ -1,4 +1,4 @@
-description: "Base layer of the NVIDIA variant: the standard base plus the NVIDIA driver (@ImageBuild#build-base-nvidia). Its stage builds FROM the borshevik-base stage of the same Containerfile run, not from the published tag. The kernel modules come prebuilt from @UBlueAkmodsNvidiaOpen and must match the kernel exactly — see @ImageBuild#install-kernel."
+description: "Base layer of the NVIDIA variant: the standard base plus the NVIDIA driver (@ImageBuild#build-base-nvidia). Its stage builds FROM the borshevik-base stage of the same Containerfile run, not from the published tag. The kernel modules come prebuilt from @UBlueAkmodsNvidiaOpen and must match the kernel exactly, which is why both come from one tag — see @ImageBuild#containerfile#AKMODS_TAG."
 extends: "@BorshevikBaseImage"
 registry: ghcr.io/komorebinator
 tags:

@@ -1,7 +1,8 @@
-description: "Prebuilt kernel RPMs and kmod content, published by uBlue. Not an OS base image: its filesystem is copied into the base layer's build, where @ImageBuild#install-kernel takes the kernel from it. Borshevik takes it, temporarily, at a tag fixed to one kernel version of the `main` flavour — the stock Fedora kernel — held on the 7.1 series by @ImageBuild#containerfile#HELD_KERNEL, never at a rolling tag. Needed only while @ImageBuild#install-kernel exists. External dependency — not built by this project."
+description: "Prebuilt kernel RPMs and kmod content, published by uBlue. Not an OS base image: its filesystem is copied into the base layer's build, where @ImageBuild#install-kernel takes the kernel from it. Borshevik takes it at @ImageBuild#containerfile#AKMODS_TAG, the same tag as @UBlueAkmodsNvidiaOpen, so the kernel and the NVIDIA modules come from one uBlue build of the `main` flavour — the stock Fedora kernel. External dependency — not built by this project."
 registry: ghcr.io/ublue-os
 repository: https://github.com/ublue-os/akmods
 platform: OCI container image, published to ghcr.io/ublue-os
 extends: "@ContainerImage"
 tags:
-  - main-<FEDORA_MAJOR_VERSION>-<kernel version> — e.g. main-44-7.1.13-200.fc44; fixed to that one kernel and never moves, unlike the rolling main-<FEDORA_MAJOR_VERSION> and coreos-stable-<FEDORA_MAJOR_VERSION> tags, neither of which is used while the kernel is held
+  - main-<FEDORA_MAJOR_VERSION>-<kernel version> — e.g. main-44-7.1.13-200.fc44; fixed to that one kernel and never moves; what holds the kernel back
+  - main-<FEDORA_MAJOR_VERSION> — rolling, uBlue's newest build of Fedora's stock kernel; what the build takes when no kernel is held
