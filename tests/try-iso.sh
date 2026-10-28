@@ -65,8 +65,9 @@ cat <<EOF
 
 Trying $iso (run $run_id). Check that:
   1. the installer finishes$([ "$boot_only" -eq 1 ] && echo " (already done: booting the installed disk)")
-  2. the installer asks for no user or root password; the installed system boots to
-     GNOME Initial Setup, which creates the user, and that user logs in
+  2. the installer's hub shows Installation Destination alone; the installed system
+     boots to GNOME Initial Setup, which asks for the time zone and creates the user,
+     and that user logs in
   3. \`rpm-ostree status\` shows ghcr.io/komorebinator/$variant:stable
   4. installed in Russian with encryption: the installer has only the us layout, the
      passphrase prompt shows us, and the desktop switches between us and ru;
