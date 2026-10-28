@@ -1,2 +1,2 @@
 append usr/share/anaconda/interactive-defaults.ks \
-  "\\n%post\\nbootc switch --mutate-in-place --transport registry --enforce-container-sigpolicy ghcr.io/komorebinator/borshevik:latest\\n%end"
+  "\\nbootloader --append='preempt=full'\\n%post\\nbootc switch --mutate-in-place --transport registry --enforce-container-sigpolicy ghcr.io/komorebinator/borshevik:latest\\n%end"

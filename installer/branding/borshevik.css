@@ -1,0 +1,27 @@
+/* Anaconda's look for Borshevik, loaded as custom_stylesheet in place of the Fedora profile's
+ * fedora.css: the sidebar and the spokes' top bar take the GTK theme's own window colours, and
+ * the sidebar shows Borshevik's logo. */
+
+.logo-sidebar {
+    background-image: none;
+    background-color: @theme_bg_color;
+}
+
+.logo {
+    background-image: url('/usr/share/anaconda/pixmaps/borshevik-sidebar-logo.png');
+    background-size: 128px 128px;
+    background-position: 50% 24px;
+    background-repeat: no-repeat;
+    background-color: transparent;
+}
+
+.product-logo {
+    background-image: none;
+    background-color: transparent;
+}
+
+AnacondaSpokeWindow #nav-box {
+    background-image: none;
+    background-color: @theme_bg_color;
+    color: @theme_fg_color;
+}
