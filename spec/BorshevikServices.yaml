@@ -2,7 +2,7 @@ description: What Borshevik does on a running machine rather than at build time 
 extends: "@DuckspecProject"
 terms_folder: BorshevikServices/
 goals:
-  - Handle the boot-time work an immutable system cannot do at install time — kernel arguments, MOK enrollment, first-run setup
+  - Handle the boot-time work no install can be relied on to have done — kernel arguments on a system rebased onto Borshevik, MOK enrollment, first-run setup
   - Keep each piece of that work a declared unit with a visible condition, rather than a script someone has to remember to run
 uses:
   - https://github.com/komorebinator/duckspec

@@ -69,6 +69,9 @@ Trying $iso (run $run_id). Check that:
   3. \`rpm-ostree status\` shows ghcr.io/komorebinator/$variant:stable
   4. installed in Russian with encryption: the installer has only the us layout, the
      passphrase prompt shows us, and the desktop switches between us and ru
+  5. the installer's sidebar shows the Borshevik logo, not Fedora's
+  6. the installed system's first boot goes to GNOME without rebooting itself first:
+     \`journalctl -b -u setup-kargs\` says Nothing to do
 Close the viewer window when done; that powers the machine off. Boot the installed system again with: $0 --boot $run_id $variant
 
 EOF

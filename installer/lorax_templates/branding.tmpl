@@ -1,0 +1,5 @@
+mkdir usr/share/anaconda/pixmaps
+runcmd cp /github/workspace/installer/branding/borshevik.css ${root}/usr/share/anaconda/pixmaps/borshevik.css
+runcmd cp /github/workspace/installer/branding/sidebar-logo.png ${root}/usr/share/anaconda/pixmaps/borshevik-sidebar-logo.png
+append etc/anaconda/conf.d/91-borshevik-branding.conf \
+  "[User Interface]\\ncustom_stylesheet = /usr/share/anaconda/pixmaps/borshevik.css"

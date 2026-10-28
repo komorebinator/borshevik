@@ -73,6 +73,7 @@ jobs:
           additional_templates: |
             /github/workspace/installer/lorax_templates/partitioning.tmpl
             /github/workspace/installer/lorax_templates/keyboard.tmpl
+            /github/workspace/installer/lorax_templates/branding.tmpl
             ${{ env.SWITCH_TPL }}
 
       - name: Move ISOs to Upload Directory

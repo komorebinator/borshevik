@@ -212,6 +212,38 @@ for lang in en ru; do
     else fail "MOK message ($lang): $bytes bytes, over plymouth's 255"; fi
 done
 
+# The installer sets the kernel arguments so a fresh install need not reboot to add them; a list
+# changed in setup-kargs.sh alone brings that reboot back, or leaves installs an argument too many.
+echo "installer kernel arguments"
+while IFS= read -r line; do
+    case "$line" in
+        ok\ *) pass "${line#ok }" ;;
+        *) fail "$line" ;;
+    esac
+done < <(python3 - build_files/root/usr/libexec/borshevik/setup-kargs.sh installer/lorax_templates/bootc-switch*.tmpl <<'EOF'
+import os, re, sys
+
+script = open(sys.argv[1]).read()
+base = re.search(r'^NEEDED_ARGS=\((.*)\)$', script, re.M)
+nvidia = re.search(r'^\s+NEEDED_ARGS\+=\((.*)\)$', script, re.M)
+if not base or not nvidia:
+    print(f'{sys.argv[1]}: NEEDED_ARGS not found where expected')
+    sys.exit()
+base, nvidia = re.findall(r'"([^"]*)"', base[1]), re.findall(r'"([^"]*)"', nvidia[1])
+
+for template in sys.argv[2:]:
+    name = os.path.basename(template)
+    expected = base + nvidia if 'nvidia' in name else base
+    found = re.findall(r"bootloader --append='([^']*)'", open(template).read())
+    if len(found) != 1:
+        print(f'{name}: expected one bootloader --append line, found {len(found)}')
+    elif sorted(found[0].split()) != sorted(expected):
+        print(f'{name}: appends [{found[0]}], setup-kargs.sh sets [{" ".join(expected)}]')
+    else:
+        print(f'ok {name}: {found[0]}')
+EOF
+)
+
 echo
 if ((FAILED)); then echo "validation failed"; exit 1; fi
 echo "all checks pass"

@@ -5,7 +5,7 @@ src: build_files/root/usr/lib/systemd/
 components:
   - id: kernel-args
     type: "@Singleton"
-    description: Keeps the kernel arguments Borshevik needs set. Checked on every boot; in practice it acts once, on the first boot of an install or after a rebase between variants, and reboots when it had to set any.
+    description: Keeps the kernel arguments Borshevik needs set. Checked on every boot; in practice it acts once — after a rebase onto Borshevik or between its variants, on an install from media older than @IsoInstaller#bootc-switch's kernel arguments, or when the list grows — and reboots when it had to set any. An install from current media already boots with them and finds nothing to do.
     components:
       - id: script
         type: "@ShellScript"
@@ -13,7 +13,7 @@ components:
         src: build_files/root/usr/libexec/borshevik/setup-kargs.sh
         functions:
           - id: run
-            description: Adds preempt=full, and on the NVIDIA image — detected by the nvidia-driver package — the arguments that give the proprietary driver kernel modesetting and keep the nouveau and nova_core drivers from loading. Does nothing when all of them are already set; otherwise sets the missing ones in a single rpm-ostree call, shows a message on the boot splash, and reboots, so a boot that had to set any reboots once.
+            description: Adds preempt=full, and on the NVIDIA image — detected by the nvidia-driver package — the arguments that give the proprietary driver kernel modesetting and keep the nouveau and nova_core drivers from loading. Does nothing when all of them are already set; otherwise sets the missing ones in a single rpm-ostree call, shows a message on the boot splash, and reboots, so a boot that had to set any reboots once. The installer templates write the same lists out again (@IsoInstaller#bootc-switch#run); a change to either is made to both.
       - id: service
         type: "@SystemdUnit"
         src: build_files/root/usr/lib/systemd/system/setup-kargs.service
