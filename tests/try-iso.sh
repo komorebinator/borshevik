@@ -65,10 +65,12 @@ cat <<EOF
 
 Trying $iso (run $run_id). Check that:
   1. the installer finishes$([ "$boot_only" -eq 1 ] && echo " (already done: booting the installed disk)")
-  2. the installed system boots to GNOME and gets through first login
+  2. the installer asks for no user or root password; the installed system boots to
+     GNOME Initial Setup, which creates the user, and that user logs in
   3. \`rpm-ostree status\` shows ghcr.io/komorebinator/$variant:stable
   4. installed in Russian with encryption: the installer has only the us layout, the
-     passphrase prompt shows us, and the desktop switches between us and ru
+     passphrase prompt shows us, and the desktop switches between us and ru;
+     installed in French, the password set in Initial Setup works at the login screen
   5. the installer's sidebar shows the Borshevik logo, not Fedora's
   6. the installed system's first boot goes to GNOME without rebooting itself first:
      \`journalctl -b -u setup-kargs\` says Nothing to do

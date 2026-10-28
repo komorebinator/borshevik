@@ -25,7 +25,7 @@ components:
   - id: gnome-initial-setup
     type: "@ConfigFile"
     src: build_files/root/etc/gnome-initial-setup/vendor.conf
-    description: "GNOME Initial Setup vendor config: `skip=software` drops the 'Software' welcome page, so new users are not prompted to install apps via GNOME Software on first login (the App Manager replaces this flow), and `existing_user_only=language;keyboard` shows the language and keyboard pages only in the per-user run, not in the system-level one."
+    description: "GNOME Initial Setup vendor config: `skip=software` drops the 'Software' welcome page, so new users are not prompted to install apps via GNOME Software on first login (the App Manager replaces this flow), and `existing_user_only=language;keyboard` shows the language and keyboard pages only in the per-user run, not in the system-level one. On an install from Borshevik's media the system-level run is the one that creates the first account (@IsoInstaller#keyboard), so it asks for neither: both come from the language chosen in the installer, and the password is typed in the system's first layout, the one the login screen reads."
   - id: defaults
     type: "@ConfigFile"
     src:
