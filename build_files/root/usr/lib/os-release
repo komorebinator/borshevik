@@ -4,6 +4,7 @@ ID_LIKE=fedora
 VARIANT="Universal Blue Custom Image"
 PRETTY_NAME="Borshevik"
 LOGO=borshevik
+DEFAULT_HOSTNAME="borshevik"
 HOME_URL="https://github.com/komorebinator/borshevik"
 SUPPORT_URL="https://github.com/komorebinator/borshevik/issues"
 BUG_REPORT_URL="https://github.com/komorebinator/borshevik/issues"
