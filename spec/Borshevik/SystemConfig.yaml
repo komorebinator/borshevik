@@ -10,7 +10,7 @@ components:
   - id: os-release
     type: "@ConfigFile"
     src: build_files/root/usr/lib/os-release
-    description: Branding half of /usr/lib/os-release — the name, ID, logo and project URLs; @ImageBuild#os-info appends the per-build fields, so both halves reach the system.
+    description: "Branding half of /usr/lib/os-release — the name, ID, logo, default host name and project URLs; @ImageBuild#os-info appends the per-build fields, so both halves reach the system. The file replaces Fedora's whole, so anything of Fedora's still wanted has to be written here again. DEFAULT_HOSTNAME is one such field: systemd names a machine with no static host name after it, and without it falls back to `localhost`. That is every install from Borshevik's media, since the installer's network spoke, where a host name could be typed, is hidden (@IsoInstaller#keyboard) and GNOME Initial Setup asks for none. Without the field the machine is localhost in the shell prompt (found 2026-10-29 in a VM), and so to Bluetooth devices, to GSConnect and to the router. The name is changed in GNOME's settings."
   - id: borshevik-logo
     type: "@Graphic"
     src: build_files/root/usr/share/pixmaps/borshevik_logo.svg
