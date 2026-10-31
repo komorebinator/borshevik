@@ -1,13 +1,15 @@
 # <img src="assets/borshevik_logo.svg" alt="Logo" width="26"> Borshevik
 
 
-Borshevik is an immutable, laptop-first desktop image built on Fedora Atomic and the uBlue ecosystem, designed to be simple to use and ready to go right after installation. It’s delivered as a single, read-only system image with atomic updates and easy rollbacks. It includes stock Fedora GNOME tuned with a small set of GNOME Shell extensions, plus multimedia support, Chrome, Steam, Android apps from Google Play, a built-in VPN client with VLESS and other censorship-resistant protocols, and a curated Flatpak set — so you can install it and get straight to work, even if you’re new to Linux.
+Borshevik is an immutable desktop image for laptops and desktops, built on Fedora Atomic and the uBlue ecosystem, designed to be simple to use and ready to go right after installation. It’s delivered as a single, read-only system image with atomic updates and easy rollbacks. It includes stock Fedora GNOME tuned with a small set of GNOME Shell extensions, plus multimedia support, Chrome, Steam, Android apps from Google Play, a built-in VPN client with VLESS and other censorship-resistant protocols, and a curated Flatpak set — so you can install it and get straight to work, even if you’re new to Linux.
+
+More on the site, with news: [borshevik.org](https://borshevik.org).
 
 ## 🎯 Who is this image for?
 
 Borshevik is built as a practical daily driver with a clear target audience:
 
-- **Laptop-first (but desktops are supported too):** defaults and UX are tuned primarily for modern laptops, while still working great on desktop machines.
+- **Laptops and desktops alike:** defaults and UX are tuned for modern laptops and desktop machines.
 - **Built for daily work:** tuned for everyday productivity and daily use.
 - **Also good for gaming:** Steam is included and works out of the box.
 - **Predictable and low-maintenance:** the “turn it on and start working” mindset, with consistent behavior and easy recovery.
@@ -22,7 +24,7 @@ Chrome comes preinstalled using the official RPM from Google. It runs natively o
 
 ## 🎮 Steam
 
-Steam comes preinstalled, so you can play right away without extra setup. Many games work out of the box, and other game stores are also available to install.
+Steam comes preinstalled, so you can play right away without extra setup. Many games work out of the box, and PortProton, installed from the App Manager, runs any other launcher — Battle.net, EA app, Epic Games Store and the rest.
 
 ## 🤖 Android Apps
 
@@ -36,19 +38,7 @@ Its **From another PC** tab carries your setup over from an older computer: copy
 
 ## 🔒 VPN
 
-[Hiddify](https://github.com/hiddify/hiddify-app) comes preinstalled — a native desktop VPN client powered by [sing-box](https://github.com/SagerNet/sing-box). It runs as a tray application and supports all major modern proxy protocols:
-
-| Protocol | Notes |
-|----------|-------|
-| VLESS + Reality | Recommended — censorship-resistant, mimics HTTPS |
-| VLESS + TLS | Standard VLESS over TLS |
-| VMess | Classic v2ray protocol |
-| Hysteria / Hysteria2 | UDP-based, fast on lossy connections |
-| TUIC | QUIC-based protocol |
-| WireGuard | Including Cloudflare WARP |
-| SSH | SSH tunneling |
-
-Supports subscription formats: Sing-box, V2ray, Clash, Clash Meta. Import via a share link or subscription URL directly in the app.
+[Hiddify](https://github.com/hiddify/hiddify-app) comes preinstalled — a native desktop VPN client powered by [sing-box](https://github.com/SagerNet/sing-box). It runs as a tray application and supports VLESS + Reality and the other modern censorship-resistant protocols. Import a share link or a subscription and connect.
 
 ## 🧩 GNOME Extensions
 
@@ -60,26 +50,6 @@ These extensions add small quality-of-life improvements like clipboard history, 
 
 Borshevik does not add extra telemetry or tracking on top of what Fedora already ships. There are no required online accounts, and the system image is fully documented and reproducible via the public build files in this repository.
 
-## 👷 Rebasing from another uBlue
+## 💿 Install
 
-If you’re already on another Fedora Atomic or uBlue image, you can switch to Borshevik with a single rebase command:
-
-```bash
-sudo rpm-ostree rebase ostree-image-signed:docker://ghcr.io/komorebinator/borshevik:stable
-```
-
-or, for NVIDIA GPUs:
-
-```bash
-sudo rpm-ostree rebase ostree-image-signed:docker://ghcr.io/komorebinator/borshevik-nvidia:stable
-```
-
-After the rebase, reboot into the new image and you’re done.
-
-## 💿 New installation
-
-[![Download](assets/download.svg)](https://borshevik.org/iso/borshevik-stable.iso)    [![Download](assets/download-nvidia.svg)](https://borshevik.org/iso/borshevik-nvidia-stable.iso)
-
-You may also need **Fedora Media Writer** to write the ISO to a USB drive:
-- [macOS / Windows](https://github.com/FedoraQt/MediaWriter/releases/latest)
-- [Linux (Flathub)](https://flathub.org/apps/org.fedoraproject.MediaWriter)
+The full installation guide is on the site, step by step, with videos and pictures: [borshevik.org/install](https://borshevik.org/install).

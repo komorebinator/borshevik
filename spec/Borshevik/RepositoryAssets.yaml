@@ -10,4 +10,4 @@ components:
       - assets/download-nvidia.svg
     format: SVG
     role: branding
-    description: The logo and the two download buttons README.md shows, the buttons linking to the standard and NVIDIA ISOs.
+    description: The logo README.md shows, and the two download buttons it showed until 2026-10-31, linking to the standard and NVIDIA ISOs, when its installation section came to link the site's installation page instead (the author); the buttons are no longer shown anywhere.

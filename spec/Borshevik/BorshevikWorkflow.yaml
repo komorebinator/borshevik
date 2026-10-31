@@ -84,7 +84,7 @@ steps:
     when: the author has confirmed both variants of the run in a virtual machine, and the site does not yet offer the run's media
     operation: "@BorshevikWorkflow#switch_iso(run_id=<run>)"
   - id: iso_published
-    description: "Fresh installs get the change. The site's download buttons lead to the run's media, and so do the permanent links https://borshevik.org/iso/borshevik-stable.iso and https://borshevik.org/iso/borshevik-nvidia-stable.iso that the repository's README uses — the website redirects them to whatever it currently offers. The previous media stay on the server until someone removes them."
+    description: Fresh installs get the change. The site's download buttons lead to the run's media, and so do the permanent links https://borshevik.org/iso/borshevik-stable.iso and https://borshevik.org/iso/borshevik-nvidia-stable.iso — which the repository's README used until 2026-10-31, when it came to link the site's installation page instead (the author) — the website redirects them to whatever it currently offers. The previous media stay on the server until someone removes them.
     when: the site's download buttons lead to the run's media
 components:
   - id: build-base
