@@ -4,10 +4,7 @@ src: assets/
 components:
   - id: readme-graphics
     type: "@Graphic"
-    src:
-      - assets/borshevik_logo.svg
-      - assets/download.svg
-      - assets/download-nvidia.svg
+    src: assets/borshevik_logo.svg
     format: SVG
     role: branding
-    description: The logo and the two download buttons README.md shows, the buttons linking to the standard and NVIDIA ISOs.
+    description: The logo README.md shows. The two download buttons it showed until 2026-10-31 are gone, its installation section linking the site's installation page instead (the author).

@@ -80,7 +80,7 @@
   "android_google_not_yet": "Start Android once with internet, then try again",
   "android_google_copy": "Copy",
   "android_google_open_page": "Open the registration page",
-  "android_google_open_page_hint": "Paste the ID there, then restart Android and sign in to Play",
+  "android_google_open_page_hint": "Paste the ID there and sign in to Play",
   "android_system_built": "Android system built",
   "android_vendor_built": "Drivers (vendor) built",
   "android_state_running": "Running",

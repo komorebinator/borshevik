@@ -80,7 +80,7 @@
   "android_google_not_yet": "Запустіть Android з інтернетом і повторіть",
   "android_google_copy": "Копіювати",
   "android_google_open_page": "Відкрити сторінку реєстрації",
-  "android_google_open_page_hint": "Вставте туди ID, потім перезапустіть Android і увійдіть у Play",
+  "android_google_open_page_hint": "Вставте туди ID та увійдіть у Play",
   "android_system_built": "Систему Android зібрано",
   "android_vendor_built": "Драйвери (vendor) зібрано",
   "android_state_running": "Працює",

@@ -1,4 +1,4 @@
-description: An immutable, laptop-first desktop image built on Fedora Atomic and the uBlue ecosystem, designed to be simple to use and ready to go right after installation.
+description: An immutable desktop image for laptops and desktops alike, built on Fedora Atomic and the uBlue ecosystem, designed to be simple to use and ready to go right after installation. Not laptop-first any more (the author, 2026-10-31).
 extends: "@DuckspecProject"
 terms_folder: Borshevik/
 repository: https://github.com/komorebinator/borshevik

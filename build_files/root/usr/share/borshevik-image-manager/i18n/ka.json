@@ -80,7 +80,7 @@
   "android_google_not_yet": "გაუშვით Android ინტერნეტით და სცადეთ ხელახლა",
   "android_google_copy": "კოპირება",
   "android_google_open_page": "რეგისტრაციის გვერდის გახსნა",
-  "android_google_open_page_hint": "ჩასვით იქ ID, შემდეგ გადატვირთეთ Android და შედით Play-ში",
+  "android_google_open_page_hint": "ჩასვით იქ ID და შედით Play-ში",
   "android_system_built": "Android სისტემა აწყობილია",
   "android_vendor_built": "დრაივერები (vendor) აწყობილია",
   "android_state_running": "მუშაობს",
