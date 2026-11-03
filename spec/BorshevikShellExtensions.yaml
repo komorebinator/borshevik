@@ -14,6 +14,9 @@ references:
     description: Installed as a GNOME Shell extension via list.json; developed as its own Duckspec-managed project.
   - repository: https://github.com/komorebinator/borshevik-update-indicator
     description: Installed as a GNOME Shell extension via list.json; developed as its own Duckspec-managed project. Shows a status icon while a downloaded image waits for a reboot — the in-session counterpart of @ImageManagerApp's "Reboot to apply update" row, using the same condition.
+  - id: borshevik-glass
+    repository: https://github.com/komorebinator/borshevik-glass
+    description: Installed as a GNOME Shell extension via list.json; developed as its own Duckspec-managed project. The frosted panel, overview, dash and folders — the wallpaper blurred once and tinted for GNOME's dark style, the whole shell made light with it — in place of Blur my Shell, which it replaced on 2026-11-03.
   - id: borshevik-translate
     repository: https://github.com/komorebinator/borshevik-translate
     description: Installed as a GNOME Shell extension via list.json; developed as its own Duckspec-managed project. Translates the selected text from a tray icon or Super+T, through translate-shell, which @ImageBuild#install-rpm-packages layers for it.
