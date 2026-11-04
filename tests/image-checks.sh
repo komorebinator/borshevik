@@ -82,6 +82,21 @@ blur="$(as_user gsettings --schemadir /usr/share/gnome-shell/extensions/blur-my-
     get org.gnome.shell.extensions.blur-my-shell.popup blur 2>&1)"
 [[ "$blur" == false ]] && ok blur-popups || fail blur-popups "popup blur is $blur"
 
+# 11. every patched package the base build recorded is what is installed, files as packaged
+fixes=/usr/share/borshevik/package-fixes
+if [[ ! -f "$fixes" ]]; then
+    fail package-fixes "no $fixes"
+else
+    bad=""
+    while read -r nevra _; do
+        [[ -n "$nevra" ]] || continue
+        rpm -q "$nevra" >/dev/null 2>&1 || { bad+="$nevra not installed; "; continue; }
+        out="$(rpm -V "$nevra" 2>&1)" || bad+="$nevra: $(tr '\n' ' ' <<<"$out"); "
+    done <"$fixes"
+    n="$(grep -c . "$fixes")"
+    [[ -z "$bad" ]] && ok "package-fixes ($n packages)" || fail package-fixes "$bad"
+fi
+
 if [[ "$failed" -eq 0 ]]; then
     echo "all checks pass"
 fi
