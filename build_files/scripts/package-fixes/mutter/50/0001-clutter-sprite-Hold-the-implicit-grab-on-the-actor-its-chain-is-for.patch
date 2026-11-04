@@ -1,0 +1,67 @@
+From: komorebi <markovs.i.mail@gmail.com>
+Subject: [PATCH] clutter/sprite: Hold the implicit grab on the actor its chain is for
+
+A press outside the active seat grab gets an event chain made of the grab
+actor alone (clutter_actor_collect_event_actors() treats the grab root as
+extending infinitely), yet the implicit grab was recorded on the actor under
+the pointer, which is not in that chain. Unmap tracking follows the recorded
+actor, so when the grab actor went away while the sequence lasted - the
+input-only actor of a Wayland popup or drag grab, destroyed when the client
+dismisses it while a button is held - nothing pruned it, and the chain kept a
+receiver that was no longer on the stage. A grab on the stage before the
+release then cancelled every receiver in the "same grab actor" branch of
+clutter_sprite_notify_grab() and hit its assertion.
+
+Record the implicit grab on the grab actor in that case, so it is followed
+like any other implicitly grabbed actor. For the same reason, take
+target-phase actions from the grab actor rather than from the actor under
+the pointer: that one is behind the grab and should not see the press.
+---
+ clutter/clutter/clutter-sprite.c | 17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)
+--- a/clutter/clutter/clutter-sprite.c
++++ b/clutter/clutter/clutter-sprite.c
+@@ -372,12 +372,18 @@
+                              ClutterActor  *deepmost)
+ {
+   ClutterSpritePrivate *priv = clutter_sprite_get_instance_private (sprite);
++  ClutterActor *target;
+   const GList *l;
+   int i;
+ 
+   g_assert (priv->cur_event_actors->len == 0);
+   clutter_actor_collect_event_actors (topmost, deepmost, priv->cur_event_actors);
+ 
++  /* Outside topmost, the event goes to topmost alone (see
++   * clutter_actor_collect_event_actors()), which is then its target.
++   */
++  target = clutter_actor_contains (topmost, deepmost) ? deepmost : topmost;
++
+   for (i = priv->cur_event_actors->len - 1; i >= 0; i--)
+     {
+       ClutterActor *actor = g_ptr_array_index (priv->cur_event_actors, i);
+@@ -394,7 +400,7 @@
+       add_actor_to_event_emission_chain (chain, actor, CLUTTER_PHASE_CAPTURE);
+     }
+ 
+-  for (l = clutter_actor_peek_actions (deepmost); l; l = l->next)
++  for (l = clutter_actor_peek_actions (target); l; l = l->next)
+     {
+       ClutterAction *action = l->data;
+ 
+@@ -889,7 +895,14 @@
+   if (is_sequence_begin && setup_implicit_grab (sprite))
+     {
+       g_assert (priv->implicit_grab_actor == NULL);
+-      priv->implicit_grab_actor = target_actor;
++      /* The implicit grab is held by the actor its event chain is built for:
++       * outside the seat grab that is the grab actor, not the actor under the
++       * pointer, and it is the one to follow if it goes away while the
++       * sequence lasts.
++       */
++      priv->implicit_grab_actor =
++        clutter_actor_contains (seat_grab_actor, target_actor) ?
++        target_actor : seat_grab_actor;
+       clutter_actor_set_implicitly_grabbed (priv->implicit_grab_actor, TRUE);
+ 
+       create_event_emission_chain (sprite, priv->event_emission_chain, seat_grab_actor, target_actor);

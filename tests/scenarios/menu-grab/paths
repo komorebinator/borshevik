@@ -1,0 +1,5 @@
+# Files whose change means the menu-grab scenario must run: the mutter patches and
+# the script that rebuilds and installs them. See
+# @ImageBuild#install-package-fixes#mutter-implicit-grab#vm-scenario in spec/.
+build_files/scripts/package-fixes/mutter/**
+build_files/scripts/install-package-fixes.sh
