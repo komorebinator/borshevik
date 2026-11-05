@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Runs @ImageBuild#install-package-fixes in the base image it runs on in the build:
-# with the repository's patches, which it must install, and with three patch sets made
-# from them that it must refuse. See @ImageBuild#tests#package-fixes in spec/.
+# with the repository's patches, which it must install printing little of its own, and
+# with four patch sets made from them that it must refuse, saying why. See
+# @ImageBuild#tests#package-fixes in spec/.
 # Runs on the host (podman); prints `ok <case>` or `FAIL <case>: ...` per case.
 set -uo pipefail
 
@@ -54,6 +55,9 @@ if run "$repo/build_files/scripts" "$work/install.log" &&
 else
     fail install "see the end of the log: $(tail -3 "$work/install.log" | tr '\n' ' ')"
 fi
+# ...printing its own account only, not the package manager's and the build's output
+own="$(sed -n "/^== $src\$/,\$p" "$work/install.log" | wc -l)"
+((own > 0 && own < 100)) && ok "quiet ($own lines)" || fail quiet "the script printed $own lines"
 
 # No folder for the major version the image has, as when the next major arrives
 d="$(variant major)"; mkdir -p "$d/$((major - 1))"; cp "${patches[@]}" "$d/$((major - 1))/"
@@ -88,6 +92,28 @@ d="$(variant conflict)"; mkdir -p "$d/$major"
 awk 'BEGIN { h = 0; d = 0 } /^@@/ { h = 1 } { if (h && !d && /^ ./) { print $0 " /* changed */"; d = 1 } else print }' \
     "$first" >"$d/$major/0001-conflict.patch"
 expect_refusal conflict "conflicts with"
+
+# A patch that applies but does not build: the build stops, and what it prints shows why
+d="$(variant build-fails)"; mkdir -p "$d/$major"
+python3 - "$first" >"$d/$major/0001-build-fails.patch" <<'PY'
+import re, sys
+done = False
+for line in open(sys.argv[1]):
+    m = None if done else re.match(r"@@ -(\S+) \+(\d+)(?:,(\d+))? @@(.*)", line, re.S)
+    if m:
+        count = int(m[3]) if m[3] is not None else 1
+        sys.stdout.write(f"@@ -{m[1]} +{m[2]},{count + 1} @@{m[4]}")
+        sys.stdout.write("+#error package-fixes test\n")
+        done = True
+    else:
+        sys.stdout.write(line)
+PY
+expect_refusal build-fails "the rebuild of $src"
+if grep -q '#error package-fixes test' "$work/build-fails.log"; then
+    ok "build-fails-reason (the compiler's error is in what it printed)"
+else
+    fail build-fails-reason "the compiler's error is not in what it printed"
+fi
 
 [[ "$failed" -eq 0 ]] && echo "all checks pass"
 exit "$failed"
