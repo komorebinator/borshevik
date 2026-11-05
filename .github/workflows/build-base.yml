@@ -11,8 +11,47 @@ env:
   ARTIFACTHUB_LOGO_URL: "https://avatars.githubusercontent.com/u/120078124?s=200&v=4"
 
 jobs:
+  # A scheduled run builds nothing when another run of this branch started in the last 20 hours
+  # succeeded or is still going: a build made by hand is not made again, and a run in progress
+  # is not cancelled by this one's concurrency group. A run by hand always builds.
+  recent:
+    name: Look for a recent build
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+    outputs:
+      skip: ${{ steps.check.outputs.skip }}
+    steps:
+      - name: Look for a recent build
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [[ "$EVENT" != schedule ]]; then
+            echo "Run by hand: building"
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          since="$(date -u -d '20 hours ago' +%Y-%m-%dT%H:%M:%SZ)"
+          recent="$(gh api -X GET "repos/$GITHUB_REPOSITORY/actions/workflows/build-base.yml/runs" \
+            -f branch="$GITHUB_REF_NAME" -f created=">=$since" -f per_page=100 \
+            --jq ".workflow_runs[] | select(.id != $GITHUB_RUN_ID)
+                  | select(.conclusion == \"success\" or .status != \"completed\")
+                  | \"\(.html_url) \(.event), started \(.created_at), \(.conclusion // .status)\"")"
+          if [[ -n "$recent" ]]; then
+            echo "Built in the last 20 hours, nothing to do:"
+            sed 's/^/  /' <<<"$recent"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No build since $since: building"
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
   packages:
     name: Borshevik's package builds
+    needs: recent
+    if: needs.recent.outputs.skip != 'true'
     uses: ./.github/workflows/build-borshevik-packages.yml
     permissions:
       contents: read
