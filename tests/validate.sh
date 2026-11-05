@@ -244,6 +244,27 @@ for template in sys.argv[2:]:
 EOF
 )
 
+# Every package Borshevik rebuilds needs a scenario showing its patches still fix what they
+# fix (@BorshevikWorkflow#guidelines): Fedora moves it to new versions with no change here.
+echo "package scenarios"
+for dir in build_files/scripts/borshevik-packages/*/; do
+    [[ -d "$dir" ]] || continue
+    covered=""
+    for paths in tests/scenarios/*/paths; do
+        specs=()
+        while IFS= read -r line; do
+            line="${line%%#*}"; line="${line//[[:space:]]/}"
+            [[ -z "$line" ]] || specs+=(":(glob)$line")
+        done <"$paths"
+        ((${#specs[@]})) || continue
+        if git ls-files --cached --others --exclude-standard -- "${specs[@]}" | grep -q "^$dir"; then
+            covered="$(basename "$(dirname "$paths")")"
+            break
+        fi
+    done
+    if [[ -n "$covered" ]]; then pass "$dir: scenario $covered"; else fail "$dir: no scenario's paths cover it"; fi
+done
+
 echo
 if ((FAILED)); then echo "validation failed"; exit 1; fi
 echo "all checks pass"
