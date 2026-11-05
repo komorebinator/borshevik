@@ -22,6 +22,25 @@ trap cleanup EXIT
 die() { echo "install-package-fixes: $*" >&2; exit 1; }
 rpmb() { rpmbuild --define "_topdir $TOPDIR" "$@"; }
 
+# Runs one of the heavy steps - the package manager's, the build's - with its output
+# kept in the work directory rather than in the build log, where thousands of lines
+# of it would bury this script's own. When it fails, prints why: the lines of its
+# output that say so, from before its last lines, and then its last lines.
+quiet() { # step command...
+    local step="$1" log n
+    log="$WORK/$(tr -c 'A-Za-z0-9_.-' '_' <<<"$step").log"
+    shift
+    "$@" >"$log" 2>&1 && return 0
+    echo "install-package-fixes: ${step} failed:" >&2
+    n="$(wc -l <"$log")"
+    head -n "$((n > 25 ? n - 25 : 0))" "$log" |
+        grep -E '(^|[^[:alpha:]])(error|Error|ERROR|FAILED|Problem)([^[:alpha:]]|$)|No match for|nothing provides' |
+        tail -n 10 | sed 's/^/  /' >&2
+    echo "  ..." >&2
+    tail -n 25 "$log" | sed 's/^/  /' >&2
+    return 1
+}
+
 mkdir -p "$(dirname "$MANIFEST")"
 : >"$MANIFEST"
 
@@ -74,7 +93,7 @@ for dir in "${sources[@]}"; do
     before="$WORK/before-$src"
     snapshot "$before"
 
-    dnf -y download --srpm --destdir "$WORK" "${src}-${ver}-${rel}" ||
+    quiet "dnf download --srpm ${src}" dnf -y download --srpm --destdir "$WORK" "${src}-${ver}-${rel}" ||
         die "the source RPM ${src}-${ver}-${rel} is not in the source repositories"
     srpm="$WORK/${src}-${ver}-${rel}.src.rpm"
     [[ -f "$srpm" ]] || die "dnf did not leave ${srpm##*/} in ${WORK}"
@@ -83,9 +102,11 @@ for dir in "${sources[@]}"; do
     # signature, against the keys the image already trusts.
     rpmkeys --checksig "$srpm" || die "${srpm##*/} is not signed by a key this image trusts"
 
-    dnf -y install --setopt=install_weak_deps=False rpm-build
-    dnf -y builddep --setopt=install_weak_deps=False "$srpm"
-    rpm -i --define "_topdir $TOPDIR" "$srpm"
+    quiet "dnf install rpm-build" dnf -y install --setopt=install_weak_deps=False rpm-build ||
+        die "rpm-build could not be installed"
+    quiet "dnf builddep ${src}" dnf -y builddep --setopt=install_weak_deps=False "$srpm" ||
+        die "${src}'s build dependencies could not be installed"
+    quiet "rpm -i ${srpm##*/}" rpm -i --define "_topdir $TOPDIR" "$srpm" || die "${srpm##*/} could not be unpacked"
     spec="$TOPDIR/SPECS/${src}.spec"
     [[ -f "$spec" ]] || die "no ${src}.spec in ${srpm##*/}"
     grep -qE '^%(autosetup|autopatch)' "$spec" ||
@@ -93,7 +114,7 @@ for dir in "${sources[@]}"; do
 
     # Each patch against the source as Fedora's spec prepares it, in order, with
     # no fuzz; in reverse it means upstream already has it.
-    rpmb -bp --nodeps "$spec" >"$WORK/prep.log" 2>&1 || { cat "$WORK/prep.log" >&2; die "${src}.spec's %prep failed"; }
+    quiet "rpmbuild -bp ${src}" rpmb -bp --nodeps "$spec" || die "${src}.spec's %prep failed"
     gitdir="$(find "$TOPDIR/BUILD" -mindepth 1 -maxdepth 4 -name .git -print -quit)"
     [[ -n "$gitdir" ]] || die "${src}.spec's %prep left no git tree under BUILD"
     tree="$(dirname "$gitdir")"
@@ -122,7 +143,11 @@ for dir in "${sources[@]}"; do
         last=$((last + 1))
     done
     sed -i -E "s/^Release:.*/Release: ${rel}.${SUFFIX}/" "$spec"
-    rpmb -bb --nocheck --define 'debug_package %{nil}' "$spec"
+    echo "Building ${src}-${ver}-${rel}.${SUFFIX}"
+    started=$SECONDS
+    quiet "rpmbuild -bb ${src}" rpmb -bb --nocheck --define 'debug_package %{nil}' "$spec" ||
+        die "the rebuild of ${src} ${ver}-${rel} failed"
+    echo "Built in $(((SECONDS - started) / 60))m$(((SECONDS - started) % 60))s"
 
     # Remove what the build brought in, and check nothing of it stays.
     after="$WORK/after-$src"
@@ -130,7 +155,8 @@ for dir in "${sources[@]}"; do
     mapfile -t added < <(comm -13 "$before/names" "$after/names")
     if ((${#added[@]})); then
         echo "Removing the ${#added[@]} packages the build installed"
-        rpm -e "${added[@]}"
+        quiet "rpm -e the build's packages" rpm -e "${added[@]}" ||
+            die "the packages the build installed could not be removed"
     fi
     snapshot "$after"
     missing="$(comm -23 "$before/names" "$after/names" | tr '\n' ' ')"
@@ -157,7 +183,8 @@ for dir in "${sources[@]}"; do
         replace+=("${built[$name]}")
     done
     echo "Replacing with:"; printf '  %s\n' "${replace[@]##*/}"
-    rpm-ostree override replace "${replace[@]}"
+    quiet "rpm-ostree override replace ${src}" rpm-ostree override replace "${replace[@]}" ||
+        die "rpm-ostree could not replace ${src}'s packages"
 
     patchlist=""
     for p in "${patches[@]}"; do
