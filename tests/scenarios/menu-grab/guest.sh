@@ -2,7 +2,7 @@
 # The menu-grab scenario's checks, run inside the test VM as root after tester's
 # login and the image checks: the gnome-shell crash the mutter patch fixes, brought
 # about the way a user meets it. See
-# @ImageBuild#install-package-fixes#mutter-implicit-grab#vm-scenario in spec/.
+# @ImageBuild#build-borshevik-packages#mutter-implicit-grab#vm-scenario in spec/.
 set -u
 
 user=tester

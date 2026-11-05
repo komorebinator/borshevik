@@ -1,0 +1,172 @@
+name: Build Borshevik Packages
+
+# Keeps ghcr.io/<owner>/borshevik-packages:<Fedora release>-<branch> - the RPMs of every
+# distribution package Borshevik patches, built for the version the base image carries
+# now - which the base layer mounts. Builds only what changed. See
+# @BorshevikWorkflow#build-borshevik-packages in spec/.
+
+on:
+  workflow_call:
+    inputs:
+      force:
+        type: boolean
+        default: false
+    outputs:
+      tag:
+        description: The tag of the packages image for this release and branch
+        value: ${{ jobs.packages.outputs.tag }}
+      label:
+        description: Its org.borshevik.packages label, <source>=<tag> per package
+        value: ${{ jobs.packages.outputs.label }}
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Make every build again
+        type: boolean
+        default: false
+      base-image:
+        description: Build for this base image instead of the Containerfile's, e.g. the next Fedora release
+        type: string
+        default: ''
+
+jobs:
+  packages:
+    name: Bring the package builds up to date
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    # runs of one branch take turns, so neither pushes over what the other just made
+    concurrency:
+      group: build-borshevik-packages-${{ github.ref }}
+      cancel-in-progress: false
+    outputs:
+      tag: ${{ steps.result.outputs.tag }}
+      label: ${{ steps.result.outputs.label }}
+    env:
+      FORCE: ${{ inputs.force && 'true' || 'false' }}
+      BASE_IMAGE_INPUT: ${{ inputs.base-image }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
+
+      - name: Create /mnt/xdg-data for container storage
+        run: |
+          sudo mkdir -p /mnt/xdg-data
+          sudo chown -R runner:runner /mnt/xdg-data
+          echo "XDG_DATA_HOME=/mnt/xdg-data" >> "$GITHUB_ENV"
+
+      - name: Login to GHCR
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull the base image
+        run: |
+          image="$BASE_IMAGE_INPUT"
+          if [[ -z "$image" ]]; then
+            # what the borshevik-base stage builds on
+            major="$(sed -n 's/^ARG FEDORA_MAJOR_VERSION=//p' Containerfile)"
+            from="$(sed -n 's/^FROM \(.*\) AS borshevik-base$/\1/p' Containerfile)"
+            image="${from//'${FEDORA_MAJOR_VERSION}'/$major}"
+          fi
+          [[ -n "$image" ]] || { echo "no borshevik-base stage in the Containerfile" >&2; exit 1; }
+          podman pull -q "$image"
+          release="$(podman run --rm "$image" rpm -E %fedora)"
+          repo="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/borshevik-packages"
+          {
+            echo "BASE_IMAGE=$image"
+            echo "RELEASE=$release"
+            echo "REPO=$repo"
+            echo "TAG=$release-${GITHUB_REF_NAME//\//-}"
+          } >> "$GITHUB_ENV"
+          echo "Base image $image, Fedora $release"
+
+      - name: Plan
+        run: |
+          podman run --rm -v "$PWD/build_files/scripts:/build_scripts:ro" "$BASE_IMAGE" \
+            /build_scripts/build-borshevik-packages.sh plan > "$RUNNER_TEMP/plan"
+          echo "The builds this base needs:"
+          sed 's/^/  /' "$RUNNER_TEMP/plan"
+          echo "LABEL=$(awk '{ printf "%s%s=%s", NR > 1 ? " " : "", $1, $2 }' "$RUNNER_TEMP/plan")" >> "$GITHUB_ENV"
+
+      - name: Compare with the packages image
+        id: compare
+        run: |
+          if current="$(skopeo inspect --format '{{index .Labels "org.borshevik.packages"}}' "docker://$REPO:$TAG" 2>/dev/null)" &&
+             [[ "$current" == "$LABEL" && "$FORCE" != true ]]; then
+            echo "$REPO:$TAG already holds these builds; nothing to do"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "$REPO:$TAG holds ${current:-nothing}; making it again"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build what no packages image of this release has
+        if: steps.compare.outputs.changed == 'true'
+        run: |
+          work="$RUNNER_TEMP/packages"
+          mkdir -p "$work/root/rpms"
+          # every image of this release, this branch's first, with what its label lists
+          tags="$(skopeo list-tags "docker://$REPO" 2>/dev/null | jq -r '.Tags[]' | grep -E "^$RELEASE-" || true)"
+          images=()
+          for t in "$TAG" $(grep -vxF "$TAG" <<<"$tags"); do
+            grep -qxF "$t" <<<"$tags" || continue
+            images+=("$t $(skopeo inspect --format '{{index .Labels "org.borshevik.packages"}}' "docker://$REPO:$t" 2>/dev/null || true)")
+          done
+          {
+            echo "FROM scratch"
+            echo "COPY root/ /"
+          } > "$work/Containerfile"
+          missing=()
+          while read -r src tag; do
+            from=""
+            if [[ "$FORCE" != true ]]; then
+              for entry in "${images[@]}"; do
+                if [[ " ${entry#* } " == *" $src=$tag "* ]]; then from="${entry%% *}"; break; fi
+              done
+            fi
+            if [[ -n "$from" ]]; then
+              echo "$src: $tag from $REPO:$from"
+              echo "COPY --from=$REPO:$from /rpms/$src /rpms/$src" >> "$work/Containerfile"
+            else
+              echo "$src: $tag to be built"
+              missing+=("$src")
+            fi
+          done < "$RUNNER_TEMP/plan"
+          if ((${#missing[@]})); then
+            podman run --rm -v "$PWD/build_files/scripts:/build_scripts:ro" -v "$work/root/rpms:/out" "$BASE_IMAGE" \
+              bash -c '/build_scripts/configure-repos.sh && /build_scripts/build-borshevik-packages.sh build /out "$@"' \
+              _ "${missing[@]}"
+          fi
+          {
+            echo "LABEL org.borshevik.packages=\"$LABEL\""
+            echo "LABEL org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY"
+            echo "LABEL org.opencontainers.image.description=\"Borshevik's builds of the Fedora packages it patches, for Fedora $RELEASE\""
+          } >> "$work/Containerfile"
+          echo "The packages image:"
+          sed 's/^/  /' "$work/Containerfile"
+          podman build -q -t "$REPO:$TAG" "$work"
+          podman push --digestfile "$RUNNER_TEMP/digest" "$REPO:$TAG"
+          echo "DIGEST=$(cat "$RUNNER_TEMP/digest")" >> "$GITHUB_ENV"
+
+      - name: Install Cosign
+        if: steps.compare.outputs.changed == 'true'
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Sign the packages image by digest
+        if: steps.compare.outputs.changed == 'true'
+        run: |
+          echo "Signing $REPO@$DIGEST"
+          cosign sign -y --use-signing-config=false --new-bundle-format=false --key env://COSIGN_PRIVATE_KEY "$REPO@$DIGEST"
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
+          COSIGN_EXPERIMENTAL: false
+
+      - name: Result
+        id: result
+        run: |
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "label=$LABEL" >> "$GITHUB_OUTPUT"

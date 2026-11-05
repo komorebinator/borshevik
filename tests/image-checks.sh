@@ -82,11 +82,11 @@ light="$(as_user gsettings --schemadir /usr/share/gnome-shell/extensions/borshev
     get org.gnome.shell.extensions.borshevik-glass light-style 2>&1)"
 [[ "$light" == true ]] && ok glass-settings || fail glass-settings "light-style is $light"
 
-# 11. every patched package the base build recorded is what is installed, files as packaged
+# 11. every Borshevik package the base build recorded is what is installed, files as packaged
 # but for their times: ostree sets every file's mtime to the epoch, so rpm -V flags them all
-fixes=/usr/share/borshevik/package-fixes
+fixes=/usr/share/borshevik/borshevik-packages
 if [[ ! -f "$fixes" ]]; then
-    fail package-fixes "no $fixes"
+    fail borshevik-packages "no $fixes"
 else
     bad=""
     while read -r nevra _; do
@@ -95,7 +95,7 @@ else
         out="$(rpm -V --nomtime "$nevra" 2>&1)" || bad+="$nevra: $(tr '\n' ' ' <<<"$out"); "
     done <"$fixes"
     n="$(grep -c . "$fixes")"
-    [[ -z "$bad" ]] && ok "package-fixes ($n packages)" || fail package-fixes "$bad"
+    [[ -z "$bad" ]] && ok "borshevik-packages ($n packages)" || fail borshevik-packages "$bad"
 fi
 
 if [[ "$failed" -eq 0 ]]; then
