@@ -7,7 +7,7 @@ set -euo pipefail
 # Flutter plugins in AT_SECURE mode (required after setcap).
 #
 # Using the .deb (not the AppImage) because it installs to a standard system
-# layout (/usr/share/hiddify/) without bundled system libs, making it
+# layout (/opt/hiddify/ since 5.5.5) without bundled system libs, making it
 # straightforward to apply setcap without LD_LIBRARY_PATH conflicts.
 #
 # Optional env:
@@ -66,7 +66,7 @@ tar xf data.tar.* -C "$WORKDIR/pkg"
 # Install binaries to /usr/lib/hiddify/ — /usr/lib/ is a glibc-trusted path,
 # so $ORIGIN in RUNPATH is expanded even in AT_SECURE mode (setcap). No patchelf needed.
 mkdir -p "$DEST_DIR"
-cp -a "$WORKDIR/pkg/usr/share/hiddify/." "$DEST_DIR/"
+cp -a "$WORKDIR/pkg/opt/hiddify/." "$DEST_DIR/"
 
 # Icons from deb go to the right place already; just copy them.
 cp -a "$WORKDIR/pkg/usr/share/icons" /usr/share/

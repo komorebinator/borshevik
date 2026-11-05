@@ -10,7 +10,8 @@ usage() {
     echo "                                  try an image (default: :latest); --scenarios picks" >&2
     echo "                                  the tests/scenarios to run with the checks" >&2
     echo "                                  (default auto: those whose paths this branch changes" >&2
-    echo "                                  against origin/main)" >&2
+    echo "                                  against origin/main, and those of the Borshevik" >&2
+    echo "                                  packages whose build differs from :stable's)" >&2
     exit 2
 }
 
@@ -178,31 +179,75 @@ all_scenarios() {
     done
 }
 
-# The first file this branch changes against origin/main that a scenario's paths match.
-scenario_trigger() { # name
-    local specs=() line
+# A scenario's paths as git pathspecs, one per line.
+scenario_specs() { # name
+    local line
     while IFS= read -r line; do
         line="${line%%#*}"; line="${line//[[:space:]]/}"
-        [[ -n "$line" ]] && specs+=(":(glob)$line")
+        [[ -z "$line" ]] || echo ":(glob)$line"
     done <"$scenarios_dir/$1/paths"
+}
+
+# The first file this branch changes against origin/main that a scenario's paths match.
+scenario_trigger() { # name
+    local specs
+    mapfile -t specs < <(scenario_specs "$1")
     [[ "${#specs[@]}" -gt 0 ]] || return 0
     git -C "$repo_root" diff --name-only origin/main...HEAD -- "${specs[@]}" | head -n1
 }
 
+# Whether a scenario's paths match a file among <source>'s patches.
+scenario_covers() { # name source
+    local specs
+    mapfile -t specs < <(scenario_specs "$1")
+    [[ "${#specs[@]}" -gt 0 ]] || return 1
+    git -C "$repo_root" ls-files --cached --others --exclude-standard -- "${specs[@]}" |
+        grep -q "^build_files/scripts/borshevik-packages/$2/"
+}
+
+# The Borshevik packages whose build in <image> is not the one :stable of the same
+# repository has, by their org.borshevik.packages labels: "<source> <image's> <stable's>".
+changed_packages() { # image
+    local image="$1" repo mine theirs e s
+    local -A a=() b=()
+    repo="${image%@*}"
+    [[ "${repo##*/}" != *:* ]] || repo="${repo%:*}"
+    mine="$(skopeo inspect --format '{{index .Labels "org.borshevik.packages"}}' "docker://$image")" ||
+        die "cannot read the labels of $image to pick scenarios"
+    theirs="$(skopeo inspect --format '{{index .Labels "org.borshevik.packages"}}' "docker://$repo:stable" 2>/dev/null)" ||
+        theirs=""
+    [[ "$mine" != "<no value>" ]] || mine=""
+    [[ "$theirs" != "<no value>" ]] || theirs=""
+    for e in $mine; do a["${e%%=*}"]="${e#*=}"; done
+    for e in $theirs; do b["${e%%=*}"]="${e#*=}"; done
+    for s in $(printf '%s\n' "${!a[@]}" "${!b[@]}" | sort -u); do
+        [[ "${a[$s]:-}" == "${b[$s]:-}" ]] || echo "$s ${a[$s]:-none} ${b[$s]:-none}"
+    done
+}
+
 # Prints the selected scenarios, one per line, and why each was picked on stderr.
-select_scenarios() { # auto | all | none | name[,name...]
-    local choice="$1" name file
+select_scenarios() { # auto | all | none | name[,name...]   image
+    local choice="$1" image="$2" name file changed src mine theirs
     case "$choice" in
         none) return 0 ;;
         all) all_scenarios ;;
         auto)
             git -C "$repo_root" fetch -q origin main || die "cannot fetch origin/main to pick scenarios"
+            changed="$(changed_packages "$image")" || exit 1
             for name in $(all_scenarios); do
                 file="$(scenario_trigger "$name")"
                 if [[ -n "$file" ]]; then
                     echo "scenario $name: this branch changes $file" >&2
                     echo "$name"
+                    continue
                 fi
+                while read -r src mine theirs; do
+                    if [[ -n "$src" ]] && scenario_covers "$name" "$src"; then
+                        echo "scenario $name: the image's build of $src is $mine, :stable's $theirs" >&2
+                        echo "$name"
+                        break
+                    fi
+                done <<<"$changed"
             done ;;
         *)
             for name in ${choice//,/ }; do
@@ -222,11 +267,11 @@ cmd_run() {
         esac
         shift
     done
+    local image="${1:-ghcr.io/komorebinator/borshevik:latest}"
     # picked before the machine starts, so an unknown name costs nothing
     local scenarios
-    scenarios="$(select_scenarios "$scenarios_choice")"
+    scenarios="$(select_scenarios "$scenarios_choice" "$image")"
     [[ -n "$scenarios" ]] || echo "no scenarios selected"
-    local image="${1:-ghcr.io/komorebinator/borshevik:latest}"
     [[ -f "$base" ]] || die "no base disk; run: $0 setup"
     ensure_key
 

@@ -11,8 +11,17 @@ env:
   ARTIFACTHUB_LOGO_URL: "https://avatars.githubusercontent.com/u/120078124?s=200&v=4"
 
 jobs:
+  packages:
+    name: Borshevik's package builds
+    uses: ./.github/workflows/build-borshevik-packages.yml
+    permissions:
+      contents: read
+      packages: write
+    secrets: inherit
+
   build_and_push:
     name: Build and push both base images
+    needs: packages
     runs-on: ubuntu-24.04
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -47,6 +56,14 @@ jobs:
           sudo chown -R runner:runner /mnt/xdg-data
           echo "XDG_DATA_HOME=/mnt/xdg-data" >> $GITHUB_ENV
 
+      # before the build, which pulls the packages image
+      - name: Login to GHCR
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build ${{ matrix.variant }} image
         id: build
         uses: redhat-actions/buildah-build@719e3c40d8af9790c23eca13f7daa339f2867034 # v3.1.0
@@ -58,6 +75,7 @@ jobs:
             --build-arg IMAGE_TAG=${{ env.BUILD_TAGS }}
             --build-arg BUILD_DATE=${{ env.BUILD_DATE }}
             --build-arg IMAGE_NAME=${{ matrix.target }}
+            --build-arg PACKAGES_TAG=${{ needs.packages.outputs.tag }}
           image: ${{ matrix.variant }}
           tags: |
             ${{ env.BUILD_TAGS }}
@@ -73,6 +91,7 @@ jobs:
             io.artifacthub.package.logo-url=${{ env.ARTIFACTHUB_LOGO_URL }}
             io.artifacthub.package.keywords=bootc,ublue,universal-blue
             containers.bootc=1
+            org.borshevik.packages=${{ needs.packages.outputs.label }}
 
       - name: Disk debug (on failure)
         if: failure()
@@ -81,13 +100,6 @@ jobs:
           du -sh /mnt/xdg-data/containers/storage 2>/dev/null || true
           du -sh /home/runner/.local/share/containers/storage 2>/dev/null || true
           podman system df -v || true
-
-      - name: Login to GHCR
-        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Normalize registry name
         id: registry_case

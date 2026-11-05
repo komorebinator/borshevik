@@ -6,11 +6,14 @@ components:
   - id: containerfile
     type: "@ContainerImage"
     src: Containerfile
-    description: One stage per published image, plus `ctx`, a scratch stage holding build_files/scripts that every build stage bind-mounts rather than copies, so no script ends up in an image. Every build stage ends with `ostree container commit`. CI builds one target at a time and applies the tags itself. Each stage labels the image with its name as both the OCI title and the OCI version.
+    description: One stage per published image, plus `ctx`, a scratch stage holding build_files/scripts that every build stage bind-mounts rather than copies, so no script ends up in an image, and `packages`, mounted the same way. Every build stage ends with `ostree container commit`. CI builds one target at a time and applies the tags itself. Each stage labels the image with its name as both the OCI title and the OCI version.
     stages:
       - id: ctx
         from: scratch
         description: "Throwaway context stage. COPYs build_files/scripts/ to /build_scripts/ so later stages can bind-mount it via --mount=type=bind,from=ctx — the build scripts are never present in any of the published image layers."
+      - id: packages
+        from: ghcr.io/komorebinator/borshevik-packages:<PACKAGES_TAG>
+        description: "Nothing is built in it: it names the image of Borshevik's package builds (@BorshevikWorkflow#build-borshevik-packages) so that the borshevik-base stage can bind-mount its /rpms at @ImageBuild#borshevik-packages-lib#RPMS_DIR, the way it mounts ctx, and the builds reach @ImageBuild#install-borshevik-packages without becoming a layer of any image. A stage of its own because a mount whose `from=` names the image through the ARG directly crashes buildah right after the step (podman 5.8.9, 2026-11-05), while one naming a stage does not."
       - id: borshevik-base
         description: Builds @BorshevikBaseImage — see that term for FROM lineage and steps.
       - id: borshevik-base-nvidia
@@ -26,6 +29,9 @@ components:
       - id: AKMODS_TAG
         default: main-<FEDORA_MAJOR_VERSION>-7.1.13-200.fc44
         description: "The one tag both akmods images are taken at — @UBlueAkmods for the kernel @ImageBuild#install-kernel installs, @UBlueAkmodsNvidiaOpen for the NVIDIA modules — so the kernel the image ships is decided by it alone, and the modules always come from the same uBlue build as that kernel. `main-<FEDORA_MAJOR_VERSION>`, rolling, follows uBlue's newest build of Fedora's stock kernel; `main-<FEDORA_MAJOR_VERSION>-<kernel version>` holds one kernel. Never a coreos-stable tag: the hold once followed it, and when Fedora CoreOS moved to 7.2.5 the build quietly installed a 7.2 kernel with the very regression it was held for. Held on 7.1.13 since 2026-10-01 because of the amdgpu HDMI regression in Fedora's 7.2 kernels: upstream commit 7e5760f084d0 made YCbCr 4:2:0 conditional on the force_yuv_pixel_format debugfs override, so a sink whose 4K@50/60 exists only as 4:2:0 — a 4K TV with an HDMI 1.4-class input — is sent RGB at 594 MHz it cannot accept and shows nothing, with no error logged. Upstream fixed it in 7.3 by rewriting the selection; there is no 7.2.x backport — checked again on 2026-10-21 against the stable changelogs up to 7.2.12, whose amdgpu display changes do not touch the 4:2:0 selection — which is why the kernel is held back rather than patched. A held kernel gets no updates; Fedora builds no more 7.1 kernels for this release, so the hold costs none that the rolling tag would have brought. Goes back to `main-<FEDORA_MAJOR_VERSION>` once Fedora ships 7.3 for this release; verify the fix either way — set a 4:2:0-only 4K@60 mode on such a TV and see whether a picture appears, or read the drm_mode_is_420_only branch in drivers/gpu/drm/amd/display/ and check it no longer demands force_yuv_pixel_format."
+      - id: PACKAGES_TAG
+        default: <FEDORA_MAJOR_VERSION>-main
+        description: "Which image of Borshevik's package builds the packages stage takes: `<Fedora release>-<branch>`, the one @BorshevikWorkflow#build-borshevik-packages keeps for that release and branch. CI sets the branch it builds from; a build by hand gets main's, from the registry like the akmods images."
       - id: IMAGE_NAME
         description: No default; CI sets it to the target's name. Becomes the OCI labels and VARIANT_ID in os-release (os-info), and decides whether MOK enrollment is enabled (@Services#enable-services).
       - id: IMAGE_TAG
@@ -35,11 +41,11 @@ components:
         description: No default; CI sets it to the build's date, DD.MM.YYYY. Becomes VERSION in os-release (os-info).
   - id: build-base
     type: "@ShellScript"
-    description: Orchestrates the base layer — RPM packages, Chrome, Steam, podman.socket.
+    description: Orchestrates the base layer — RPM packages, Chrome, Steam, Borshevik's builds of distribution packages, podman.socket.
     src: build_files/scripts/build-base.sh
     functions:
       - id: run
-        description: "The base layer's steps, in order: configure-repos first, since every package transaction after it reads the repositories it leaves; then install-kernel, before anything is layered, so everything layered afterwards resolves against the kernel the image will actually ship; then install-rpm-packages, @GoogleChromeApp#installer, @SteamApp#installer and cleanup; finally enables podman.socket."
+        description: "The base layer's steps, in order: configure-repos first, since every package transaction after it reads the repositories it leaves; then install-kernel, before anything is layered, so everything layered afterwards resolves against the kernel the image will actually ship; then install-rpm-packages, @GoogleChromeApp#installer and @SteamApp#installer; then install-borshevik-packages, as the last package transaction, so that none after it can bring a distribution build of a patched package back, and after install-rpm-packages, which layers mutter-devkit, one of the subpackages it replaces; then cleanup; finally enables podman.socket."
   - id: build-base-nvidia
     type: "@ShellScript"
     description: Installs the NVIDIA driver on the base layer.
@@ -75,6 +81,71 @@ components:
     functions:
       - id: run
         description: "Layers the curated RPM set in one transaction; the list is in the script. Some of it is used by other parts of the image rather than directly by users: the compiler toolchain by @GnomeExtensions#own-builds, patchelf by @HiddifyApp#installer, gh by @ImageManagerApp#promote-to-stable, translate-shell by the Borshevik Translate extension (one of @GnomeExtensions#extensions-list), which translates through it and ships no translator of its own, adw-gtk3-theme by the dark GTK3 default (@ShellCustomizations#defaults), waydroid by @WaydroidApp — shipped on every machine though only some install Android, since a package cannot be layered on demand without an image update — and gsound by GSConnect, which recommends it for its sounds. GSConnect itself is not among the RPMs — it is built from source by @GnomeExtensions#own-builds — so nothing else would bring gsound in. mutter-devkit is what `gnome-shell --devkit` needs to run a nested shell in a window, so a GNOME Shell extension can be tried without logging out — on Wayland the session shell cannot be restarted in place, and a layered package would slow every image update, so it ships in the image instead."
+  - id: borshevik-packages-lib
+    type: "@ShellScript"
+    description: "What build-borshevik-packages and install-borshevik-packages share, sourced by both, so that the build the one makes and the build the other accepts are named by the same code: where the patches and the builds are, the suffix, which installed packages come from a source package, the key a build is known by, and how a heavy step's output is kept out of the log."
+    src: build_files/scripts/borshevik-packages-lib.sh
+    functions:
+      - id: installed_from
+        description: "`installed_from <source>`: the installed binary packages built from that source package, a line each with name, version and release, sorted."
+      - id: build_key
+        description: "`build_key <source> <version-release>`: the lines a build is known by — the source, its version-release, SUFFIX, each patch in PATCHES_DIR/<source>/ in name order with its sha256, and the sha256 of build-borshevik-packages.sh and of this file. A build is made again exactly when one of them changes: Fedora's version of the package, the patches, or how it is built. A change to the build's dependencies alone does not make one, as it does not in Fedora, which rebuilds a package against a changed library only by bumping its release."
+      - id: build_tag
+        description: "`build_tag <source> <version-release>`: the tag the build is stored under, `<source>-<version-release>-<the first 12 hex digits of the sha256 of build_key's lines>`, every character an OCI tag does not allow turned into `_`."
+      - id: quiet
+        description: "`quiet <step> <command...>`: runs one of the heavy steps — the package manager's, the build's, rpm-ostree's — with its output in a file rather than in the log, where thousands of lines of it would bury the scripts' own account. When the command fails, prints that the step failed, the lines of its output that report errors from before its last lines, and its last 25 lines, so the cause can be read in the log without the rest (the author's wish, 2026-11-05)."
+    fields:
+      - id: PATCHES_DIR
+        type: path
+        default: borshevik-packages/ beside the scripts — /build_scripts/borshevik-packages in an image build
+        description: "Where the patches are: one folder per source package, named as Fedora names it, its patches applied in name order. Not kept per version of the package: whatever version Fedora ships next is tried with the same patches, and build-borshevik-packages#build decides whether they still fit."
+      - id: RPMS_DIR
+        type: path
+        default: /tmp/borshevik-rpms
+        description: "Where install-borshevik-packages finds the builds: one folder per source package, as build-borshevik-packages#build writes it — every binary RPM of the source and its build-info. Mounted there for the base layer's RUN from @ImageBuild#containerfile#packages, read-only, so nothing of it is left in the image."
+      - id: SUFFIX
+        type: string
+        default: borshevik
+        description: Appended to the distribution's release, so a rebuilt package says what it is wherever its version is shown — `rpm -q`, rpm-ostree, the manifest.
+  - id: build-borshevik-packages
+    type: "@ShellScript"
+    description: "Rebuilds the distribution packages Borshevik has to ship with a fix upstream has not released yet: each source package with patches in PATCHES_DIR, from Fedora's source RPM of exactly the version the base image carries, so the package keeps the version the rest of the image was built against — gnome-shell and mutter come from the same Fedora update — and a new Fedora build of it is patched with no one tracking it. Runs in a throwaway container of the base image (@UniversalBlueGnome), started by @BorshevikWorkflow#build-borshevik-packages, and never inside an image build: what the build installs goes away with the container, and the base layer only installs the result (install-borshevik-packages). So a package is compiled once per version, for both variants, rather than in every base build — inside the base layer, as it was until 2026-11-05, mutter took some five and a half minutes a build, in each variant's job, every day. Not on COPR, the author's choice (2026-11-05): a COPR build waits in a queue of its own, needs an API token that expires, and its use here before — gnome-control-center with Epoch 1, so as to win over Fedora's — stopped following Fedora's updates altogether. That patches still apply is checked here; that they still fix what they fix, by each package's scenario (@BorshevikWorkflow#guidelines)."
+    src: build_files/scripts/build-borshevik-packages.sh
+    functions:
+      - id: plan
+        description: "`build-borshevik-packages.sh plan`: for each source package in PATCHES_DIR, the line `<source> <tag>`, the tag being borshevik-packages-lib#build_tag for the version-release the container has installed of it. Refuses when nothing installed is built from a source — a package the base image does not carry cannot be followed — or when its subpackages are at different versions."
+      - id: build
+        description: "`build-borshevik-packages.sh build <out> <source>...`: for each source, the version-release it has installed: downloads exactly that source RPM from the distribution's source repositories, refusing when it is not there or not signed by a key the image already trusts, since it is what gets patched and built; checks each patch against the source as Fedora's spec prepares it — one that does not apply exactly, with no fuzz, fails the build, saying it is already upstream and to drop it when it applies in reverse, and that it conflicts and needs porting otherwise; refuses a spec that applies its patches one by one rather than with %autosetup or %autopatch, which the patches cannot be added to, and one whose release here is not the installed one; builds the binary RPMs with the patches added to the spec and SUFFIX appended to the release (`50.6-2.fc44.borshevik`), without the package's own tests or debuginfo. Writes into <out>/<source>/ every binary RPM the build made — the base layer may carry subpackages the base image does not, mutter-devkit among them — and build-info, borshevik-packages-lib#build_key's lines; refuses unless every subpackage the container has installed is among them at the suffixed release. Its account in the log is a score of lines per package; the package manager's and the build's output goes through borshevik-packages-lib#quiet."
+    components:
+      - id: mutter-implicit-grab
+        type: "@Patch"
+        target: mutter, Fedora's package — the compositor and its Clutter toolkit, which @GnomeShell runs in
+        src: build_files/scripts/borshevik-packages/mutter/0001-clutter-sprite-Hold-the-implicit-grab-on-the-actor-its-chain-is-for.patch
+        description: "Fixes gnome-shell aborting — the session lost, every window closed — at Clutter's assertion in clutter_sprite_notify_grab (clutter-sprite.c:717) when a grab on the whole stage follows a press that closed an app's menu (komorebinator/borshevik#87, GNOME mutter#5121). A press outside a Wayland popup's grab, on the app's own window — GTK and Qt menus close on the press itself — gets an event chain holding only the grab's helper actor, while the implicit grab was recorded on the window under the pointer; when the app dismisses the popup with the button still down, the helper actor is destroyed without leaving the chain, and a stage grab before the release — the overview, or any animated workspace switch since gnome-shell 50 added a stage grab to it (gnome-shell c336fb42), which is why the Workspace Manager extension hits it so often — finds every receiver gone and aborts. Reproduced on plain GNOME 50.6 with no extensions. The patch records the implicit grab on the actor the chain is built for and takes the target phase's actions from it too, which also stops a press made while a menu is open from reaching the top bar's window-drag gesture behind the grab; the assertion stays. Chosen over removing the assertion, which fixed the same crashes with the same results otherwise in the test machine (2026-11-04), because it removes the inconsistency rather than the check that catches it. Not in mutter as of 2026-11-05 — the assertion is unchanged in 50.x, 51 and main, and mutter#5121 is open — and expected to be needed for 51 too, where it may not apply as it is: on main the code it changes is reshaped around `topmost`, and the build stops on a conflict until it is ported. Dropped once a mutter release Fedora ships carries a fix: the build then reports that it applies in reverse, or vm-scenario passes without it."
+        components:
+          - id: vm-scenario
+            type: "@ShellScript"
+            src:
+              - tests/scenarios/menu-grab/guest.sh
+              - tests/scenarios/menu-grab/paths
+            description: "The menu-grab scenario of @BorshevikWorkflow#scenarios: the crash the patch fixes, brought about the way a user meets it — so that what passes is the fix itself, not merely a package with a new release. Nobody is at the test machine and its pointer is QEMU's, which nothing inside the guest can move, so the scenario makes its own input devices through uinput — an absolute pointer like QEMU's tablet, and a keyboard — which GNOME takes like any other. Nautilus because every image has it and its menus close on the press. Run whenever a change touches the mutter patches or the scripts that build and install them, and whenever the image's mutter build is not the one :stable has. Tried before it went into the image, in a Borshevik test machine with Fedora's mutter 50.6-2 and the patched library swapped in by hand (2026-11-05): with Fedora's mutter the shell went down at clutter-sprite.c:717 every time (twice for a first version of it, once for this script); with the patched library, this script passed twice out of two, and the first version three times out of three with the library built by hand."
+            functions:
+              - id: run
+                description: Opens a Nautilus window as tester under WAYLAND_DEBUG, keeping only the lines about its new surfaces and its popups, and maximizes it with Super+Up, so where to click follows from the screen size alone, read from Mutter's DisplayConfig. Right-clicks in the window and waits for Nautilus to ask for a popup grab (xdg_popup.grab), trying up to three times, since a click soon after the window appears is sometimes lost. Then presses the left button on Nautilus's own window outside the menu, keeps it down, presses Super, and releases. Fails unless the menu was opened with a grab and destroyed by Nautilus — without both, a surviving shell proves nothing — and unless the same gnome-shell process runs afterwards with no Clutter assertion in its journal since the press.
+  - id: install-borshevik-packages
+    type: "@ShellScript"
+    description: "Swaps the builds of build-borshevik-packages in for the base image's packages, in the base layer, and refuses the build unless what got installed is a build of exactly the version the image has, made from the patches and by the build script the image is built with. It builds nothing: the builds reach it in RPMS_DIR, from the image @BorshevikWorkflow#build-borshevik-packages keeps for the release and branch, which the base build's workflow has brought up to date first. So the base build stops, rather than ships a package unpatched or patched with something else, when a build is missing or stale."
+    src: build_files/scripts/install-borshevik-packages.sh
+    functions:
+      - id: run
+        description: "For each source package in PATCHES_DIR: reads the version-release the image has of it at this point — mutter-devkit, layered by install-rpm-packages, among its subpackages — refusing when they differ in version; refuses unless RPMS_DIR/<source>/build-info holds borshevik-packages-lib#build_key's lines for that version-release, saying when the version is what differs — the base image moved on between build-borshevik-packages looking at it and the image build pulling it, or a package transaction before this one upgraded the package; the next base build makes the build for the new version — and showing the lines that differ otherwise, as when a build from another branch replaced the image in between; refuses unless every installed subpackage has its RPM there; replaces them with `rpm-ostree override replace`, all of them or none, since they require each other's exact version and rpm-ostree refuses a partial replacement; and refuses the build unless each installed one is the very RPM from RPMS_DIR, by its header digest, and `rpm -V` finds every file as packaged. Records each replaced package in manifest. Builds in RPMS_DIR whose source has no patches are not installed."
+    components:
+      - id: manifest
+        type: "@ConfigFile"
+        path: /usr/share/borshevik/borshevik-packages
+        format: "text, a line per replaced package: its NEVRA, `replaces`, the version-release it replaced, then `<patch name>=<sha256>` for each patch"
+        scope: read by @BorshevikWorkflow#image-checks, and by anyone asking a machine what it was patched with
+        description: What install-borshevik-packages#run replaced in the image and with which patches. Written in every image, empty when there is nothing to patch, so its absence means the step did not run.
   - id: finalize-image
     type: "@ShellScript"
     description: The final layer's last step, which regenerates what is derived from the image once everything else is in place.
@@ -96,3 +167,12 @@ components:
     functions:
       - id: run
         description: "Appends four fields to /usr/lib/os-release: VERSION from BUILD_DATE, PLATFORM_ID and VERSION_ID from FEDORA_MAJOR_VERSION, and VARIANT_ID from IMAGE_NAME. Appends rather than rewrites, so the branding @SystemConfig#os-release ships — NAME, ID, ID_LIKE, PRETTY_NAME, LOGO and the URLs — survives untouched."
+tests:
+  - id: borshevik-packages
+    description: "build-borshevik-packages and install-borshevik-packages on the base image they run on — locally, on a machine with podman, in minutes rather than through a workflow run and a base build of most of an hour. The build in a container of the base image after configure-repos, as the workflow runs it; the install in another, after configure-repos and with mutter-devkit layered, as the base layer has them by then, with RPMS_DIR holding what the build made. Build cases: plan names each source with the tag of its installed version; the repository's patches are built, every installed subpackage and mutter-devkit at the suffixed release, from a source RPM whose signature checks out, with build-info, printing under a hundred lines of its own; and three patch sets made from the first patch must be refused, each with its own message — that patch turned around, so the source as shipped is what it would produce, as when upstream has taken it; with a line of context the source does not have, as when the code it touches has moved; and with an `#error` added, which applies but does not build, whose refusal must carry the compiler's error. Install cases: the build is installed, each subpackage at the suffixed release, in the manifest; and it must be refused, each with its own message, when RPMS_DIR has no build of the source, when build-info names another version-release, when a patch changed since the build, and when one of the subpackages is missing."
+    command: bash tests/borshevik-packages.sh
+    expect: exits 0 and prints 'all checks pass'
+  - id: menu-grab-in-vm
+    description: "build-borshevik-packages#mutter-implicit-grab#vm-scenario on a built image: the patched mutter is what the image ships, and it does not abort, selected by itself whenever a change touches its paths or the image's mutter build differs from :stable's."
+    command: tests/test-image-in-vm.sh run --scenarios menu-grab
+    expect: the checks pass, borshevik-packages among them, and the report's `== scenario menu-grab` section ends with 'all checks pass'

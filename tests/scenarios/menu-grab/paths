@@ -1,0 +1,7 @@
+# Files whose change means the menu-grab scenario must run: the mutter patches and
+# the scripts that build and install them. See
+# @ImageBuild#build-borshevik-packages#mutter-implicit-grab#vm-scenario in spec/.
+build_files/scripts/borshevik-packages/mutter/**
+build_files/scripts/borshevik-packages-lib.sh
+build_files/scripts/build-borshevik-packages.sh
+build_files/scripts/install-borshevik-packages.sh

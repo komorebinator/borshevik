@@ -82,6 +82,22 @@ blur="$(as_user gsettings --schemadir /usr/share/gnome-shell/extensions/blur-my-
     get org.gnome.shell.extensions.blur-my-shell.popup blur 2>&1)"
 [[ "$blur" == false ]] && ok blur-popups || fail blur-popups "popup blur is $blur"
 
+# 11. every Borshevik package the base build recorded is what is installed, files as packaged
+# but for their times: ostree sets every file's mtime to the epoch, so rpm -V flags them all
+fixes=/usr/share/borshevik/borshevik-packages
+if [[ ! -f "$fixes" ]]; then
+    fail borshevik-packages "no $fixes"
+else
+    bad=""
+    while read -r nevra _; do
+        [[ -n "$nevra" ]] || continue
+        rpm -q "$nevra" >/dev/null 2>&1 || { bad+="$nevra not installed; "; continue; }
+        out="$(rpm -V --nomtime "$nevra" 2>&1)" || bad+="$nevra: $(tr '\n' ' ' <<<"$out"); "
+    done <"$fixes"
+    n="$(grep -c . "$fixes")"
+    [[ -z "$bad" ]] && ok "borshevik-packages ($n packages)" || fail borshevik-packages "$bad"
+fi
+
 if [[ "$failed" -eq 0 ]]; then
     echo "all checks pass"
 fi

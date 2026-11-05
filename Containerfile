@@ -13,10 +13,18 @@ ARG FEDORA_MAJOR_VERSION=44
 # rewrite; no 7.2.x backport (checked up to 7.2.12 on 2026-10-21). Back to
 # main-${FEDORA_MAJOR_VERSION} once Fedora ships 7.3 for this release.
 ARG AKMODS_TAG=main-${FEDORA_MAJOR_VERSION}-7.1.13-200.fc44
+# Borshevik's builds of the distribution packages it patches, as
+# build-borshevik-packages.yml keeps them for a Fedora release and a branch; CI
+# sets the branch it builds from.
+ARG PACKAGES_TAG=${FEDORA_MAJOR_VERSION}-main
 
 FROM scratch AS ctx
 
 COPY build_files/scripts /build_scripts/
+
+# Mounted by the base layer's RUN, so the builds never become a layer. A stage of
+# its own: a mount naming the image through the ARG crashes buildah after the step.
+FROM ghcr.io/komorebinator/borshevik-packages:${PACKAGES_TAG} AS packages
 
 FROM ghcr.io/ublue-os/silverblue-main:${FEDORA_MAJOR_VERSION} AS borshevik-base
 
@@ -35,6 +43,7 @@ COPY cosign.pub /etc/pki/containers/cosign.pub
 COPY --from=ghcr.io/ublue-os/akmods:${AKMODS_TAG} / /tmp/akmods-kernel
 
 RUN --mount=type=bind,from=ctx,source=/build_scripts,target=/build_scripts \
+    --mount=type=bind,from=packages,source=/rpms,target=/tmp/borshevik-rpms \
     /build_scripts/build-base.sh && \
     ostree container commit
 

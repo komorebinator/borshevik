@@ -1,6 +1,7 @@
 name: Clean Images
 
-# Deletes images older than 20 days, keeping latest, stable and the stable-* history.
+# Deletes images older than 20 days, keeping latest, stable and the stable-* history,
+# and package builds no tag points to any more.
 # A tag's child manifests and cosign signatures are kept and deleted with it: stable is
 # a manifest list around the promoted build, which must outlive its own date tag.
 
@@ -38,4 +39,15 @@ jobs:
           delete-orphaned-images: true
           validate: true
           # a scheduled run has no inputs and deletes; a run by hand is a dry run unless unticked
+          dry-run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry-run }}
+
+      # The images of build-borshevik-packages keep their tags as long as no rebuilt package
+      # changes, which can be months; only those a newer image replaced go, with their signatures.
+      - name: Clean the package builds
+        uses: dataaxiom/ghcr-cleanup-action@d52806a0dc70b430571a37da1fde39733ffd640f # v1.2.2
+        with:
+          packages: borshevik-packages
+          delete-untagged: true
+          delete-orphaned-images: true
+          validate: true
           dry-run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry-run }}
