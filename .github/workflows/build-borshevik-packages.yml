@@ -90,7 +90,7 @@ jobs:
             /build_scripts/build-borshevik-packages.sh plan > "$RUNNER_TEMP/plan"
           echo "The builds this base needs:"
           sed 's/^/  /' "$RUNNER_TEMP/plan"
-          echo "LABEL=$(awk '{ printf "%s%s=%s", NR > 1 ? " " : "", $1, $2 }' "$RUNNER_TEMP/plan")" >> "$GITHUB_ENV"
+          echo "LABEL=$(awk '{ printf "%s%s=%s", (NR > 1 ? " " : ""), $1, $2 }' "$RUNNER_TEMP/plan")" >> "$GITHUB_ENV"
 
       - name: Compare with the packages image
         id: compare
