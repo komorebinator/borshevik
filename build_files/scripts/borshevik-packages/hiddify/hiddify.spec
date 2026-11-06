@@ -1,11 +1,14 @@
 # Hiddify, the VPN client, as an RPM made from its release's Debian package: the files as
-# Hiddify built them, in /usr/libexec/hiddify, with the capabilities a VPN needs. See
-# @HiddifyApp#package in spec/. A new release is a change to Version: and the checksum.
+# Hiddify built them, in /usr/libexec/hiddify. See @HiddifyApp#package in spec/. A new release
+# is a change to Version: and the checksum.
 #
 # /usr/libexec rather than /usr/lib: SELinux labels files there bin_t, and in VPN mode the app
 # installs a system service (HiddifyAdminBG) running HiddifyCli from where the app is. A
 # service started from a lib_t file stays in init_t, which may not open /dev/net/tun; from a
 # bin_t one it runs as unconfined_service_t, which may.
+#
+# No file capabilities: since 5.x the tunnel is that root service's, and the proxy modes need
+# none, so on the binaries they would only hand cap_net_admin to whoever runs them.
 
 %global deb_sha256 2cd4b830a3db146a123fb3a69b02e7d6e6f5399c2b12236a5e3a639ba6b61492
 
@@ -46,20 +49,17 @@ tar xf data.tar.*
 mkdir -p %{buildroot}%{_libexecdir}/hiddify %{buildroot}%{_datadir}/icons
 cp -a deb/opt/hiddify/. %{buildroot}%{_libexecdir}/hiddify/
 cp -a deb/usr/share/icons/hicolor %{buildroot}%{_datadir}/icons/
-# A binary with capabilities runs in secure mode, where the loader expands no relative
-# RUNPATH outside the trusted directories: both get the absolute one.
-patchelf --set-rpath %{_libexecdir}/hiddify/lib %{buildroot}%{_libexecdir}/hiddify/hiddify
 # TEMPORARY (#90), until a Hiddify release fixes it (hiddify/hiddify-app#2411, #2423): HiddifyCli
 # needs its core as ./lib/hiddify-core.so, relative to the working directory and never looked
 # up in RUNPATH, so it starts only from its own folder - and the app runs it from its data
 # folder to connect in VPN mode. On a release that fixed it, this changes nothing.
-patchelf --replace-needed ./lib/hiddify-core.so hiddify-core.so \
-    --set-rpath %{_libexecdir}/hiddify/lib %{buildroot}%{_libexecdir}/hiddify/HiddifyCli
+# Its own RUNPATH, $ORIGIN/lib, then finds the core.
+patchelf --replace-needed ./lib/hiddify-core.so hiddify-core.so %{buildroot}%{_libexecdir}/hiddify/HiddifyCli
 
 %files
 %dir %{_libexecdir}/hiddify
-%caps(cap_net_raw,cap_net_admin,cap_net_bind_service=eip) %{_libexecdir}/hiddify/hiddify
-%caps(cap_net_raw,cap_net_admin,cap_net_bind_service=eip) %{_libexecdir}/hiddify/HiddifyCli
+%{_libexecdir}/hiddify/hiddify
+%{_libexecdir}/hiddify/HiddifyCli
 %{_libexecdir}/hiddify/lib
 %{_libexecdir}/hiddify/data
 %{_datadir}/icons/hicolor/*/apps/hiddify.png

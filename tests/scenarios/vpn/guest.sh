@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # The vpn scenario's checks, run inside the test VM as root after tester's login and the image
-# checks: Hiddify's core brings a tunnel up in VPN (TUN) mode both ways it is run - as tester,
-# from the app's data folder, with the capabilities of its file, and as a system service, the
-# way the app's own HiddifyAdminBG runs it in VPN mode, in the SELinux domain the file's label
-# gives it - and traffic goes through the tunnel to a test server and stops when it goes down.
-# Nothing leaves the machine. See @HiddifyApp#vm-scenario in spec/.
+# checks: Hiddify's core, started from the app's data folder as the app starts it, reads a
+# profile, and brings a tunnel up in VPN (TUN) mode as a system service - the way the app's own
+# HiddifyAdminBG runs it, in the SELinux domain the file's label gives it - and traffic goes
+# through the tunnel to a test server and stops when it goes down. Nothing leaves the machine.
+# See @HiddifyApp#vm-scenario in spec/.
 #
 # The client and the server each get a network namespace of their own, joined by a veth pair:
 # the tunnel's routes take all of a namespace's traffic, which in the guest's own would take
@@ -26,11 +26,8 @@ rm -rf "$work"
 mkdir -p "$work"
 chmod 755 "$work"
 
-client=""
 server=""
 cleanup() {
-    [[ -z "$client" ]] || kill "$client" 2>/dev/null
-    pkill -u "$user" -x HiddifyCli 2>/dev/null
     systemctl stop "$unit" 2>/dev/null
     rm -rf "/var/lib/$unit"
     [[ -z "$server" ]] || kill "$server" 2>/dev/null
@@ -146,21 +143,7 @@ else
     finish
 fi
 
-# --- a tunnel, each way HiddifyCli is run -------------------------------------------
-
-# as tester, from the app's data folder: what the file's capabilities allow
-start_user() {
-    in_client runuser -u "$user" -- sh -c "cd '$data' && exec '$cli' run -c '$data/borshevik-test.json' --tun --log info" \
-        >"$work/client-user.log" 2>&1 &
-    client=$!
-}
-stop_user() {
-    kill "$client" 2>/dev/null
-    pkill -u "$user" -x HiddifyCli 2>/dev/null
-    for _ in $(seq 10); do pgrep -u "$user" -x HiddifyCli >/dev/null || break; sleep 1; done
-    client=""
-}
-who_user() { echo "as $user"; }
+# --- a tunnel, as the app's service brings it up -----------------------------------
 
 # as a system service, started by systemd like HiddifyAdminBG, with a folder of its own in
 # /var/lib as that has: what the domain the file's SELinux label leads to allows
@@ -182,7 +165,7 @@ who_service() {
     echo "as a service in ${domain:-a domain unknown, it has exited}"
 }
 
-tunnel() { # way: vpn-<way>-tunnel, -traffic and -down
+tunnel() { # way: vpn-<way>-tunnel, -traffic and -down, with start_<way>, stop_<way>, who_<way>
     local way="$1" dev="" out="" who since
     since="$(date '+%Y-%m-%d %H:%M:%S')"
     "start_$way"
@@ -219,7 +202,6 @@ tunnel() { # way: vpn-<way>-tunnel, -traffic and -down
     fi
 }
 
-tunnel user
 tunnel service
 
 finish
