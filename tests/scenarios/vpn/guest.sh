@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # The vpn scenario's checks, run inside the test VM as root after tester's login and the image
-# checks: Hiddify's core brings a tunnel up in VPN (TUN) mode, as tester, from the app's data
-# folder as the app runs it, and traffic goes through it to a test server and stops when it goes
-# down. Nothing leaves the machine. See @HiddifyApp#vm-scenario in spec/.
+# checks: Hiddify's core, started from the app's data folder as the app starts it, reads a
+# profile, and brings a tunnel up in VPN (TUN) mode as a system service - the way the app's own
+# HiddifyAdminBG runs it, in the SELinux domain the file's label gives it - and traffic goes
+# through the tunnel to a test server and stops when it goes down. Nothing leaves the machine.
+# See @HiddifyApp#vm-scenario in spec/.
 #
 # The client and the server each get a network namespace of their own, joined by a veth pair:
 # the tunnel's routes take all of a namespace's traffic, which in the guest's own would take
@@ -15,7 +17,8 @@ user=tester
 uid="$(id -u "$user" 2>/dev/null)" || { echo "FAIL vpn-setup: no user $user"; exit 1; }
 home="$(getent passwd "$user" | cut -d: -f6)"
 data="$home/.local/share/app.hiddify.com"
-cli=/usr/lib/hiddify/HiddifyCli
+cli=/usr/libexec/hiddify/HiddifyCli
+unit=borshevik-vpn-test
 work=/var/tmp/scenario-vpn
 target=198.51.100.1
 token="$(cat /proc/sys/kernel/random/uuid)"
@@ -23,11 +26,10 @@ rm -rf "$work"
 mkdir -p "$work"
 chmod 755 "$work"
 
-client=""
 server=""
 cleanup() {
-    [[ -z "$client" ]] || kill "$client" 2>/dev/null
-    pkill -u "$user" -x HiddifyCli 2>/dev/null
+    systemctl stop "$unit" 2>/dev/null
+    rm -rf "/var/lib/$unit"
     [[ -z "$server" ]] || kill "$server" 2>/dev/null
     sleep 1
     ip netns del vpn-client 2>/dev/null
@@ -141,44 +143,65 @@ else
     finish
 fi
 
-in_client runuser -u "$user" -- sh -c "cd '$data' && exec '$cli' run -c '$data/borshevik-test.json' --tun --log info" \
-    >"$work/client.log" 2>&1 &
-client=$!
-dev=""
-for _ in $(seq 30); do
-    dev="$(tun)"
-    [[ -n "$dev" ]] && break
-    kill -0 "$client" 2>/dev/null || break
-    sleep 1
-done
-if [[ -n "$dev" ]]; then
-    ok "vpn-tunnel (HiddifyCli brought up $dev as $user)"
-else
-    fail vpn-tunnel "no tun device; HiddifyCli: $(grep -m2 -iE 'error|fatal|permission|denied' "$work/client.log" | tr '\n' ' ')"
-    finish
-fi
+# --- a tunnel, as the app's service brings it up -----------------------------------
 
-# through the tunnel, the server answers for the address
-out=""
-for _ in $(seq 10); do
-    out="$(fetch)" && [[ "$out" == "$token" ]] && break
-    sleep 1
-done
-if [[ "$out" == "$token" ]]; then
-    ok "vpn-traffic (http://$target/ answered through the tunnel by the test server)"
-else
-    fail vpn-traffic "got '${out:-nothing}', the server saw: $(grep CONNECT "$work/server.log" | tail -3 | tr '\n' ' ')"
-fi
+# as a system service, started by systemd like HiddifyAdminBG, with a folder of its own in
+# /var/lib as that has: what the domain the file's SELinux label leads to allows
+start_service() {
+    : >"$work/client-service.log"
+    systemd-run --quiet --collect --unit="$unit" -p NetworkNamespacePath=/run/netns/vpn-client \
+        -p StateDirectory="$unit" -p WorkingDirectory="/var/lib/$unit" \
+        -p StandardOutput="append:$work/client-service.log" -p StandardError="append:$work/client-service.log" \
+        "$cli" run -c "$data/borshevik-test.json" --tun --log info
+}
+stop_service() {
+    systemctl stop "$unit" 2>/dev/null
+    for _ in $(seq 10); do systemctl is-active -q "$unit" || break; sleep 1; done
+}
+who_service() {
+    local pid domain
+    pid="$(systemctl show -p MainPID --value "$unit" 2>/dev/null)"
+    domain="$(ps -o label= -p "${pid:-0}" 2>/dev/null | cut -d: -f3)"
+    echo "as a service in ${domain:-a domain unknown, it has exited}"
+}
 
-# --- down again ----------------------------------------------------------------------
-kill "$client" 2>/dev/null
-pkill -u "$user" -x HiddifyCli 2>/dev/null
-for _ in $(seq 10); do pgrep -u "$user" -x HiddifyCli >/dev/null || break; sleep 1; done
-client=""
-if [[ -z "$(tun)" ]] && ! fetch >/dev/null; then
-    ok "vpn-down (the tunnel went with HiddifyCli, and the address reaches nothing again)"
-else
-    fail vpn-down "tun device ${dev} still there or the address still answers"
-fi
+tunnel() { # way: vpn-<way>-tunnel, -traffic and -down, with start_<way>, stop_<way>, who_<way>
+    local way="$1" dev="" out="" who since
+    since="$(date '+%Y-%m-%d %H:%M:%S')"
+    "start_$way"
+    for _ in $(seq 30); do
+        dev="$(tun)"
+        [[ -n "$dev" ]] && break
+        sleep 1
+    done
+    who="$("who_$way")"
+    if [[ -z "$dev" ]]; then
+        fail "vpn-$way-tunnel" "no tun device, HiddifyCli ran ${who}: $(grep -m2 -iE 'error|fatal|permission|denied' "$work/client-$way.log" | tr '\n' ' ')$(journalctl --since "$since" -o cat 2>/dev/null | grep -m1 'AVC.*HiddifyCli' | sed -E 's/.*(denied .*) for .*(scontext=[^ ]*) (tcontext=[^ ]*).*/; SELinux: \1 \2 \3/')"
+        "stop_$way"
+        return
+    fi
+    ok "vpn-$way-tunnel (HiddifyCli brought up $dev, ${who})"
+
+    # through the tunnel, the server answers for the address
+    for _ in $(seq 10); do
+        out="$(fetch)" && [[ "$out" == "$token" ]] && break
+        sleep 1
+    done
+    if [[ "$out" == "$token" ]]; then
+        ok "vpn-$way-traffic (http://$target/ answered through the tunnel by the test server)"
+    else
+        fail "vpn-$way-traffic" "got '${out:-nothing}', the server saw: $(grep CONNECT "$work/server.log" | tail -3 | tr '\n' ' ')"
+    fi
+
+    # down again
+    "stop_$way"
+    if [[ -z "$(tun)" ]] && ! fetch >/dev/null; then
+        ok "vpn-$way-down (the tunnel went with HiddifyCli, and the address reaches nothing again)"
+    else
+        fail "vpn-$way-down" "tun device ${dev} still there or the address still answers"
+    fi
+}
+
+tunnel service
 
 finish
