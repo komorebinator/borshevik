@@ -2,7 +2,11 @@
 # the one makes and the build the other accepts are named by the same code. See
 # @ImageBuild#borshevik-packages-lib in spec/.
 #
-#   borshevik-packages/<source package>/*.patch   applied in name order
+#   borshevik-packages/<source package>/*.patch   a Fedora package, rebuilt with these applied in
+#                                                 name order, replacing the image's
+#   borshevik-packages/<package>/<package>.spec   a package of Borshevik's own, built from this
+#                                                 spec and installed; Version: and Release:
+#                                                 written out, with no macros
 
 LIB_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 PATCHES_DIR="$LIB_DIR/borshevik-packages"
@@ -13,8 +17,8 @@ shopt -s nullglob
 
 die() { echo "$(basename "$0" .sh): $*" >&2; exit 1; }
 
-# The source packages that have patches, one per line.
-patched_sources() {
+# Every package under borshevik-packages/, one per line.
+package_sources() {
     local dir
     for dir in "$PATCHES_DIR"/*/; do
         basename "$dir"
@@ -40,17 +44,51 @@ installed_version() {
     echo "$first"
 }
 
+# The spec of <package> when it is one of Borshevik's own, nothing for a Fedora one.
+own_spec() {
+    local spec="$PATCHES_DIR/$1/$1.spec"
+    [[ ! -f "$spec" ]] || echo "$spec"
+}
+
+# The version-release <package>'s own spec builds, from its Version: and Release: lines.
+spec_version() {
+    local spec v r
+    spec="$(own_spec "$1")"
+    v="$(sed -n 's/^Version:[[:space:]]*//p' "$spec")"
+    r="$(sed -n 's/^Release:[[:space:]]*//p' "$spec")"
+    [[ "$v" =~ ^[A-Za-z0-9._+~^]+$ && "$r" =~ ^[A-Za-z0-9._+~^]+$ ]] ||
+        die "${spec##*/} must write out Version: and Release:, with no macros (has '${v}', '${r}')"
+    echo "$v-$r"
+}
+
+# The version-release a build of <source> is for: the spec's for an own package, the
+# installed one for a Fedora package.
+wanted_version() {
+    if [[ -n "$(own_spec "$1")" ]]; then
+        spec_version "$1"
+    else
+        installed_version "$1"
+    fi
+}
+
 # The lines a build of <source> at <version-release> is known by; a build is made
-# again exactly when one of them changes.
+# again exactly when one of them changes: for a Fedora package its patches, for an own
+# one every file of its directory.
 build_key() {
     local src="$1" vr="$2" p f patches=("$PATCHES_DIR/$1"/*.patch)
-    ((${#patches[@]})) || die "borshevik-packages/${src}/ has no patches"
     echo "source $src"
     echo "version-release $vr"
-    echo "suffix $SUFFIX"
-    for p in "${patches[@]}"; do
-        echo "patch ${p##*/} $(sha256sum <"$p" | cut -d' ' -f1)"
-    done
+    if [[ -n "$(own_spec "$src")" ]]; then
+        for f in "$PATCHES_DIR/$src"/*; do
+            echo "file ${f##*/} $(sha256sum <"$f" | cut -d' ' -f1)"
+        done
+    else
+        ((${#patches[@]})) || die "borshevik-packages/${src}/ has neither patches nor ${src}.spec"
+        echo "suffix $SUFFIX"
+        for p in "${patches[@]}"; do
+            echo "patch ${p##*/} $(sha256sum <"$p" | cut -d' ' -f1)"
+        done
+    fi
     for f in build-borshevik-packages.sh borshevik-packages-lib.sh; do
         echo "script $f $(sha256sum <"$LIB_DIR/$f" | cut -d' ' -f1)"
     done

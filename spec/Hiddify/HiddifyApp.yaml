@@ -1,15 +1,12 @@
-description: Hiddify VPN client as integrated in Borshevik — installed from a Debian package at build time, launched via a wrapper script that prevents duplicate instances, with a polkit rule for DNS configuration.
+description: Hiddify VPN client as integrated in Borshevik — an RPM of Borshevik's own made from Hiddify's Debian package and installed in the base layer, launched via a wrapper script that prevents duplicate instances, with a polkit rule for DNS configuration.
 extends: "@Software"
 platform: Linux (binary)
-src: build_files/scripts/install-hiddify.sh
+src: build_files/scripts/borshevik-packages/hiddify/hiddify.spec
 components:
-  - id: installer
-    type: "@ShellScript"
-    description: Fetches the Hiddify release, unpacks its Debian package and installs the contents into the image.
-    src: build_files/scripts/install-hiddify.sh
-    functions:
-      - id: run
-        description: Installs Hiddify from its GitHub release's Debian package (the latest, or HIDDIFY_VERSION) by unpacking it into the image, since a .deb cannot be layered on an rpm-ostree system — the .deb rather than the AppImage because it has a plain system layout without bundled system libraries. The app goes to /usr/lib/hiddify, taken from the package's /opt/hiddify, where Hiddify ships it since 5.5.5 (2026-11-04; /usr/share/hiddify before, which made every image build fail when it moved — older releases are not supported, by the author's choice), and its binaries get the network capabilities a VPN needs (cap_net_admin, cap_net_raw, cap_net_bind_service). A binary with capabilities runs in secure mode, where the loader does not expand a relative RUNPATH outside trusted directories, so the app's RUNPATH is also made absolute; patchelf comes from @ImageBuild#install-rpm-packages. GITHUB_TOKEN, when set, avoids GitHub's rate limit in CI.
+  - id: package
+    type: "@ConfigFile"
+    src: build_files/scripts/borshevik-packages/hiddify/hiddify.spec
+    description: "The spec of the hiddify RPM, an own package of @ImageBuild#borshevik-packages-lib#PATCHES_DIR: built by @BorshevikWorkflow#build-borshevik-packages, installed in the base layer by @ImageBuild#install-borshevik-packages. Its Version: is the Hiddify release it packages, pinned rather than the latest so that a new release reaches the image only by a commit, and through the vm-scenario before users (the author, 2026-11-06, after 5.5.5 broke VPN mode with no commit of ours); a new release is a change to Version: and to the checksum of its Debian package. The .deb rather than the AppImage because it has a plain system layout without bundled system libraries. %prep checks the downloaded package against that checksum and unpacks it; the app goes to /usr/lib/hiddify, taken from the package's /opt/hiddify, and its two icons to hicolor — the package's own desktop entry and metainfo are not shipped, desktop-entry replaces the one. Prebuilt binaries, so no debug package, no build-id links and none of rpm's post-install processing, which would strip or alter Flutter's libraries; AutoReqProv off, the libraries it needs from the system being in the image already, as they were when the package was unpacked by hand. hiddify and HiddifyCli get, with %caps, the network capabilities a VPN needs (cap_net_admin, cap_net_raw, cap_net_bind_service), which `rpm -V` then checks. A binary with capabilities runs in secure mode, where the loader expands no relative RUNPATH outside trusted directories, so both get an absolute RUNPATH. Temporarily (#90), until a Hiddify release fixes it (hiddify/hiddify-app#2411 and #2423, still in 5.5.5): HiddifyCli names its core as `./lib/hiddify-core.so`, a path the loader takes relative to the working directory and never looks up in RUNPATH, so it starts only from its own folder, and the app, which runs it through pkexec from its data folder to connect in VPN mode, fails with exit status 127; the dependency is rewritten to the plain name `hiddify-core.so`, which on a release without the bug changes nothing."
   - id: wrapper
     type: "@ShellScript"
     description: Launcher that refuses to start a second instance and otherwise execs the real binary.
@@ -25,3 +22,12 @@ components:
     type: "@ConfigFile"
     src: build_files/root/usr/share/applications/Hiddify.desktop
     description: "XDG desktop entry replacing the one from the Debian package. Name 'Hiddify (VPN)' with a Russian translation, Icon=hiddify, StartupWMClass=app.hiddify.com, Categories=Network, and MimeType handlers for the hiddify, v2ray, clash and sing-box URI schemes. Exec is `/usr/lib/hiddify/hiddify %U` — the binary directly, bypassing @HiddifyApp#wrapper, so the single-instance guard does not apply to launches from the application grid."
+  - id: vm-scenario
+    type: "@ShellScript"
+    src:
+      - tests/scenarios/vpn/guest.sh
+      - tests/scenarios/vpn/paths
+    description: "The vpn scenario of @BorshevikWorkflow#scenarios: whether Hiddify's core, as the image installs it, brings a tunnel up in VPN (TUN) mode and carries traffic through it. Run whenever a change touches Hiddify's package, how it is launched or how it is allowed to set DNS, and — package being a Borshevik package — whenever the image's build of it is not :stable's (@BorshevikWorkflow#scenarios)."
+    functions:
+      - id: run
+        description: "After the login and the checks, with nothing leaving the machine: a test server and the client each in a network namespace of their own, joined by a veth pair, since the tunnel's routes take all of a namespace's traffic and in the guest's own would take the ssh session the scenario runs over. The server is a SOCKS5 proxy that answers a connection to 198.51.100.1:80 (TEST-NET-2) itself with a token made for the run; the client namespace's default route leads to it, and the address reaches nothing there with no tunnel, which is checked first. As tester, from the app's data folder (~/.local/share/app.hiddify.com) — where the app runs HiddifyCli from, so a library HiddifyCli reaches only from its own folder fails here — HiddifyCli parses a socks:// profile for the server and runs it with --tun: as tester, its capabilities are what let it make the tun device, so the setcap and the absolute RUNPATH a binary with capabilities needs are tested too. Passes when a tun device comes up in the client namespace, the address answers with the token through it, and once HiddifyCli is stopped the device is gone and the address reaches nothing again. It does not test the app's window, the pkexec helper it installs, or any real provider's protocol."

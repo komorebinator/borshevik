@@ -98,6 +98,16 @@ else
     [[ -z "$bad" ]] && ok "borshevik-packages ($n packages)" || fail borshevik-packages "$bad"
 fi
 
+# 12. Hiddify's binaries find every library they need from any working directory, as the app
+# runs HiddifyCli through pkexec from its data folder to connect in VPN mode
+bad=""
+for bin in /usr/lib/hiddify/hiddify /usr/lib/hiddify/HiddifyCli; do
+    out="$(cd / && /lib64/ld-linux-x86-64.so.2 --list "$bin" 2>&1)" || { bad+="$bin: $(head -1 <<<"$out"); "; continue; }
+    missing="$(grep 'not found' <<<"$out" | awk '{print $1}' | tr '\n' ' ')"
+    [[ -z "$missing" ]] || bad+="$bin lacks $missing; "
+done
+[[ -z "$bad" ]] && ok hiddify-libraries || fail hiddify-libraries "$bad"
+
 if [[ "$failed" -eq 0 ]]; then
     echo "all checks pass"
 fi

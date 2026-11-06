@@ -3,7 +3,6 @@
 set -ouex pipefail
 
 /build_scripts/os-info.sh
-/build_scripts/install-hiddify.sh
 /build_scripts/install-waydroid-script.sh
 /build_scripts/install-gs-extensions.sh
 /build_scripts/apply-schemas.sh
