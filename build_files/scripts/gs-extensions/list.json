@@ -63,7 +63,8 @@
         "forceGnomeVersion": true,
         "schemas": "schemas",
         "patches": {
-            "twitch-live-defaults.patch": "schemas/org.gnome.shell.extensions.twitchlive.gschema.xml"
+            "twitch-live-defaults.patch": "schemas/org.gnome.shell.extensions.twitchlive.gschema.xml",
+            "twitch-live-symbolic-icons.patch": "."
         }
     },
     {

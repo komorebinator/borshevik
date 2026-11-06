@@ -127,7 +127,12 @@ jq -c '.[]' "$EXT_JSON" | while read -r ENTRY; do
                 exit 1
             }
             echo "     • $patch_file → $rel_target"
-            patch "$ext_src/$rel_target" <"$patch_src"
+            # A directory target takes a patch of that whole directory, which can add files.
+            if [[ -d "$ext_src/$rel_target" ]]; then
+                patch -d "$ext_src/$rel_target" -p1 <"$patch_src"
+            else
+                patch "$ext_src/$rel_target" <"$patch_src"
+            fi
         done < <(jq -r '.patches|to_entries[]|"\(.key) \(.value)"' <<<"$ENTRY")
     fi
 

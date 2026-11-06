@@ -103,34 +103,24 @@ jobs:
             echo "$REPO:$TAG holds ${current:-nothing}; making it again"
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
+          echo "CURRENT=$current" >> "$GITHUB_ENV"
 
-      - name: Build what no packages image of this release has
+      - name: Build what this branch's packages image lacks
         if: steps.compare.outputs.changed == 'true'
         run: |
           work="$RUNNER_TEMP/packages"
           mkdir -p "$work/root/rpms"
-          # every image of this release, this branch's first, with what its label lists
-          tags="$(skopeo list-tags "docker://$REPO" 2>/dev/null | jq -r '.Tags[]' | grep -E "^$RELEASE-" || true)"
-          images=()
-          for t in "$TAG" $(grep -vxF "$TAG" <<<"$tags"); do
-            grep -qxF "$t" <<<"$tags" || continue
-            images+=("$t $(skopeo inspect --format '{{index .Labels "org.borshevik.packages"}}' "docker://$REPO:$t" 2>/dev/null || true)")
-          done
+          # Builds are taken only from this release and branch's own image, never another
+          # branch's: main must not ship what experimental built
           {
             echo "FROM scratch"
             echo "COPY root/ /"
           } > "$work/Containerfile"
           missing=()
           while read -r src tag; do
-            from=""
-            if [[ "$FORCE" != true ]]; then
-              for entry in "${images[@]}"; do
-                if [[ " ${entry#* } " == *" $src=$tag "* ]]; then from="${entry%% *}"; break; fi
-              done
-            fi
-            if [[ -n "$from" ]]; then
-              echo "$src: $tag from $REPO:$from"
-              echo "COPY --from=$REPO:$from /rpms/$src /rpms/$src" >> "$work/Containerfile"
+            if [[ "$FORCE" != true && " $CURRENT " == *" $src=$tag "* ]]; then
+              echo "$src: $tag from $REPO:$TAG"
+              echo "COPY --from=$REPO:$TAG /rpms/$src /rpms/$src" >> "$work/Containerfile"
             else
               echo "$src: $tag to be built"
               missing+=("$src")

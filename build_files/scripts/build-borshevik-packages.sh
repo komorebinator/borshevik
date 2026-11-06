@@ -2,21 +2,22 @@
 set -euo pipefail
 
 # Rebuilds every distribution package that has patches under borshevik-packages/
-# from the source RPM of exactly the version the base image carries. Runs in a
+# from the source RPM of exactly the version the base image carries, and builds every
+# package of Borshevik's own there from its spec. Runs in a
 # throwaway container of the base image, started by build-borshevik-packages.yml,
 # never inside an image build: what it installs to build goes away with the
 # container. Why it works this way, and what each patch is for, is said at
 # @ImageBuild#build-borshevik-packages in spec/.
 #
-#   build-borshevik-packages.sh plan                    <source> <tag> per patched source
+#   build-borshevik-packages.sh plan                    <source> <tag> per package
 #   build-borshevik-packages.sh build <out> <source>... <out>/<source>/: RPMs and build-info
 
 source "$(dirname "$(readlink -f "$0")")/borshevik-packages-lib.sh"
 
 plan() {
     local src vr
-    for src in $(patched_sources); do
-        vr="$(installed_version "$src")" || exit 1
+    for src in $(package_sources); do
+        vr="$(wanted_version "$src")" || exit 1
         echo "$src $(build_tag "$src" "$vr")"
     done
 }
@@ -110,6 +111,41 @@ build_one() { # out source
     rm -rf "$TOPDIR" "$srpm"
 }
 
+build_own() { # out package
+    local out="$1/$2" src="$2" spec vr started f made=()
+    spec="$(own_spec "$src")"
+    echo "== ${src}"
+    vr="$(spec_version "$src")" || exit 1
+    echo "Own package ${src}-${vr}, from ${spec##*/}"
+
+    # The spec's other files are its sources; what it names by URL rpmbuild downloads.
+    TOPDIR="$WORK/rpmbuild-$src"
+    mkdir -p "$TOPDIR/SOURCES"
+    cp "$PATCHES_DIR/$src"/* "$TOPDIR/SOURCES/"
+    quiet "dnf install rpm-build" dnf -y install --setopt=install_weak_deps=False rpm-build ||
+        die "rpm-build could not be installed"
+    quiet "dnf builddep ${src}" dnf -y builddep --setopt=install_weak_deps=False "$spec" ||
+        die "${src}'s build dependencies could not be installed"
+    echo "Building ${src}-${vr}"
+    started=$SECONDS
+    quiet "rpmbuild -bb ${src}" rpmb -bb --define '_disable_source_fetch 0' "$spec" ||
+        die "the build of ${src} ${vr} failed"
+    echo "Built in $(((SECONDS - started) / 60))m$(((SECONDS - started) % 60))s"
+
+    rm -rf "$out"
+    mkdir -p "$out"
+    for f in "$TOPDIR"/RPMS/*/*.rpm; do
+        [[ "$(rpm -qp --qf '%{VERSION}-%{RELEASE}' "$f")" == "$vr" ]] ||
+            die "the build of ${src} made ${f##*/}, not at ${vr}"
+        cp "$f" "$out/"
+        made+=("$f")
+    done
+    ((${#made[@]})) || die "the build of ${src} made no RPM"
+    build_key "$src" "$vr" >"$out/build-info"
+    echo "Wrote:"; (cd "$out" && printf '  %s\n' *)
+    rm -rf "$TOPDIR"
+}
+
 build() { # out source...
     local out="${1:?usage: $0 build <out> <source>...}" src
     shift
@@ -117,7 +153,11 @@ build() { # out source...
     trap 'rm -rf "$WORK"' EXIT
     for src in "$@"; do
         [[ -d "$PATCHES_DIR/$src" ]] || die "no borshevik-packages/${src}/"
-        build_one "$out" "$src"
+        if [[ -n "$(own_spec "$src")" ]]; then
+            build_own "$out" "$src"
+        else
+            build_one "$out" "$src"
+        fi
     done
 }
 

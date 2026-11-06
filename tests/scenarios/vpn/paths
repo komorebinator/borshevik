@@ -1,0 +1,7 @@
+# Files whose change means the vpn scenario must run: Hiddify's package and how it is
+# launched and allowed to set DNS. Its package is a Borshevik package, so the scenario runs
+# also when the image's build of it is not :stable's. See @HiddifyApp#vm-scenario in spec/.
+build_files/scripts/borshevik-packages/hiddify/**
+build_files/root/usr/bin/hiddify
+build_files/root/usr/share/applications/Hiddify.desktop
+build_files/root/etc/polkit-1/rules.d/50-hiddify.rules

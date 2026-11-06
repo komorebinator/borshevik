@@ -19,9 +19,10 @@ components:
     src:
       - build_files/scripts/gs-extensions/blur-my-shell-defaults.patch
       - build_files/scripts/gs-extensions/twitch-live-defaults.patch
+      - build_files/scripts/gs-extensions/twitch-live-symbolic-icons.patch
       - build_files/scripts/gs-extensions/bluetooth-battery-meter-defaults.patch
       - build_files/scripts/gs-extensions/status-area-spacer-defaults.patch
-    description: Change defaults in the extensions' own settings schemas, so a first login already looks like Borshevik — a darker Blur my Shell that leaves popup menus, notifications, switchers and dialogs unblurred (its popup blur, on by default since version 73, turned off), a more compact status area and Twitch indicator, Bluetooth battery shown as text.
+    description: "Change upstream extensions so a first login already looks like Borshevik. Most change defaults in an extension's own settings schema — a darker Blur my Shell that leaves popup menus, notifications, switchers and dialogs unblurred (its popup blur, on by default since version 73, turned off), a more compact status area and Twitch indicator, Bluetooth battery shown as text. twitch-live-symbolic-icons.patch changes the extension itself: Twitch Live draws its panel icon from SVGs filled with white, which GNOME Shell shows as they are, so on a light panel — GNOME's light variant, or Borshevik Glass with dark style off — the icon was white on near-white; the patch adds -symbolic.svg copies of them, which the shell recolours with the panel's text colour, and points the panel icon at those. Its notification icon is left as upstream draws it. A patch whose target in list.json is a file is applied to that file; one whose target is `.` is a patch of the whole extension directory, applied with -p1 inside it, which is how a patch adds files."
   - id: own-builds
     type: "@ShellScript"
     src:

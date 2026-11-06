@@ -2,8 +2,9 @@
 set -euo pipefail
 
 # Swaps Borshevik's builds of the distribution packages it patches in for the base
-# image's, and refuses the build unless what got installed is a build of exactly the
-# version the image has, made from these patches by these scripts. Builds nothing:
+# image's, and installs its own packages, and refuses the build unless what got
+# installed is a build of exactly the version the image has - or the spec gives - made
+# from these patches or this spec by these scripts. Builds nothing:
 # the builds are mounted at RPMS_DIR from the image build-borshevik-packages.yml
 # keeps. See @ImageBuild#install-borshevik-packages in spec/.
 
@@ -17,7 +18,7 @@ trap 'rm -rf "$WORK"' EXIT
 mkdir -p "$(dirname "$MANIFEST")"
 : >"$MANIFEST"
 
-mapfile -t sources < <(patched_sources)
+mapfile -t sources < <(package_sources)
 if ((${#sources[@]} == 0)); then
     echo "No Borshevik packages to install"
     exit 0
@@ -25,22 +26,49 @@ fi
 
 for src in "${sources[@]}"; do
     echo "== ${src}"
-    vr="$(installed_version "$src")" || exit 1
-    mapfile -t names < <(installed_from "$src" | cut -d' ' -f1)
-    echo "Installed from ${src}-${vr}: ${names[*]}"
+    spec="$(own_spec "$src")"
+    vr="$(wanted_version "$src")" || exit 1
+    if [[ -n "$spec" ]]; then
+        echo "Own package ${src}-${vr}, from ${spec##*/}"
+    else
+        mapfile -t names < <(installed_from "$src" | cut -d' ' -f1)
+        echo "Installed from ${src}-${vr}: ${names[*]}"
+    fi
 
-    # The build must be of this version, from these patches, by these scripts.
+    # The build must be of this version, from these patches or this spec, by these scripts.
     dir="$RPMS_DIR/$src"
     [[ -f "$dir/build-info" ]] ||
         die "no build of ${src} in ${dir}/ - the packages image (PACKAGES_TAG in the Containerfile) has none; build-borshevik-packages.yml makes it"
     want="$(build_key "$src" "$vr")" || exit 1
     if [[ "$(cat "$dir/build-info")" != "$want" ]]; then
         built_vr="$(sed -n 's/^version-release //p' "$dir/build-info")"
+        if [[ "$built_vr" != "$vr" && -n "$spec" ]]; then
+            die "the build of ${src} is of ${built_vr:-no version}, ${spec##*/} gives ${vr}: the packages image was made before the spec changed; the next base build makes the build for ${vr}"
+        fi
         [[ "$built_vr" == "$vr" ]] ||
             die "the build of ${src} is of ${built_vr:-no version}, the image has ${vr}: the base image moved on since the packages image was made, or a package transaction upgraded ${src}; the next base build makes the build for ${vr}"
         echo "The build of ${src} differs from what this image is built with:" >&2
         { diff "$dir/build-info" <(echo "$want") || true; } | sed -n 's/^< /  the build: /p; s/^> /  this image: /p' >&2
-        die "the build of ${src} was made from other patches or scripts than these"
+        die "the build of ${src} was made from other patches, files or scripts than these"
+    fi
+
+    if [[ -n "$spec" ]]; then
+        # An own package is installed, every RPM of its build, and is then the very RPM
+        # from the build, file for file - its capabilities too.
+        rpms=("$dir"/*.rpm)
+        ((${#rpms[@]})) || die "the build of ${src} has no RPM"
+        echo "Installing:"; printf '  %s\n' "${rpms[@]##*/}"
+        quiet "rpm-ostree install ${src}" rpm-ostree install -y "${rpms[@]}" ||
+            die "rpm-ostree could not install ${src}"
+        for f in "${rpms[@]}"; do
+            name="$(rpm -qp --qf '%{NAME}' "$f")"
+            have="$(rpm -q --qf '%{VERSION}-%{RELEASE} %{SHA256HEADER}' "$name")"
+            want="$(rpm -qp --qf '%{VERSION}-%{RELEASE} %{SHA256HEADER}' "$f")"
+            [[ "$have" == "$want" ]] || die "${name} is ${have}, not the build ${want}"
+            rpm -V "$name" || die "${name}'s files are not as packaged"
+            echo "$(rpm -q "$name") from ${spec##*/}=$(sha256sum <"$spec" | cut -d' ' -f1)" >>"$MANIFEST"
+        done
+        continue
     fi
 
     declare -A built=()
