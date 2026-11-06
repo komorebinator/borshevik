@@ -4,10 +4,13 @@
         "branch": "master"
     },
     {
-        "repo": "https://github.com/komorebinator/borshevik-glass",
-        "branch": "main",
-        "dir": "borshevik-glass@komorebinator",
-        "schemas": "schemas"
+        "repo": "https://github.com/aunetx/blur-my-shell",
+        "asset": "blur-my-shell@aunetx.shell-extension.zip",
+        "tag": "v75",
+        "schemas": "schemas",
+        "patches": {
+            "blur-my-shell-defaults.patch": "schemas/org.gnome.shell.extensions.blur-my-shell.gschema.xml"
+        }
     },
     {
         "repo": "https://github.com/pomoke/battery_time",

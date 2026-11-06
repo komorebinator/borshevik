@@ -77,10 +77,10 @@ else
     fail enable-new-extensions "result=$result started=$started gnome-session@gnome.target active at $target"
 fi
 
-# 10. Borshevik Glass's settings schema was compiled into the image
-light="$(as_user gsettings --schemadir /usr/share/gnome-shell/extensions/borshevik-glass@komorebinator/schemas \
-    get org.gnome.shell.extensions.borshevik-glass light-style 2>&1)"
-[[ "$light" == true ]] && ok glass-settings || fail glass-settings "light-style is $light"
+# 10. Blur my Shell leaves popups alone by default
+blur="$(as_user gsettings --schemadir /usr/share/gnome-shell/extensions/blur-my-shell@aunetx/schemas \
+    get org.gnome.shell.extensions.blur-my-shell.popup blur 2>&1)"
+[[ "$blur" == false ]] && ok blur-popups || fail blur-popups "popup blur is $blur"
 
 # 11. every Borshevik package the base build recorded is what is installed, files as packaged
 # but for their times: ostree sets every file's mtime to the epoch, so rpm -V flags them all
