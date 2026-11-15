@@ -1,4 +1,6 @@
 description: "How work is done on Borshevik, from a request to an image users rebase onto. A change is tried on `experimental` first — pushed there, built into `:latest` by hand, run on a real machine — and goes to `main` by pull request only once it works. `main` is what the daily build reads; what it produces is still under test, and reaches users only when a chosen build is promoted to `:stable`, which is also what installers switch to and ISOs are cut from. Nothing is triggered by a push or a merge: builds run on a schedule or by hand."
+tracker:
+  type: "@GitHub"
 extends: "@DuckWorkflow"
 main_branch: main
 versioning:
