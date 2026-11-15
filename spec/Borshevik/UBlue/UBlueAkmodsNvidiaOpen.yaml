@@ -1,0 +1,7 @@
+description: "Prebuilt NVIDIA open kernel modules, published by uBlue, so Borshevik's build never compiles them. Not an OS base image: its filesystem — the modules and the userspace driver RPMs of the same build — is copied into the NVIDIA base layer's build and installed by @ImageBuild#components#build-base-nvidia. Taken at @ImageBuild#components#containerfile#build_args#AKMODS_TAG, the same tag as @UBlueAkmods, from which @ImageBuild#components#install-kernel takes the kernel, because the modules only load against the exact kernel they were built for. External dependency — not built by this project."
+extends: "@ContainerImage"
+platform: OCI container image, published to ghcr.io/ublue-os
+repository: https://github.com/ublue-os/akmods
+registry: ghcr.io/ublue-os
+tags:
+  - whichever @ImageBuild#components#containerfile#build_args#AKMODS_TAG names — main-<FEDORA_MAJOR_VERSION>-<kernel version> while a kernel is held, e.g. main-44-7.1.13-200.fc44, main-<FEDORA_MAJOR_VERSION> otherwise — always the tag @UBlueAkmods is taken at

@@ -10,7 +10,11 @@ components:
   - id: os-release
     type: "@ConfigFile"
     src: build_files/root/usr/lib/os-release
-    description: "Branding half of /usr/lib/os-release — the name, ID, logo, default host name and project URLs; @ImageBuild#os-info appends the per-build fields, so both halves reach the system. The file replaces Fedora's whole, so anything of Fedora's still wanted has to be written here again. DEFAULT_HOSTNAME is one such field: systemd names a machine with no static host name after it, and without it falls back to `localhost`. That is every install from Borshevik's media, since the installer's network spoke, where a host name could be typed, is hidden (@IsoInstaller#keyboard) and GNOME Initial Setup asks for none. Without the field the machine is localhost in the shell prompt (found 2026-10-29 in a VM), and so to Bluetooth devices, to GSConnect and to the router. The name is changed in GNOME's settings."
+    description: "Branding half of /usr/lib/os-release — the name, ID, logo, default host name and project URLs; @ImageBuild#components#os-info appends the per-build fields, so both halves reach the system. The file replaces Fedora's whole, so anything of Fedora's still wanted has to be written here again. DEFAULT_HOSTNAME is one such field: systemd names a machine with no static host name after it, and without it falls back to `localhost`. That is every install from Borshevik's media, since the installer's network spoke, where a host name could be typed, is hidden (@IsoInstaller#components#keyboard) and GNOME Initial Setup asks for none. Without the field the machine is localhost in the shell prompt (decisions#default-hostname), and so to Bluetooth devices, to GSConnect and to the router. The name is changed in GNOME's settings."
+    decisions:
+      - id: default-hostname
+        description: "DEFAULT_HOSTNAME is set: found in a VM, without it the machine is localhost in the shell prompt."
+        date: 2026-10-29
   - id: borshevik-logo
     type: "@Graphic"
     src: build_files/root/usr/share/pixmaps/borshevik_logo.svg
@@ -36,16 +40,16 @@ components:
       - build_files/root/etc/containers/registries.d/borshevik.yaml
     description: "Borshevik images must carry the Borshevik signature: anything from ghcr.io/komorebinator is accepted only with a sigstore signature by cosign-key, looked up as a sigstore attachment on the registry. That is what makes every rebase or `bootc switch` to a Borshevik image — the installer's, the Image Manager's, one typed by hand — refuse an unsigned or foreign-signed one. policy.json is uBlue's policy — the one its ublue-os-signing package installs in the base image — with that one ghcr.io/komorebinator scope added after uBlue's own and nothing else changed, so updating it means taking uBlue's current file and adding the scope again. From uBlue it keeps: a top-level default of reject; for every transport uBlue knows (docker, docker-daemon, atomic, containers-storage, dir, oci, oci-archive, docker-archive, tarball) a transport-wide scope accepting anything, so any registry not listed and any local image source works as on plain Fedora; and signature checks for ghcr.io/ublue-os and quay.io/toolbx-images against uBlue's keys and for Red Hat's registries against Red Hat's GPG key. Fedora's own policy from containers-common accepts everything and checks nothing, which would let a substituted image under a Borshevik name install. A transport-wide scope is the one named by the empty string, `\"\"` (containers-policy.json(5)); an earlier hand-made copy wrote it `\"default\"`, which names a registry called default and matches nothing, and it also left out every transport but docker, so until 2026-09 every machine rejected docker.io, quay.io, `podman load` and switching to a locally built image."
   - id: cosign-key
-    type: "@PublicKey"
+    type: "@File"
     src: cosign.pub
     path: /etc/pki/containers/cosign.pub
-    description: Public half of the key CI signs every Borshevik image with (@BorshevikWorkflow#build-base), copied into the base layer by the Containerfile. A new key pair would make every installed system refuse the next update, since the key it checks against is the one it already has.
+    description: Public half of the key CI signs every Borshevik image with (@BorshevikWorkflow#components#build-base), copied into the base layer by the Containerfile. A new key pair would make every installed system refuse the next update, since the key it checks against is the one it already has.
   - id: desktop-entries
     type: "@ConfigFile"
     src:
       - build_files/root/usr/share/applications/org.borshevik.AppManager.desktop
       - build_files/root/usr/share/applications/org.borshevik.ImageManager.desktop
-    description: "Launcher entries of the two apps. Neither sets Categories: @ShellCustomizations#defaults puts both in the Borshevik app folder by file name."
+    description: "Launcher entries of the two apps. Neither sets Categories: @ShellCustomizations#components#defaults puts both in the Borshevik app folder by file name."
   - id: app-icons
     type: "@Graphic"
     src:
