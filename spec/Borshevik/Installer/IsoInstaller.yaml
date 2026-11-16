@@ -1,0 +1,90 @@
+description: "Configuration and lorax templates for building the Anaconda-based ISO installer; produces a minimal-UI install experience that ends with a bootc switch to the correct Borshevik image on GHCR. Two paths coexist: @BorshevikWorkflow#components#build-iso, which is what actually ships ISOs, and the image-builder TOML files, which only serve manual local builds."
+extends: "@Software"
+platform: TOML (image-builder config) + lorax templates (Anaconda)
+src: installer/
+components:
+  - id: partitioning
+    type: "@Script"
+    description: Lorax template setting the installer's default disk partitioning.
+    src: installer/lorax_templates/partitioning.tmpl
+    interpreter: lorax template
+    functions:
+      - id: run
+        description: Appends `clearpart --all --initlabel` and `autopart --type=lvm --fstype=ext4` to usr/share/anaconda/interactive-defaults.ks, so the installer wipes the chosen disk and lays out LVM on ext4 without asking. Passed to the build action alongside keyboard, branding and one of the bootc-switch templates.
+  - id: keyboard
+    type: "@Script"
+    interpreter: lorax template
+    src: installer/lorax_templates/keyboard.tmpl
+    description: Makes the installer and the LUKS passphrase prompt at boot read one keyboard layout, US English, whatever language is chosen, and gives the installed desktop the layouts Anaconda would have chosen for that language. The passphrase is typed in Anaconda but asked for at boot by Plymouth in the initramfs, which is the image's own and generic (@ImageBuild#components#finalize-image) and so knows only the console keymap given as `vconsole.keymap=` on the kernel command line. Left to itself, Anaconda gives a Russian install the layouts `us,ru` and the console keymap `ru`; Plymouth 24 then reads keys through the console with kbd's `ru` map — Latin by default, Cyrillic locked on by Ctrl+Shift with nothing on screen changing — and labels the prompt `ru`, the keymap's name rather than the active layer. A user who believed the label and pressed a switch, or who had typed the passphrase in Anaconda's `ru` layout, could not unlock the disk (decisions#one-layout). With one layout in the installer and the same one at boot, the passphrase can only be typed in what the prompt reads, without patching Anaconda.
+    functions:
+      - id: run
+        description: "Appends three things to the installer image. A `keyboard` command in interactive-defaults.ks setting the layouts to `us` alone and the console keymap to `us`: layouts set by kickstart are kept when a language is chosen (Anaconda's set_x_keyboard_defaults returns early), so the installer has nothing to switch to, and Anaconda writes `vconsole.keymap=us` to the kernel command line itself. An Anaconda configuration file in etc/anaconda/conf.d hiding the keyboard spoke, so a layout cannot be added back by hand, and the user and root password spokes, so no account is made in the installer; `hidden_spokes` replaces the list the active profile sets, and the installer's profile, Fedora's, hides nothing. With no account on the installed system, GDM starts GNOME Initial Setup on the first boot, and the first user's password is typed there, in the system's layout, which is what the login screen reads (@ShellCustomizations#components#gnome-initial-setup). A password typed in the installer would be read as `us`, while the login screen reads the desktop's first layout, and for a language with a Latin layout of its own that is its layout alone: installed in French, the user could not log in (decisions#password-in-initial-setup). The LUKS passphrase is still typed in the installer, which is right, since the prompt at boot reads it as `us` too. Hidden spokes are not collected at all (collect_spokes, Anaconda 44), so the installer stops requiring a user or a root password — Fedora Workstation's profile hides the same two for the same reason. The same file hides the rest of what the installer would ask beyond the disk, leaving Installation Destination alone on the hub: Language Support, whose extra languages only choose langpacks for a package install and do nothing for an image (the installer's language is chosen on its first screen, which stays), and Network & Host Name and Time & Date, as Fedora Workstation's profile does, since GNOME Initial Setup's system-level run asks for Wi-Fi and the time zone itself; the host name is left to GNOME's settings. Hidden or not, the installer's network still comes up on its own over a cable. And a `%post --nochroot` running a Python script the template writes beside interactive-defaults.ks, because the `keyboard` command also left the installed system with `us` alone: the script writes the installed system's /etc/X11/xorg.conf.d/00-keyboard.conf with what Anaconda would have chosen — the first of langtable's keyboards for the system's LANG, behind `us` when it cannot type ASCII, switched with Alt+Shift when there are two. GNOME and GDM take a new account's layouts from systemd-localed, which reads that file when /etc/vconsole.conf names no XKB layout, and Anaconda's vconsole.conf names none. The script runs outside the installed system because langtable is in the installer and not in the image, and finds the system through ANA_INSTALL_PATH, which Anaconda keeps only for compatibility and marks for removal — once it is gone, installs end up with `us` alone on the desktop. Tried in a VM: decisions#tried-in-russian. Only installs from this ISO are affected: a system rebased onto Borshevik keeps its own kernel arguments, and one installed from an earlier ISO keeps `vconsole.keymap=ru` until it is changed by hand."
+        decisions:
+          - id: password-in-initial-setup
+            description: "The first user's password is typed in GNOME Initial Setup, not in the installer. Found in a VM installed in French: the AZERTY key marked Z gave w in the installer and z at the login screen, and the user could not log in."
+            rejected:
+              - asking for the user's password in the installer
+            date: 2026-10-28
+          - id: tried-in-russian
+            description: "Tried in a VM installed in Russian: `us` in the installer and at the LUKS prompt, `vconsole.keymap=us`, `us,ru` switching on the desktop."
+            date: 2026-10-25
+    decisions:
+      - id: one-layout
+        description: One layout, US English, in the installer and at the boot prompt. Without it the disk could not be unlocked — reproduced in a VM; a tester's laptop refused a Latin passphrase typed without switching, a case not explained.
+        rejected:
+          - letting the prompt switch layouts — it needs the user's layouts carried into the generic initramfs (a kernel argument and a dracut hook of our own) and a Plymouth that shows the active layout, which only upstream main has (Plymouth.GetKeyboardLayout, 2026-10-19, for script themes), so the switch would work unseen
+        date: 2026-10-25
+  - id: branding
+    type: "@Script"
+    interpreter: lorax template
+    src: installer/lorax_templates/branding.tmpl
+    description: "Gives the installer Borshevik's logo on the GTK theme's plain background instead of Fedora's logo and blue. Anaconda picks its profile from the installer image's os-release, which is Fedora's, and that profile's fedora.css puts fedora-logos' blue background and Fedora logo in the sidebar; a `custom_stylesheet` in etc/anaconda/conf.d takes its place, since Anaconda reads conf.d after the profile. The product name and version the installer shows — `BORSHEVIK 44` in Anaconda, `Install borshevik 44` in the media's GRUB menu — are left as they are: they come from the build action's image name and Fedora release, the version is also the release the installer's packages are fetched for, and GRUB's menu is written in a stage the action takes no templates for; blanking the version only in Anaconda would leave `WELCOME TO BORSHEVIK .` unless Anaconda's own code were patched (decisions#keep-the-44)."
+    functions:
+      - id: run
+        description: Copies the stylesheet and the logo below into the installer image's usr/share/anaconda/pixmaps, creating that folder first in case fedora-logos stops providing it, with `runcmd cp` from /github/workspace, where the build action mounts the repository, and appends a `custom_stylesheet` naming the stylesheet to etc/anaconda/conf.d/91-borshevik-branding.conf.
+    components:
+      - id: stylesheet
+        type: "@ConfigFile"
+        src: installer/branding/borshevik.css
+        description: "Fills Anaconda's sidebar (.logo-sidebar) and the spokes' top bar (#nav-box) with the GTK theme's own window background, @theme_bg_color, with no background picture, the top bar's text in @theme_fg_color so it stays readable on it, and puts sidebar-logo at the top of the sidebar (.logo) at 128 px, leaving the product-logo slot empty. It sets every rule fedora.css set, since that file is no longer loaded and Anaconda's own anaconda-gtk.css, dark blue, would otherwise show through. What was tried before it: decisions#sidebar."
+        decisions:
+          - id: sidebar
+            description: The look this stylesheet gives, after two tries the author found wrong.
+            rejected:
+              - a dark sidebar in borshevik.org's surface colour
+              - Fedora's blue kept with only the logo changed
+            by: author
+            date: 2026-10-28
+      - id: sidebar-logo
+        type: "@Graphic"
+        src: installer/branding/sidebar-logo.png
+        format: PNG
+        role: logo
+        description: "@SystemConfig#components#borshevik-logo rendered to 256×256, shown at half that. A PNG rather than the SVG itself because GTK reads PNG through gdk-pixbuf, as it does Fedora's own sidebar images, while SVG goes through gdk-pixbuf's external loaders (glycin's in Fedora 44), which nothing checks in the installer environment. Rendered with `magick -background none -density 192 build_files/root/usr/share/pixmaps/borshevik_logo.svg -resize 256x256 -depth 8 installer/branding/sidebar-logo.png`; rendered again when the logo changes."
+    decisions:
+      - id: keep-the-44
+        description: The product name and version the installer shows are left as the build action makes them.
+        by: author
+        date: 2026-10-28
+  - id: bootc-switch
+    type: "@Script"
+    interpreter: lorax template
+    src:
+      - installer/lorax_templates/bootc-switch.tmpl
+      - installer/lorax_templates/bootc-switch-stable.tmpl
+      - installer/lorax_templates/bootc-switch-nvidia.tmpl
+      - installer/lorax_templates/bootc-switch-nvidia-stable.tmpl
+    description: One template per variant and channel, each ending the installation on that image, with that variant's kernel arguments already set.
+    functions:
+      - id: run
+        description: "Adds a post-install step that switches the installed system to the template's image with the container signature policy enforced, so from its first boot it follows ghcr.io and accepts only Borshevik-signed updates (@SystemConfig#components#container-policy). Before it, a `bootloader --append` line with the kernel arguments @Services#components#kernel-args#components#script sets for the template's variant: Anaconda passes them, with root= and vconsole.keymap=, to `ostree admin instutil set-kargs --merge` (_set_kargs in Anaconda 44's rpm_ostree installation), so the installed system boots with them from its first boot, setup-kargs finds nothing to add, and the install is spared the reboot setup-kargs would make to add them. The lists are written out in both places, in the template and in the script, and must stay the same; @BorshevikWorkflow#components#validate compares them. @BorshevikWorkflow#components#build-iso uses only the two :stable ones; the :latest ones are not used by any workflow."
+  - id: image-builder-configs
+    type: "@ConfigFile"
+    src:
+      - borshevik.toml
+      - borshevik-nvidia.toml
+      - image.toml
+    description: For building installer media by hand. borshevik.toml and borshevik-nvidia.toml are image-builder configs, one per variant, installing that variant's :latest with disk selection as the only step; image.toml gives bootc-image-builder a 20 GiB minimum root filesystem. They set no kernel arguments, so a system installed from them reboots once on its first boot while @Services#components#kernel-args adds them. No workflow reads them — @BorshevikWorkflow#components#build-iso builds the published media from the lorax templates instead.
+goals:
+  - Produce a bootable ISO that installs Borshevik with as few questions as an install can be reduced to
+  - End installation on the correct image and variant for the hardware, so no post-install rebase is needed

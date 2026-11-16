@@ -1,10 +1,10 @@
-description: GNOME Shell extensions installed in Borshevik at image build time, system-wide so every user has them, and preconfigured rather than left at upstream defaults. Installed by @ImageBuild#build-addons in the final layer; switched on for users by @ShellCustomizations#apply-dconf and @Services#extension-autoenable.
+description: GNOME Shell extensions installed in Borshevik at image build time, system-wide so every user has them, and preconfigured rather than left at upstream defaults. Installed by @ImageBuild#components#build-addons in the final layer; switched on for users by @ShellCustomizations#components#apply-dconf and @Services#components#extension-autoenable.
 extends: "@Software"
 platform: bash + GNOME Shell (GJS)
 src: build_files/scripts/gs-extensions/
 components:
   - id: installer
-    type: "@ShellScript"
+    type: "@Script"
     src: build_files/scripts/install-gs-extensions.sh
     functions:
       - id: run
@@ -13,7 +13,7 @@ components:
     type: "@ConfigFile"
     format: JSON
     src: build_files/scripts/gs-extensions/list.json
-    description: Which extensions ship and where each comes from — a release, a tag or a branch of its upstream repository, including Borshevik's own extensions, which are separate projects worked on as @BorshevikExtensionWorkflow describes. An entry pinned to a tag stays put; one that follows a branch or the latest release changes with every image build, so a new upstream commit reaches users without any change in this repository. An entry taking a release's asset takes the latest release's unless it names one by `tag`.
+    description: Which extensions ship and where each comes from — a release, a tag or a branch of its upstream repository, including Borshevik's own extensions, which are separate projects, each worked on as the workflow in its own repository describes. An entry pinned to a tag stays put; one that follows a branch or the latest release changes with every image build, so a new upstream commit reaches users without any change in this repository. An entry taking a release's asset takes the latest release's unless it names one by `tag`.
   - id: default-patches
     type: "@Patch"
     src:
@@ -24,11 +24,16 @@ components:
       - build_files/scripts/gs-extensions/status-area-spacer-defaults.patch
     description: "Change upstream extensions so a first login already looks like Borshevik. Most change defaults in an extension's own settings schema — a darker Blur my Shell that leaves popup menus, notifications, switchers and dialogs unblurred (its popup blur, on by default since version 73, turned off), a more compact status area and Twitch indicator, Bluetooth battery shown as text. twitch-live-symbolic-icons.patch changes the extension itself: Twitch Live draws its panel icon from SVGs filled with white, which GNOME Shell shows as they are, so on a light panel — GNOME's light variant, or Borshevik Glass with dark style off — the icon was white on near-white; the patch adds -symbolic.svg copies of them, which the shell recolours with the panel's text colour, and points the panel icon at those. Its notification icon is left as upstream draws it. A patch whose target in list.json is a file is applied to that file; one whose target is `.` is a patch of the whole extension directory, applied with -p1 inside it, which is how a patch adds files."
   - id: own-builds
-    type: "@ShellScript"
+    type: "@Script"
     src:
       - build_files/scripts/gs-extensions/appindicator.sh
       - build_files/scripts/gs-extensions/gsconnect.sh
       - build_files/scripts/gs-extensions/color-picker.sh
     functions:
       - id: run
-        description: Extensions installed through their own build system instead of by copying their folder; the toolchain they need is layered into the base image by @ImageBuild#install-rpm-packages.
+        description: Extensions installed through their own build system instead of by copying their folder; the toolchain they need is layered into the base image by @ImageBuild#components#install-rpm-packages.
+guidelines:
+  - "Borshevik's own extensions are cloned from their repository's `main` at every build of the final layer — `experimental` builds included — so a push to an extension's `main` reaches the next `:latest` with no tag or release in between, and list.json sets no `forceGnomeVersion` for them: when Borshevik's base moves to a new GNOME release, each of them stops loading in the image until its metadata.json `shell-version` names that release."
+goals:
+  - Ship the GNOME Shell extensions that make the desktop usable out of the box, preconfigured rather than merely installed
+  - Pin each extension to a known-good source and patch its defaults at build time, so a first login never lands on upstream defaults

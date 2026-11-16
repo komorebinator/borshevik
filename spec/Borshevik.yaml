@@ -1,4 +1,4 @@
-description: An immutable desktop image for laptops and desktops alike, built on Fedora Atomic and the uBlue ecosystem, designed to be simple to use and ready to go right after installation. Not laptop-first any more (the author, 2026-10-31).
+description: An immutable desktop image for laptops and desktops alike, built on Fedora Atomic and the uBlue ecosystem, designed to be simple to use and ready to go right after installation.
 extends: "@DuckspecProject"
 terms_folder: Borshevik/
 repository: https://github.com/komorebinator/borshevik
@@ -9,20 +9,9 @@ goals:
   - Curate a minimal set of useful applications installable on first login via the App Manager
   - Support both standard and NVIDIA hardware variants from the same build pipeline
 guidelines:
-  - "The build is split into two layers. Base layer (@BorshevikBaseImage, @BorshevikBaseNvidiaImage): the kernel, RPM packages, Chrome, Steam and the NVIDIA drivers — what changes with upstream. Final layer (@BorshevikImage, @BorshevikNvidiaImage): Hiddify, GNOME extensions, config files and the GJS apps — what changes with Borshevik's own work. When each is built, and which one a change needs rebuilt, is @BorshevikWorkflow's."
+  - "The build is split into two layers. Base layer (@BorshevikBaseImage, @BorshevikBaseNvidiaImage): the kernel, RPM packages — Borshevik's own packages and rebuilt ones among them, Hiddify included — Chrome, Steam and the NVIDIA drivers: what changes with upstream. Final layer (@BorshevikImage, @BorshevikNvidiaImage): GNOME extensions, config files and the GJS apps — what changes with Borshevik's own work. When each is built, and which one a change needs rebuilt, is @BorshevikWorkflow's."
 uses:
   - https://github.com/komorebinator/duckspec
-  - UBlue.yaml
-  - AppManager.yaml
-  - ImageManager.yaml
-  - BorshevikShellExtensions.yaml
-  - BorshevikShellCustomizations.yaml
-  - Hiddify.yaml
-  - BorshevikServices.yaml
-  - GoogleChrome.yaml
-  - Steam.yaml
-  - Waydroid.yaml
-  - Installer.yaml
 software:
   - "@SystemConfig"
   - "@RepositoryAssets"
@@ -31,11 +20,33 @@ software:
   - "@BorshevikImage"
   - "@BorshevikNvidiaImage"
   - "@ImageBuild"
-startup:
-  - load
+  - "@ImageManagerApp"
+  - "@AppManagerApp"
+  - "@GnomeExtensions"
+  - "@ShellCustomizations"
+  - "@Services"
+  - "@GoogleChromeApp"
+  - "@HiddifyApp"
+  - "@SteamApp"
+  - "@WaydroidApp"
+  - "@IsoInstaller"
 workflow:
   type: "@BorshevikWorkflow"
 settings:
   readme: ../README.md
   src: ..
   agents: AGENTS.md
+decisions:
+  - id: not-laptop-first
+    description: Borshevik is for laptops and desktops alike, not laptop-first any more.
+    by: author
+    date: 2026-10-31
+references:
+  - repository: https://github.com/komorebinator/borshevik-workspace-manager
+    description: "Installed as a GNOME Shell extension via list.json; developed as its own Duckspec-managed project."
+  - repository: https://github.com/komorebinator/borshevik-app-search
+    description: "Installed as a GNOME Shell extension via list.json; developed as its own Duckspec-managed project."
+  - repository: https://github.com/komorebinator/borshevik-update-indicator
+    description: "Installed as a GNOME Shell extension via list.json; developed as its own Duckspec-managed project. Shows a status icon while a downloaded image waits for a reboot — the in-session counterpart of @ImageManagerApp's \"Reboot to apply update\" row, using the same condition."
+  - repository: https://github.com/komorebinator/borshevik-translate
+    description: "Installed as a GNOME Shell extension via list.json; developed as its own Duckspec-managed project. Translates the selected text from a tray icon or Super+T, through translate-shell, which @ImageBuild#components#install-rpm-packages layers for it."

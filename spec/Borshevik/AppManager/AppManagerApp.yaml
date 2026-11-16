@@ -13,10 +13,15 @@ components:
         description: Build number shown in the title as "(vN)"; bumped by hand for each release of the app.
       - id: KINDS
         type: "{ [type: 'flatpak']: service }"
-        description: "The kinds of app this version installs, each with the service that installs it, in the order a run installs them. Every service has `isValid` (whether an entry carries what its kind needs), `displayName` (how an app is named in progress and the report) and `installApps`. Flatpak is the only kind: Android apps come from Google Play once Android is installed. That is also why the curated list is applications.json, plain Flathub ids, again rather than applications-v2.json, whose typed entries existed for the Android apps an App Manager of 2026-10-01 to 2026-10-03 installed from APKs."
+        description: "The kinds of app this version installs, each with the service that installs it, in the order a run installs them. Every service has `isValid` (whether an entry carries what its kind needs), `displayName` (how an app is named in progress and the report) and `installApps`. Flatpak is the only kind: Android apps come from Google Play once Android is installed. That is also why the curated list is applications.json, plain Flathub ids (decisions#plain-list)."
+        decisions:
+          - id: plain-list
+            description: "The curated list is applications.json, plain Flathub ids, again: with Flatpak the only kind, entries need no type."
+            rejected:
+              - applications-v2.json — its typed entries existed for the Android apps an App Manager of 2026-10-01 to 2026-10-03 installed from APKs
       - id: MODULES
         type: "Array<{name: 'android', label, title, subtitle, isInstalled: () => boolean, then?: string[]}>"
-        description: "The additional modules this version offers, in the order a run installs them — each the name modules#run installs it by, with how to tell it is already installed without privileges (android: @WaydroidApp#control#stamp exists, the test the Image Manager uses). `then`, when present, is the command run once a run has installed the module — for android, `borshevik-image-manager --page android`, which opens the Image Manager on its Android tab, where the user registers the device with Google before Google Play will sign in (@ImageManagerApp#main-window#android-page). The one list of known modules: the modules group shows one row per entry and an imported configuration's modules outside it are reported as not supported. Adding a module means an entry here, its row's strings, and its line in modules#run's table."
+        description: "The additional modules this version offers, in the order a run installs them — each the name modules#run installs it by, with how to tell it is already installed without privileges (android: @WaydroidApp#components#control#fields#stamp exists, the test the Image Manager uses). `then`, when present, is the command run once a run has installed the module — for android, `borshevik-image-manager --page android`, which opens the Image Manager on its Android tab, where the user registers the device with Google before Google Play will sign in (@ImageManagerApp#components#main-window#components#android-page). The one list of known modules: the modules group shows one row per entry and an imported configuration's modules outside it are reported as not supported. Adding a module means an entry here, its row's strings, and its line in modules#run's table."
       - id: this._categories
         type: "Array<{name, default, apps: Array<{type: 'flatpak', id}>}>"
         default: "[]"
@@ -85,7 +90,7 @@ components:
       - id: _runInstall
         description: "One run, from either tab, with a set of apps and a set of modules: first _runModules; if it reports a refusal, the run ends there — nothing installed, back on the tab it came from with everything as it was, no results page — since a user who cancels the password prompt has changed their mind about the run. A failed module does not stop the apps, which do not depend on it. Then, for each kind in KINDS order that has apps, its service's installApps — for flatpak after reading what is already installed (carrying on without that knowledge if it cannot). The installing page is updated for each app; the progress callback drains the GLib main loop so the page repaints between apps. Ends on results-page, and then runs the `then` command of each module the run installed (MODULES), so a user who has just installed Android is shown how to register it."
   - id: flatpak-service
-    type: "@Singleton"
+    type: "JavaScript module holding state of its own"
     description: Flatpak operations — listing what is installed and installing a selection.
     src: build_files/root/usr/share/borshevik-app-manager/flatpak.js
     functions:
@@ -98,7 +103,7 @@ components:
       - id: installApps
         description: Installs the apps one at a time from flathub, non-interactively, skipping the ones already installed. Cancellation is checked before each app and again after the running install ends, so a cancel never starts another install. Returns what was installed, already installed and failed (with the error), and whether the run was cancelled.
   - id: transfer-service
-    type: "@Singleton"
+    type: "JavaScript module holding state of its own"
     description: "The configuration that carries a setup from one computer to another, and the two ways of producing it. A configuration is readable JSON, so a user can see before importing what it will install, and edit it: an object with `borshevik-config`, the format's version (1), and a key per category of configuration exported — `applications`, an object with a list of ids per kind of app (`flatpak`: Flathub application ids); `modules`, a list of module names (`android`). A category not exported is absent. Both ways produce it with export-script, so a Borshevik machine and any other give the same format from the same code."
     src: build_files/root/usr/share/borshevik-app-manager/transfer.js
     fields:
@@ -117,39 +122,39 @@ components:
       - id: exportScript
         description: "export-script as text to paste into a terminal on another computer: its body, with the checked categories written into it, wrapped in a quoted bash here-document (`bash <<'BORSHEVIK_EXPORT'` … `BORSHEVIK_EXPORT`), so pasted into an interactive shell it runs in a bash of its own — its `exit` and settings cannot touch the user's shell — and nothing in it is expanded on the way. Works where the shell understands here-documents — bash, zsh, sh; not fish."
   - id: export-script
-    type: "@ShellScript"
+    type: "@Script"
     src: build_files/root/usr/share/borshevik-app-manager/export-config.sh
     description: "Prints a computer's configuration (transfer-service) for the categories it is given, and, unless run with `--print`, also copies it to the clipboard — the half of a transfer that runs on the computer the setup comes from, a Borshevik one or not. Takes the categories as arguments, or from its CATEGORIES line, which transfer-service#exportScript fills in when the arguments cannot be passed. Needs only bash and coreutils."
     functions:
       - id: run
-        description: "`export-config.sh [--print] [applications] [modules]`. applications: the ids of the apps installed from the flathub remote, when flatpak exists (none otherwise). modules: `android` when Android is installed — Borshevik's stamp (@WaydroidApp#control#stamp), or on another system a Waydroid initialised with a system image. Ids not of the form Flathub uses are left out, so the JSON it builds by hand needs no escaping. Without `--print`, puts the configuration on the clipboard with the first of wl-copy (in a Wayland session), xclip and xsel that exists, and says on stderr where it went; with none of them, says to copy the printed configuration by hand. Prints the configuration on stdout either way."
+        description: "`export-config.sh [--print] [applications] [modules]`. applications: the ids of the apps installed from the flathub remote, when flatpak exists (none otherwise). modules: `android` when Android is installed — Borshevik's stamp (@WaydroidApp#components#control#fields#stamp), or on another system a Waydroid initialised with a system image. Ids not of the form Flathub uses are left out, so the JSON it builds by hand needs no escaping. Without `--print`, puts the configuration on the clipboard with the first of wl-copy (in a Wayland session), xclip and xsel that exists, and says on stderr where it went; with none of them, says to copy the printed configuration by hand. Prints the configuration on stdout either way."
   - id: modules
-    type: "@ShellScript"
+    type: "@Script"
     src: build_files/root/usr/libexec/borshevik/borshevik-modules
     description: "The one privileged entry point of window#_runModules: installs every module a run needs under a single pkexec, so the user gives the password once however many modules there are. It only dispatches — each module is installed by its own script, the one the Image Manager also runs, so a module installed from here is the same as one installed there."
     functions:
       - id: run
-        description: "`borshevik-modules prepare <module>...`. Refuses unless root. Accepts only module names from its own table, which maps each to the command that installs it — `android` to `/usr/libexec/borshevik/borshevik-waydroid install` (@WaydroidApp#control#install) — and rejects the whole call before doing anything when any argument is not in it: it runs as root on arguments that come from a user's process — an imported configuration among them — so it must never take a path or a command from them. Then, for each module in the order given: prints `::module <name>`, runs its command with the output passed through, and prints `::result <name> ok` or `::result <name> failed <exit status>`. A failed module does not stop the ones after it. Exits 0 when every module succeeded and 1 otherwise — never 126 or 127, which pkexec returns when the password is refused, so the caller can tell the two apart."
+        description: "`borshevik-modules prepare <module>...`. Refuses unless root. Accepts only module names from its own table, which maps each to the command that installs it — `android` to `/usr/libexec/borshevik/borshevik-waydroid install` (@WaydroidApp#components#control#functions#install) — and rejects the whole call before doing anything when any argument is not in it: it runs as root on arguments that come from a user's process — an imported configuration among them — so it must never take a path or a command from them. Then, for each module in the order given: prints `::module <name>`, runs its command with the output passed through, and prints `::result <name> ok` or `::result <name> failed <exit status>`. A failed module does not stop the ones after it. Exits 0 when every module succeeded and 1 otherwise — never 126 or 127, which pkexec returns when the password is refused, so the caller can tell the two apart."
   - id: net-service
-    type: "@Singleton"
+    type: "JavaScript module holding state of its own"
     description: HTTP GET over libsoup with a timeout — JSON or raw bytes; any non-2xx status is an error.
     src: build_files/root/usr/share/borshevik-app-manager/net.js
   - id: launcher
-    type: "@ShellScript"
+    type: "@Script"
     description: On-PATH entry point; starts the app with `gjs -m`, passing its arguments through.
     src: build_files/root/usr/bin/borshevik-app-manager
   - id: first-run
-    type: "@ShellScript"
-    description: "Runs the App Manager once per user: started at login by @Services#app-manager-first-run, it does nothing when the user's stamp file exists, and otherwise runs the app and writes the stamp only if the app exits successfully. Closing the window is a successful exit — even when the list failed to load and nothing was offered — so a user who closes it is not asked again; only a crash brings it back at the next login."
+    type: "@Script"
+    description: "Runs the App Manager once per user: started at login by @Services#components#app-manager-first-run, it does nothing when the user's stamp file exists, and otherwise runs the app and writes the stamp only if the app exits successfully. Closing the window is a successful exit — even when the list failed to load and nothing was offered — so a user who closes it is not asked again; only a crash brings it back at the next login."
     src: build_files/root/usr/bin/borshevik-app-manager-first-run
   - id: i18n
-    type: "@Singleton"
-    description: Translations for en, ru, uk, ka, hy and be, held in the code itself rather than in files. The language is `--lang` when it names a supported one; otherwise it comes from the first non-empty of LC_ALL, LANG, LANGUAGE, and is English when that one names no supported language — a different order from @ImageManagerApp#i18n's; a missing key falls back to English and then to the key itself.
+    type: "JavaScript module holding state of its own"
+    description: Translations for en, ru, uk, ka, hy and be, held in the code itself rather than in files. The language is `--lang` when it names a supported one; otherwise it comes from the first non-empty of LC_ALL, LANG, LANGUAGE, and is English when that one names no supported language — a different order from @ImageManagerApp#components#i18n's; a missing key falls back to English and then to the key itself.
     src: build_files/root/usr/share/borshevik-app-manager/i18n.js
     fields:
       - id: TRANSLATIONS
         type: "{ [lang: 'en'|'ru'|'uk'|'ka'|'hy'|'be']: { [key: string]: string } }"
-        description: The dictionaries, one per language; @BorshevikWorkflow#validate checks that every language has exactly the keys of en.
+        description: The dictionaries, one per language; @BorshevikWorkflow#components#validate checks that every language has exactly the keys of en.
 tests:
   - id: transfer
     description: "transfer-service under gjs and export-script under bash, outside any window: parseConfig keeping Flathub ids and module names and dropping option-shaped ones, passing on a module it does not know, and refusing text that is not JSON, a non-object, a missing or too new version and a configuration with nothing to install; readThisPc giving what export-script prints; export-script with `--print` printing valid JSON with only the categories asked for; exportScript's text, run by bash, printing the same configuration as export-script itself."
@@ -159,6 +164,10 @@ tests:
     description: "Manual, on the author's machine running the working tree (recipes#run): both tabs at the window's default size and narrower, tiles toggling, an install run of a few apps, Android support checked on a machine without it, a configuration copied on one computer and imported on another through GSConnect, and the script run on a computer without Borshevik."
     command: the author on their own machine, the app run by recipes#run
     expect: the author confirms the window looks right and each path works
+goals:
+  - Get a curated set of useful applications onto a fresh install without the user hunting through Flathub
+  - Run once, on first login, and then stay out of the way
+  - Move a user's applications and modules from their old computer to a new Borshevik one without retyping them
 recipes:
   - id: run
     description: Runs the App Manager straight from the repository working tree, beside an installed one if it is open, so a change can be tried on this machine without building an image.

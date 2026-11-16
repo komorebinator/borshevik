@@ -7,4 +7,9 @@ components:
     src: assets/borshevik_logo.svg
     format: SVG
     role: branding
-    description: The logo README.md shows. The two download buttons it showed until 2026-10-31 are gone, its installation section linking the site's installation page instead (the author).
+    description: The logo README.md shows. Its installation section links the site's installation page rather than showing download buttons (decisions#install-page-link).
+    decisions:
+      - id: install-page-link
+        description: README.md's installation section links the site's installation page instead of the two download buttons — the ISOs' permanent links — it showed before.
+        by: author
+        date: 2026-10-31

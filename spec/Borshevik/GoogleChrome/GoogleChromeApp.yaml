@@ -4,7 +4,7 @@ platform: RPM / JSON
 src: build_files/scripts/install-google-chrome.sh
 components:
   - id: installer
-    type: "@ShellScript"
+    type: "@Script"
     description: Makes /opt writable by symlink, layers google-chrome-stable from Google's repository, then makes it the default browser and patches its launcher for Wayland.
     src: build_files/scripts/install-google-chrome.sh
     functions:
@@ -14,3 +14,6 @@ components:
     type: "@ConfigFile"
     src: build_files/root/usr/etc/opt/chrome/policies/managed/borshevik.json
     description: "Chrome managed policy JSON, applied system-wide to every user. Sets exactly one key — PromotionsEnabled: false — which suppresses Google's in-browser promotional content."
+goals:
+  - Ship a working browser on first login instead of leaving the user to install one
+  - Enforce the intended browser policy system-wide, so defaults do not depend on when the profile was created
