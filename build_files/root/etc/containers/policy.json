@@ -41,7 +41,43 @@
                     }
                 }
             ],
-            "ghcr.io/komorebinator": [
+            "ghcr.io/komorebinator/borshevik": [
+                {
+                    "type": "sigstoreSigned",
+                    "keyPath": "/etc/pki/containers/cosign.pub",
+                    "signedIdentity": {
+                        "type": "matchRepository"
+                    }
+                }
+            ],
+            "ghcr.io/komorebinator/borshevik-nvidia": [
+                {
+                    "type": "sigstoreSigned",
+                    "keyPath": "/etc/pki/containers/cosign.pub",
+                    "signedIdentity": {
+                        "type": "matchRepository"
+                    }
+                }
+            ],
+            "ghcr.io/komorebinator/borshevik-base": [
+                {
+                    "type": "sigstoreSigned",
+                    "keyPath": "/etc/pki/containers/cosign.pub",
+                    "signedIdentity": {
+                        "type": "matchRepository"
+                    }
+                }
+            ],
+            "ghcr.io/komorebinator/borshevik-base-nvidia": [
+                {
+                    "type": "sigstoreSigned",
+                    "keyPath": "/etc/pki/containers/cosign.pub",
+                    "signedIdentity": {
+                        "type": "matchRepository"
+                    }
+                }
+            ],
+            "ghcr.io/komorebinator/borshevik-packages": [
                 {
                     "type": "sigstoreSigned",
                     "keyPath": "/etc/pki/containers/cosign.pub",
