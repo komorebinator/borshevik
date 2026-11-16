@@ -98,7 +98,15 @@ components:
     src: build_files/scripts/install-kernel.sh
     functions:
       - id: run
-        description: Replaces every installed kernel subpackage with the RPMs COPYed from @UBlueAkmods into /tmp/akmods-kernel, via `rpm-ostree override replace`. The set is read from what the base image actually has installed — kernel, kernel-core, kernel-modules, kernel-modules-core, kernel-modules-extra — rather than hardcoded, and the script exits non-zero when the cache lacks one of them instead of leaving a half-swapped kernel; uBlue's fetch-kernel.sh caches all five for the Fedora flavours. kernel-headers and kernel-tools are left at the base image's version, the akmods cache carrying neither. Runs first in build-base.sh so everything layered afterwards resolves against the kernel that ships.
+        description: "Swaps every installed kernel subpackage for its RPM COPYed from @UBlueAkmods into /tmp/akmods-kernel, the way uBlue's own Bluefin does: erases them with `rpm --erase --nodeps` and installs the cache's with dnf5, so the swap works whichever version the base image has — older, newer or the very same (decisions#erase-and-install). The set is read from what the base image actually has installed — kernel, kernel-core, kernel-modules, kernel-modules-core, kernel-modules-extra — rather than hardcoded, and the script exits non-zero before erasing anything when the cache lacks one of them, instead of leaving a half-swapped kernel; uBlue's fetch-kernel.sh caches all five for the Fedora flavours. After the erase it deletes /usr/lib/modules/<version> of each erased kernel, which keeps files no package owns, such as the base image's initramfs; then refuses the build unless exactly one kernel is installed, it is the cache's, and /usr/lib/modules holds that one alone — a second directory there would be a second kernel in the image. kernel-headers and kernel-tools are left at the base image's version, the akmods cache carrying neither. Runs first in build-base.sh so everything layered afterwards resolves against the kernel that ships."
+        decisions:
+          - id: erase-and-install
+            description: The kernel is swapped by erasing the base image's and installing the cache's with dnf5, as Bluefin and Aurora do, not with `rpm-ostree override replace`.
+            rejected:
+              - rpm-ostree override replace — refuses a package at the very version installed ("Request to reinstall exact base package versions"), and with the tag rolling the base image and the cache often carry the same Fedora kernel; it failed the first build after the hold was lifted, both at 7.3.3-200.fc44
+              - skipping the swap when the versions match — keeps a special case uBlue's own images do not have
+            by: author
+            date: 2026-11-16
     decisions:
       - id: permanent
         description: The kernel always comes from @UBlueAkmods at the tag. Before, this step existed only to hold the kernel on 7.1, and the kernel otherwise came from the base image.
