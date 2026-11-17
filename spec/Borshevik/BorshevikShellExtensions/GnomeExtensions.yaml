@@ -8,7 +8,14 @@ components:
     src: build_files/scripts/install-gs-extensions.sh
     functions:
       - id: run
-        description: Installs every extension in extensions-list into the system extensions folder — a release's asset from the release its `tag` names, or the latest one — applying default-patches and handing over to own-builds where an extension has one. Some extensions declare an older GNOME Shell than the image ships but work on it; for those the installed metadata is rewritten to the image's gnome-shell version, since GNOME Shell refuses to load an extension that does not list its version.
+        description: Installs every extension in extensions-list into the system extensions folder — a release's asset from the release its `tag` names, or the latest one, fetched by the release's own download URL rather than looked up through GitHub's API (decisions#no-api) — applying default-patches and handing over to own-builds where an extension has one. Some extensions declare an older GNOME Shell than the image ships but work on it; for those the installed metadata is rewritten to the image's gnome-shell version, since GNOME Shell refuses to load an extension that does not list its version.
+        decisions:
+          - id: no-api
+            description: "A release asset is downloaded from https://github.com/<owner>/<repo>/releases/download/<tag>/<asset>, or releases/latest/download/<asset> when no tag is named, built from the entry's own fields. The build runs inside buildah, where no GitHub token reaches it, and GitHub's API answers anonymous calls from a runner's shared IP with 403 once their hourly limit is spent: the final layer failed on it on 2026-10-21, 2026-11-16 and 2026-11-17, every time at an asset lookup. Release downloads are not under that limit, which Hiddify's package, fetched the same way since it left the API, has shown."
+            rejected:
+              - passing GITHUB_TOKEN into the build as a build secret — the workflow, the Containerfile's RUN and the script would all have to carry it, and a build by hand without it would still meet the limit, while the API call it authenticates is not needed at all
+            by: author
+            date: 2026-11-18
   - id: extensions-list
     type: "@ConfigFile"
     format: JSON

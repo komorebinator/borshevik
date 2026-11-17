@@ -66,15 +66,19 @@ jq -c '.[]' "$EXT_JSON" | while read -r ENTRY; do
 
         if [[ -n "$asset" ]]; then
             echo " • Downloading asset '$asset' from $repo_path${tag:+ (release $tag)}"
-            [[ -n "$tag" ]] && api_rel="https://api.github.com/repos/$repo_path/releases/tags/$tag"
-            dl=$(curl -fsSL "${auth[@]}" "$api_rel" |
-                jq -r --arg a "$asset" '.assets[]? | select(.name==$a) | .browser_download_url' | head -n1)
-            [[ -n "$dl" ]] || {
-                echo "Error: asset '$asset' not found"
+            # The release's own download URL, not the API: no token reaches the
+            # build, and the API refuses anonymous calls from a runner's shared
+            # IP once their hourly limit is spent
+            if [[ -n "$tag" ]]; then
+                dl="https://github.com/$repo_path/releases/download/$tag/$asset"
+            else
+                dl="https://github.com/$repo_path/releases/latest/download/$asset"
+            fi
+            curl -fsSL "$dl" -o "$tmp/ext.zip" || {
+                echo "Error: cannot download $dl"
                 rm -rf "$tmp"
                 exit 1
             }
-            curl -fsSL "${auth[@]}" "$dl" -o "$tmp/ext.zip"
             unzip -q "$tmp/ext.zip" -d "$tmp/unpacked"
             ext_src="$tmp/unpacked"
 
