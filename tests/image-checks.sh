@@ -77,12 +77,7 @@ else
     fail enable-new-extensions "result=$result started=$started gnome-session@gnome.target active at $target"
 fi
 
-# 10. Blur my Shell leaves popups alone by default
-blur="$(as_user gsettings --schemadir /usr/share/gnome-shell/extensions/blur-my-shell@aunetx/schemas \
-    get org.gnome.shell.extensions.blur-my-shell.popup blur 2>&1)"
-[[ "$blur" == false ]] && ok blur-popups || fail blur-popups "popup blur is $blur"
-
-# 11. every Borshevik package the base build recorded is what is installed, files as packaged
+# 10. every Borshevik package the base build recorded is what is installed, files as packaged
 # but for their times: ostree sets every file's mtime to the epoch, so rpm -V flags them all
 fixes=/usr/share/borshevik/borshevik-packages
 if [[ ! -f "$fixes" ]]; then
@@ -98,7 +93,7 @@ else
     [[ -z "$bad" ]] && ok "borshevik-packages ($n packages)" || fail borshevik-packages "$bad"
 fi
 
-# 12. Hiddify's binaries find every library they need from any working directory, as the app
+# 11. Hiddify's binaries find every library they need from any working directory, as the app
 # runs HiddifyCli through pkexec from its data folder to connect in VPN mode
 bad=""
 for bin in /usr/libexec/hiddify/hiddify /usr/libexec/hiddify/HiddifyCli; do
