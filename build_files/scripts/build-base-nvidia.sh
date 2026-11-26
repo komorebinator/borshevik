@@ -35,9 +35,15 @@ fi
 echo "Install ublue-os-nvidia-addons"
 dnf5 -y install "${ADDONS[@]}"
 
+# kmod-nvidia is not signed, and rpm from Fedora 45 installs only signed packages
+# by default: for this transaction alone, digests are what is checked. The image
+# keeps Fedora's policy.
 echo "Install driver ${ver} from the akmods image, and nvidia-container-toolkit"
+VERIFY_MACROS=/etc/rpm/macros.borshevik-unsigned
+echo '%_pkgverify_level digest' >"$VERIFY_MACROS"
 dnf5 -y --enablerepo=fedora-nvidia --enablerepo=nvidia-container-toolkit install \
     "${KMOD[@]}" "${USERSPACE[@]}" libva-nvidia-driver nvidia-container-toolkit
+rm -f "$VERIFY_MACROS"
 
 installed="$(rpm -q --queryformat '%{VERSION}' nvidia-driver)"
 if [[ "$installed" != "$ver" ]]; then

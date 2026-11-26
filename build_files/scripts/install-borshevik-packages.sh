@@ -13,7 +13,12 @@ source "$(dirname "$(readlink -f "$0")")/borshevik-packages-lib.sh"
 MANIFEST=/usr/share/borshevik/borshevik-packages
 
 WORK="$(mktemp -d /tmp/borshevik-packages.XXXXXX)"
-trap 'rm -rf "$WORK"' EXIT
+# The builds are not signed, and rpm from Fedora 45 installs only signed packages
+# by default: for these transactions alone, their digests are what is checked.
+# The image keeps Fedora's policy.
+VERIFY_MACROS=/etc/rpm/macros.borshevik-unsigned
+echo '%_pkgverify_level digest' >"$VERIFY_MACROS"
+trap 'rm -rf "$WORK" "$VERIFY_MACROS"' EXIT
 
 mkdir -p "$(dirname "$MANIFEST")"
 : >"$MANIFEST"
@@ -101,5 +106,6 @@ for src in "${sources[@]}"; do
     unset built
 done
 
+rm -f "$VERIFY_MACROS"
 echo "Borshevik packages installed:"
 sed 's/^/  /' "$MANIFEST"
