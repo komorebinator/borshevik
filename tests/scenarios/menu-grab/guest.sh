@@ -103,6 +103,16 @@ waitfor() { # pattern seconds: until Nautilus's log has a matching line
     return 1
 }
 
+# The screen to itself: scenarios run before this one in the same machine leave
+# windows open for their screenshots - android Android's full-screen interface,
+# first-login the App Manager - and Nautilus, started with no activation token,
+# does not take the focus from them, so the right clicks went to them instead.
+if command -v waydroid >/dev/null && as_user waydroid status 2>/dev/null | grep -q 'RUNNING'; then
+    as_user waydroid session stop >/dev/null 2>&1
+fi
+pkill -u "$user" -f /usr/share/borshevik-app-manager/main.js
+sleep 3
+
 # Nautilus, with its Wayland requests about popups logged, in a maximized window
 pkill -u "$user" -x nautilus; sleep 1
 runuser -u "$user" -- sh -c ": >'$log'"
