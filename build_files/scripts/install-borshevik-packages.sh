@@ -9,16 +9,12 @@ set -euo pipefail
 # keeps. See @ImageBuild#install-borshevik-packages in spec/.
 
 source "$(dirname "$(readlink -f "$0")")/borshevik-packages-lib.sh"
+source "$(dirname "$(readlink -f "$0")")/unsigned-rpms-lib.sh"
 
 MANIFEST=/usr/share/borshevik/borshevik-packages
 
 WORK="$(mktemp -d /tmp/borshevik-packages.XXXXXX)"
-# The builds are not signed, and rpm from Fedora 45 installs only signed packages
-# by default: for these transactions alone, their digests are what is checked.
-# The image keeps Fedora's policy.
-VERIFY_MACROS=/etc/rpm/macros.borshevik-unsigned
-echo '%_pkgverify_level digest' >"$VERIFY_MACROS"
-trap 'rm -rf "$WORK" "$VERIFY_MACROS"' EXIT
+trap 'rm -rf "$WORK"' EXIT
 
 mkdir -p "$(dirname "$MANIFEST")"
 : >"$MANIFEST"
@@ -63,7 +59,8 @@ for src in "${sources[@]}"; do
         rpms=("$dir"/*.rpm)
         ((${#rpms[@]})) || die "the build of ${src} has no RPM"
         echo "Installing:"; printf '  %s\n' "${rpms[@]##*/}"
-        quiet "rpm-ostree install ${src}" rpm-ostree install -y "${rpms[@]}" ||
+        # The builds are not signed
+        quiet "rpm-ostree install ${src}" with_unsigned_rpms rpm-ostree install -y "${rpms[@]}" ||
             die "rpm-ostree could not install ${src}"
         for f in "${rpms[@]}"; do
             name="$(rpm -qp --qf '%{NAME}' "$f")"
@@ -86,7 +83,7 @@ for src in "${sources[@]}"; do
         replace+=("${built[$name]}")
     done
     echo "Replacing with:"; printf '  %s\n' "${replace[@]##*/}"
-    quiet "rpm-ostree override replace ${src}" rpm-ostree override replace "${replace[@]}" ||
+    quiet "rpm-ostree override replace ${src}" with_unsigned_rpms rpm-ostree override replace "${replace[@]}" ||
         die "rpm-ostree could not replace ${src}'s packages"
 
     # What is installed now is the very RPM from the build, file for file.
@@ -106,6 +103,5 @@ for src in "${sources[@]}"; do
     unset built
 done
 
-rm -f "$VERIFY_MACROS"
 echo "Borshevik packages installed:"
 sed 's/^/  /' "$MANIFEST"
