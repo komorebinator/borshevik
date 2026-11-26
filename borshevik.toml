@@ -1,7 +1,7 @@
 name        = "borshevik-installer"
 description = "Borshevik installer ISO"
-version     = "44"
-distro      = "fedora-44"
+version     = "45"
+distro      = "fedora-45"
 
 [customizations.ostree]
 url = "registry:ghcr.io/komorebinator/borshevik:latest"

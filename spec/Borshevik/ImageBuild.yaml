@@ -29,7 +29,7 @@ components:
         description: Builds @BorshevikNvidiaImage — see that term for FROM lineage and steps.
     build_args:
       - id: FEDORA_MAJOR_VERSION
-        default: 44
+        default: 45
         description: The Fedora release of the whole lineage — the base image and both akmods images — and PLATFORM_ID and VERSION_ID in os-release (os-info).
       - id: AKMODS_TAG
         default: main-<FEDORA_MAJOR_VERSION>
@@ -83,7 +83,7 @@ components:
     src: build_files/scripts/configure-repos.sh
     functions:
       - id: run
-        description: "Disables fedora-cisco-openh264, and does nothing when the base no longer ships it. The build installs nothing from it, and it broke builds: one server behind codecs.fedoraproject.org, 54.205.131.252, which GitHub's runners resolve to, answers 404 for its metadata for every Fedora release, and rpm-ostree refreshes every enabled repository on each call and fails the transaction on it, ignoring the repository's skip_if_unavailable, which dnf5 honours (decisions#broke-builds). Disabled for good rather than for the build alone (decisions#for-good): the openh264 packages the base ships stay installed, and a user who wants another one enables the repository on their machine."
+        description: "Disables fedora-cisco-openh264 in whichever of the two places its file is in — /etc/yum.repos.d/ up to Fedora 44, /usr/share/dnf5/repos.d/ from Fedora 45, where Fedora moved its repository files and which rpm-ostree reads too — and does nothing when the base ships it in neither. The build installs nothing from it, and it broke builds: one server behind codecs.fedoraproject.org, 54.205.131.252, which GitHub's runners resolve to, answers 404 for its metadata for every Fedora release, and rpm-ostree refreshes every enabled repository on each call and fails the transaction on it, ignoring the repository's skip_if_unavailable, which dnf5 honours (decisions#broke-builds). Disabled for good rather than for the build alone (decisions#for-good): the openh264 packages the base ships stay installed, and a user who wants another one enables the repository on their machine."
         decisions:
           - id: broke-builds
             description: "Tried against that server: rpm-ostree failed the transaction on its 404, ignoring skip_if_unavailable; both base builds of that day failed this way."
@@ -191,7 +191,7 @@ components:
             rejected:
               - removing the assertion — fixed the same crashes with the same results otherwise in the test machine (2026-11-04), but removes the check that catches the inconsistency rather than the inconsistency
           - id: upstream-fix
-            description: "Not in mutter as of 2026-11-05 — the assertion is unchanged in 50.x, 51 and main — and expected to be needed for 51 too, where it may not apply as it is: on main the code it changes is reshaped around `topmost`, and the build stops on a conflict until it is ported."
+            description: "Not in mutter as of 2026-11-26 — the assertion is unchanged in 50.x, 51.1 and main — so the patch goes on with each release Fedora ships. It was ported to 51 for Fedora 45 (2026-11-26): 51 builds the event chain from `topmost`, which is the grab chrome rather than the seat grab's actor when the press lands in the chrome, so the implicit grab is recorded on `topmost` where 50 had the seat grab's actor. A port is one release's; the build stops on the next conflict until it is ported again."
             upstream: GNOME mutter#5121, open
             date: 2026-11-05
             revisit_when: "a mutter release Fedora ships carries a fix: the build then reports that the patch applies in reverse, or vm-scenario passes without it"

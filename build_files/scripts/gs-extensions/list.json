@@ -80,7 +80,7 @@
     },
     {
         "repo": "https://github.com/tuberry/color-picker.git",
-        "branch": "50.2",
+        "branch": "51.1",
         "script": "color-picker.sh"
     },
     {
