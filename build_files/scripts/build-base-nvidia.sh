@@ -8,7 +8,7 @@ set -euo pipefail
 # found its driver gone and the build failed. The cache always holds the
 # matching set - this is how uBlue's own nvidia-install.sh installs it.
 
-source "$(dirname "$(readlink -f "$0")")/unsigned-rpms-lib.sh"
+source "$(dirname "$(readlink -f "$0")")/libs/unsigned-rpms-lib.sh"
 
 AKMODS="/tmp/akmods-nvidia"
 

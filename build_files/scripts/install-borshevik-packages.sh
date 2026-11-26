@@ -8,8 +8,8 @@ set -euo pipefail
 # the builds are mounted at RPMS_DIR from the image build-borshevik-packages.yml
 # keeps. See @ImageBuild#install-borshevik-packages in spec/.
 
-source "$(dirname "$(readlink -f "$0")")/borshevik-packages-lib.sh"
-source "$(dirname "$(readlink -f "$0")")/unsigned-rpms-lib.sh"
+source "$(dirname "$(readlink -f "$0")")/libs/borshevik-packages-lib.sh"
+source "$(dirname "$(readlink -f "$0")")/libs/unsigned-rpms-lib.sh"
 
 MANIFEST=/usr/share/borshevik/borshevik-packages
 

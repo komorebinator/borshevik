@@ -12,7 +12,7 @@ set -euo pipefail
 #   build-borshevik-packages.sh plan                    <source> <tag> per package
 #   build-borshevik-packages.sh build <out> <source>... <out>/<source>/: RPMs and build-info
 
-source "$(dirname "$(readlink -f "$0")")/borshevik-packages-lib.sh"
+source "$(dirname "$(readlink -f "$0")")/libs/borshevik-packages-lib.sh"
 
 plan() {
     local src vr

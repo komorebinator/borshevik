@@ -121,7 +121,7 @@ components:
   - id: borshevik-packages-lib
     type: "@Script"
     description: "What build-borshevik-packages and install-borshevik-packages share, sourced by both, so that the build the one makes and the build the other accepts are named by the same code: where the patches, the own packages' specs and the builds are, the suffix, which installed packages come from a source package, which version a build is for, the key a build is known by, and how a heavy step's output is kept out of the log."
-    src: build_files/scripts/borshevik-packages-lib.sh
+    src: build_files/scripts/libs/borshevik-packages-lib.sh
     functions:
       - id: installed_from
         description: "`installed_from <source>`: the installed binary packages built from that source package, a line each with name, version and release, sorted."
@@ -145,7 +145,7 @@ components:
     fields:
       - id: PATCHES_DIR
         type: path
-        default: borshevik-packages/ beside the scripts — /build_scripts/borshevik-packages in an image build
+        default: borshevik-packages/ in the scripts folder, the one above libs/ — /build_scripts/borshevik-packages in an image build
         description: "Where the packages are: one folder per package. A folder of patches is a Fedora source package, named as Fedora names it, rebuilt with its patches applied in name order and swapped in for the image's. Not kept per version of the package: whatever version Fedora ships next is tried with the same patches, and build-borshevik-packages#build decides whether they still fit. A folder holding `<name>.spec` is a package of Borshevik's own — a program Fedora does not ship, packaged from what its authors release, as @HiddifyApp#components#package — built from that spec, with the folder's other files as its sources, and installed; its version is the spec's, so a new release of it is a commit."
       - id: RPMS_DIR
         type: path
@@ -157,7 +157,7 @@ components:
         description: Appended to the distribution's release, so a rebuilt package says what it is wherever its version is shown — `rpm -q`, rpm-ostree, the manifest.
   - id: unsigned-rpms-lib
     type: "@Script"
-    src: build_files/scripts/unsigned-rpms-lib.sh
+    src: build_files/scripts/libs/unsigned-rpms-lib.sh
     description: Lets the base layer install the RPMs nobody signed — Borshevik's own builds (install-borshevik-packages) and uBlue's kmod-nvidia (build-base-nvidia) — on a Fedora whose rpm requires a signature by default, without the image losing that requirement. Sourced by both.
     functions:
       - id: with_unsigned_rpms
@@ -267,3 +267,5 @@ tests:
     description: "build-borshevik-packages#mutter-implicit-grab#vm-scenario on a built image: the patched mutter is what the image ships, and it does not abort, selected by itself whenever a change touches its paths or the image's mutter build differs from :stable's."
     command: tests/test-image-in-vm.sh run --scenarios menu-grab
     expect: the checks pass, borshevik-packages among them, and the report's `== scenario menu-grab` section ends with 'all checks pass'
+guidelines:
+  - A script the build never runs by itself — one that other scripts only source for the functions and values they share — lives in build_files/scripts/libs/, not beside the scripts the Containerfile and the workflows run, so what the build calls and what those calls depend on are told apart by where they are (the author, 2026-11-26). A library is sourced by its path relative to the script sourcing it, and has no shebang and no executable bit.
