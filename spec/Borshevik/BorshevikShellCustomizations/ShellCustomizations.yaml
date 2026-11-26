@@ -49,6 +49,21 @@ components:
           - the freedesktop categories — tried, they put messengers, torrent clients and LocalSend together under Network, swelled System Tools and Utilities, and put an app with several categories in several folders at once
         by: author
         date: 2026-10-05
+  - id: wallpaper
+    type: "@ConfigFile"
+    src:
+      - build_files/root/usr/share/backgrounds/borshevik/
+      - build_files/root/usr/share/gnome-background-properties/borshevik.xml
+      - build_files/scripts/schemas/90-wallpaper.gschema.override
+    description: "Borshevik's own wallpaper, the author's, as the default of every account that has not chosen one: one picture for the light and the dark style alike, being dark itself, and for the lock screen. It is added to the wallpapers the image already has, not put in their place: Fedora's and GNOME's stay installed, and its gnome-background-properties entry lists it beside them in Settings' Appearance page. Fedora sets its release's wallpaper by GSettings overrides of its own, named 10_…; Borshevik's 90-wallpaper sorts after them and so wins. On an update, an account that never chose a wallpaper gets Borshevik's; one that did keeps its own."
+    decisions:
+      - id: own-wallpaper
+        description: Borshevik ships a wallpaper of its own as the default instead of Fedora's, which changes with every release and so changed Borshevik's look with it; Fedora 45's is not one the author wants Borshevik to have. Fedora's wallpapers stay available to choose.
+        by: author
+        date: 2026-11-26
+        rejected:
+          - Fedora's release wallpaper as the default — it changes every six months, and 45's does not suit Borshevik
+          - replacing Fedora's wallpapers — the author wants them kept to choose from
   - id: folder-names
     type: "@ConfigFile"
     src: build_files/root/usr/share/desktop-directories/

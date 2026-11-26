@@ -10,7 +10,7 @@
 # No file capabilities: since 5.x the tunnel is that root service's, and the proxy modes need
 # none, so on the binaries they would only hand cap_net_admin to whoever runs them.
 
-%global deb_sha256 2cd4b830a3db146a123fb3a69b02e7d6e6f5399c2b12236a5e3a639ba6b61492
+%global deb_sha256 f90762994b274e0b51c871739f4b6bc8ea7cda3139f897efc49e101fc5c00d77
 
 # Prebuilt binaries: nothing to strip or make debug info of, and the Flutter libraries must
 # stay exactly as built. Their libraries are private, under /usr/libexec/hiddify/lib, and what
@@ -22,7 +22,7 @@
 AutoReqProv: no
 
 Name:           hiddify
-Version:        5.5.5
+Version:        5.9.15
 Release:        1
 Summary:        Hiddify VPN client
 License:        GPL-3.0-only
@@ -30,7 +30,6 @@ URL:            https://github.com/hiddify/hiddify-app
 Source0:        %{url}/releases/download/v%{version}/Hiddify-Debian-x64.deb
 ExclusiveArch:  x86_64
 BuildRequires:  binutils
-BuildRequires:  patchelf
 
 %description
 Hiddify, a VPN and proxy client, from its release's Debian package.
@@ -49,12 +48,6 @@ tar xf data.tar.*
 mkdir -p %{buildroot}%{_libexecdir}/hiddify %{buildroot}%{_datadir}/icons
 cp -a deb/opt/hiddify/. %{buildroot}%{_libexecdir}/hiddify/
 cp -a deb/usr/share/icons/hicolor %{buildroot}%{_datadir}/icons/
-# TEMPORARY (#90), until a Hiddify release fixes it (hiddify/hiddify-app#2411, #2423): HiddifyCli
-# needs its core as ./lib/hiddify-core.so, relative to the working directory and never looked
-# up in RUNPATH, so it starts only from its own folder - and the app runs it from its data
-# folder to connect in VPN mode. On a release that fixed it, this changes nothing.
-# Its own RUNPATH, $ORIGIN/lib, then finds the core.
-patchelf --replace-needed ./lib/hiddify-core.so hiddify-core.so %{buildroot}%{_libexecdir}/hiddify/HiddifyCli
 
 %files
 %dir %{_libexecdir}/hiddify
