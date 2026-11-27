@@ -57,7 +57,7 @@ components:
     src: build_files/scripts/build-base.sh
     functions:
       - id: run
-        description: "The base layer's steps, in order: configure-repos first, since every package transaction after it reads the repositories it leaves; then install-kernel, before anything is layered, so everything layered afterwards resolves against the kernel the image will actually ship; then install-rpm-packages, @GoogleChromeApp#components#installer and @SteamApp#components#installer; then install-borshevik-packages, as the last package transaction, so that none after it can bring a distribution build of a patched package back, and after install-rpm-packages, which layers mutter-devkit, one of the subpackages it replaces; then cleanup; finally enables podman.socket."
+        description: "The base layer's steps, in order: configure-repos first, since every package transaction after it reads the repositories it leaves; then install-kernel, before anything is layered, so everything layered afterwards resolves against the kernel the image will actually ship; then install-rpm-packages, @GoogleChromeApp#components#installer and @SteamApp#components#installer; then hold-packages, after the transactions that could bring a held package's newer version in; then install-borshevik-packages, as the last package transaction, so that none after it can bring a distribution build of a patched package back, and after install-rpm-packages, which layers mutter-devkit, one of the subpackages it replaces; then cleanup; finally enables podman.socket."
   - id: build-base-nvidia
     type: "@Script"
     description: Installs the NVIDIA driver on the base layer.
@@ -77,6 +77,20 @@ components:
     functions:
       - id: run
         description: "The final layer's steps, in order: os-info, @WaydroidApp#components#waydroid-script, @GnomeExtensions#components#installer, @ShellCustomizations#components#apply-schemas and #apply-dconf — the latter after the extensions, since it enables whatever extensions are installed at that moment — @Services#components#enable-services, and finalize-image last."
+  - id: hold-packages
+    type: "@Script"
+    description: Holds packages at a version older than the one Fedora ships, each until a release with the fix reaches Fedora.
+    src: build_files/scripts/hold-packages.sh
+    functions:
+      - id: run
+        description: "For each held package, downgrades it with dnf5 to the held version-release when the base has any other, and does nothing when it has that one already. The held version comes from the release's own `fedora` repository, which does not change for the release's lifetime, so it stays available while the hold lasts; should an update come to need a newer version, the downgrade fails and the build with it rather than shipping the hold silently undone. Any version other than the held one is taken down, a newer one included, so a later Fedora update without the fix cannot slip in: a hold is lifted by hand, once a version with the fix reaches Fedora."
+        decisions:
+          - id: podman
+            description: "podman is held at 6.1.3-1.fc45, the version Fedora 45 released with. podman 6.2.0 adds ridmap to a CDI device's mounts when the container runs with --userns keep-id, and crun cannot make an idmapped mount of a file on the composefs root (mount_setattr: Operation not permitted), so a rootless keep-id container with a GPU through CDI never starts — MiruTube's quadlet with its NVIDIA drop-in on borshevik-nvidia, seen on hardware after the update to Fedora 45. Reproduced without a GPU with a hand-written CDI spec; the same mount through -v gets no ridmap and works. Tracked in Borshevik #101."
+            upstream: containers/podman#30233, open, labelled a 6.2.0 regression; a fix limiting the idmap injection exists as a proof of concept
+            revisit_when: "a podman with the fix for containers/podman#30233 reaches Fedora 45 — the hold is removed then, closing #101"
+            by: author
+            date: 2026-11-27
   - id: configure-repos
     type: "@Script"
     description: Sets which package repositories of the uBlue base stay enabled, before the base layer's first package transaction. What it changes is kept in the image, so the NVIDIA stage, the final layer and installed systems see the same repositories.
