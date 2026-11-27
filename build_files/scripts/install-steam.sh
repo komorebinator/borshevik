@@ -1,7 +1,7 @@
 #!/bin/bash
 set -ouex pipefail
 
-source "$(dirname "$(readlink -f "$0")")/libs/split-sources-lib.sh"
+source "$(dirname "$(readlink -f "$0")")/libs/package-versions-lib.sh"
 
 # dnf5, not rpm-ostree: Steam's 32-bit libraries must be the very version of
 # their 64-bit twins in the base image, and the base can lag Fedora's updates,
@@ -21,4 +21,4 @@ dnf5 -y --setopt=allow_vendor_change=False install steam steam-devices -x gamesc
 
 # Of a source package whose 64-bit packages Steam's 32-bit ones took up to the
 # updates' version, the rest follow: zstd beside libzstd
-sync_split_sources
+align_package_versions

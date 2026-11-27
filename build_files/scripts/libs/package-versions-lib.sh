@@ -3,11 +3,11 @@
 # far as a dependency asks, so of one source package's binary packages some can end
 # up at the updates' version and the rest at the base's - zstd 1.5.7 beside
 # libzstd 1.6.0, which Steam's libzstd.i686 brought, and zstd refuses to run with.
-# sync_split_sources brings the ones left behind up to the version their siblings
+# align_package_versions brings the ones left behind up to the version the others
 # already have, so the image holds no mix Fedora never built or tested.
-# See @ImageBuild#split-sources-lib in spec/.
+# See @ImageBuild#package-versions-lib in spec/.
 
-sync_split_sources() { # [dnf5 option...]
+align_package_versions() { # [dnf5 option...]
     local lagging=() nevras=() line src nevra was
     mapfile -t lagging < <(
         rpm -qa --qf '%{SOURCERPM}\t%{NAME}\t%{EPOCHNUM}\t%{ARCH}\n' |

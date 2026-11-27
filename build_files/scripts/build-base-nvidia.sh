@@ -9,7 +9,7 @@ set -euo pipefail
 # matching set - this is how uBlue's own nvidia-install.sh installs it.
 
 source "$(dirname "$(readlink -f "$0")")/libs/unsigned-rpms-lib.sh"
-source "$(dirname "$(readlink -f "$0")")/libs/split-sources-lib.sh"
+source "$(dirname "$(readlink -f "$0")")/libs/package-versions-lib.sh"
 
 AKMODS="/tmp/akmods-nvidia"
 
@@ -45,7 +45,7 @@ with_unsigned_rpms dnf5 -y --enablerepo=fedora-nvidia --enablerepo=nvidia-contai
 
 # The driver's 32-bit libraries can take 64-bit packages of the base up to the
 # updates' version, as Steam's do; the rest of their source packages follow
-sync_split_sources
+align_package_versions
 
 installed="$(rpm -q --queryformat '%{VERSION}' nvidia-driver)"
 if [[ "$installed" != "$ver" ]]; then
