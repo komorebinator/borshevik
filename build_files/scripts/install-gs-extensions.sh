@@ -10,6 +10,9 @@
 # Optional fields:
 #   • dir      – sub-directory inside the source (for metadata root)
 #   • schemas  – relative path to GSettings schemas to compile
+#   • enabledByDefault – false to ship the extension switched off: its uuid goes to
+#                OFF_BY_DEFAULT, which apply-dconf and borshevik-enable-new-extensions
+#                read; absent or true, it is switched on like the rest
 #
 # For GitHub Actions:
 #   env: GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -19,6 +22,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EXT_JSON="${SCRIPT_DIR}/gs-extensions/list.json"
 DEST="/usr/share/gnome-shell/extensions"
+OFF_BY_DEFAULT=/usr/share/borshevik/extensions-off-by-default
 
 # Dependencies: jq curl unzip git glib-compile-schemas rsync tar
 for cmd in jq curl unzip git glib-compile-schemas rsync tar patch; do
@@ -33,6 +37,21 @@ auth=()
 [[ -n "${GH_TOKEN:-}" ]] && auth=(-H "Authorization: Bearer $GH_TOKEN")
 
 echo ">>> Installing GNOME extensions…"
+mkdir -p "$(dirname "$OFF_BY_DEFAULT")"
+: >"$OFF_BY_DEFAULT"
+
+# Records as off by default what one entry installed: whatever it added to DEST, so an
+# extension installed by its own script is found too.
+record_off() { # entry, DEST's listing before it
+    local enabled added
+    enabled="$(jq -r 'if has("enabledByDefault") then .enabledByDefault else true end' <<<"$1")"
+    [[ "$enabled" == false ]] || return 0
+    added="$(LC_ALL=C comm -13 <(echo "$2") <(LC_ALL=C ls "$DEST"))"
+    [[ -n "$added" ]] || { echo "Error: an entry off by default installed no extension" >&2; exit 1; }
+    echo "$added" >>"$OFF_BY_DEFAULT"
+    echo "   → Off by default: $(tr '\n' ' ' <<<"$added")"
+}
+
 jq -e 'type=="array"' "$EXT_JSON" >/dev/null || {
     echo "Error: JSON must be an array" >&2
     exit 1
@@ -57,6 +76,7 @@ jq -c '.[]' "$EXT_JSON" | while read -r ENTRY; do
     }
 
     repo_path=$(sed -E 's|https://[^/]+/([^/]+/[^/]+).*|\1|' <<<"$repo_url")
+    before=$(LC_ALL=C ls "$DEST" 2>/dev/null || true)
     tmp=$(mktemp -d)
     ext_src=""
 
@@ -151,6 +171,7 @@ jq -c '.[]' "$EXT_JSON" | while read -r ENTRY; do
 
         echo "   → Running custom script $script_rel"
         (cd "$ext_src" && exec "$script_path")
+        record_off "$ENTRY" "$before"
 
         rm -rf "$tmp"
         continue
@@ -182,6 +203,7 @@ jq -c '.[]' "$EXT_JSON" | while read -r ENTRY; do
         jq --arg v "$ver" '.["shell-version"] = [$v]' "$meta_dest" >"$meta_dest.tmp" && mv "$meta_dest.tmp" "$meta_dest"
         echo " → Forced shell-version to [$ver]"
     fi
+    record_off "$ENTRY" "$before"
 
     rm -rf "$tmp"
 done

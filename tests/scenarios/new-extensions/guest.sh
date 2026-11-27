@@ -16,7 +16,9 @@ as_user() {
         DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" "$@"
 }
 
-shipped="$(for d in /usr/share/gnome-shell/extensions/*/; do basename "$d"; done | sort)"
+# the extensions the image ships switched on, and those it ships switched off
+off="$(sort /usr/share/borshevik/extensions-off-by-default 2>/dev/null)"
+shipped="$(for d in /usr/share/gnome-shell/extensions/*/; do basename "$d"; done | sort | comm -23 - <(echo "$off"))"
 count="$(wc -l <<<"$shipped")"
 
 # a gsettings string list as one uuid per line
@@ -64,6 +66,19 @@ if [[ "$switch" == "false" ]] &&
     ok re-enabled
 else
     fail re-enabled "disable-user-extensions is $switch; the service did not log re-enabling them"
+fi
+
+# 7. those shipped switched off are neither enabled nor recorded as offered
+if [[ -n "$off" ]]; then
+    on="$(comm -12 <(echo "$off") <(echo "$enabled" | sort -u) | tr '\n' ' ')"
+    rec="$(comm -12 <(echo "$off") <(sort -u "$state" 2>/dev/null) | tr '\n' ' ')"
+    if [[ -z "$on" && -z "$rec" ]]; then
+        ok "off-by-default ($(wc -l <<<"$off") left off)"
+    else
+        fail off-by-default "enabled: ${on:-none}; recorded as offered: ${rec:-none}"
+    fi
+else
+    ok "off-by-default (none)"
 fi
 
 if [[ "$failed" -eq 0 ]]; then

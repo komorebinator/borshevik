@@ -56,7 +56,8 @@
     {
         "repo": "https://github.com/komorebinator/twitchlive-extension",
         "branch": "master",
-        "schemas": "schemas"
+        "schemas": "schemas",
+        "enabledByDefault": false
     },
     {
         "repo": "https://github.com/mukul29/legacy-theme-auto-switcher-gnome-extension",

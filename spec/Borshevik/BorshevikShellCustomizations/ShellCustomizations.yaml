@@ -16,7 +16,7 @@ components:
     src: build_files/scripts/apply-dconf.sh
     functions:
       - id: run
-        description: Installs the login screen's dconf profile and gdm-dconf, and the dconf files among the defaults, then runs `dconf update`. It also writes the default list of enabled extensions from whatever @GnomeExtensions installed moments earlier — what switches extensions on for a fresh account; @Services#components#extension-autoenable covers accounts that already have a list of their own.
+        description: Installs the login screen's dconf profile and gdm-dconf, and the dconf files among the defaults, then runs `dconf update`. It also writes the default list of enabled extensions from whatever @GnomeExtensions installed moments earlier, leaving out those named in /usr/share/borshevik/extensions-off-by-default — what switches extensions on for a fresh account; @Services#components#extension-autoenable covers accounts that already have a list of their own.
   - id: gdm-dconf
     type: "@ConfigFile"
     format: dconf
