@@ -1,6 +1,8 @@
 #!/bin/bash
 set -ouex pipefail
 
+source "$(dirname "$(readlink -f "$0")")/libs/split-sources-lib.sh"
+
 # dnf5, not rpm-ostree: Steam's 32-bit libraries must be the very version of
 # their 64-bit twins in the base image, and the base can lag Fedora's updates,
 # whose repository keeps only the newest build (openssl-libs, SDL3 and others
@@ -16,3 +18,7 @@ set -ouex pipefail
 # 1.0.0.87-4 for a gamescope session's performance overlay; Borshevik has no
 # such session and Steam uses neither in GNOME, so they are left out by name.
 dnf5 -y --setopt=allow_vendor_change=False install steam steam-devices -x gamescope -x mangohud
+
+# Of a source package whose 64-bit packages Steam's 32-bit ones took up to the
+# updates' version, the rest follow: zstd beside libzstd
+sync_split_sources
