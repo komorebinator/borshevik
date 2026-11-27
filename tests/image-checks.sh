@@ -103,6 +103,24 @@ for bin in /usr/libexec/hiddify/hiddify /usr/libexec/hiddify/HiddifyCli; do
 done
 [[ -z "$bad" ]] && ok hiddify-libraries || fail hiddify-libraries "$bad"
 
+# 12. a new account gets Borshevik's wallpaper, not the release's, and Settings lists it: read as
+# an account with no settings of its own sees them, from a home of nobody's, on a private bus
+# with gvfs kept out (it would outlive the bus)
+want="'file:///usr/share/backgrounds/borshevik/borshevik-smoke.png'"
+fresh="$(mktemp -d)"
+bad=""
+for key in "org.gnome.desktop.background picture-uri" "org.gnome.desktop.background picture-uri-dark" \
+    "org.gnome.desktop.screensaver picture-uri"; do
+    # shellcheck disable=SC2086 # schema and key, split on purpose
+    got="$(env -i PATH="$PATH" HOME="$fresh" GIO_USE_VFS=local dbus-run-session -- gsettings get $key 2>/dev/null)"
+    [[ "$got" == "$want" ]] || bad+="$key is ${got:-unreadable}; "
+done
+rm -rf "$fresh"
+[[ -f /usr/share/backgrounds/borshevik/borshevik-smoke.png ]] || bad+="no borshevik-smoke.png; "
+grep -q borshevik-smoke.png /usr/share/gnome-background-properties/borshevik.xml 2>/dev/null ||
+    bad+="Settings' list (gnome-background-properties/borshevik.xml) lacks it; "
+[[ -z "$bad" ]] && ok wallpaper || fail wallpaper "$bad"
+
 if [[ "$failed" -eq 0 ]]; then
     echo "all checks pass"
 fi
