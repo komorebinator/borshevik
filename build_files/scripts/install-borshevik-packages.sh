@@ -19,6 +19,16 @@ trap 'rm -rf "$WORK"' EXIT
 mkdir -p "$(dirname "$MANIFEST")"
 : >"$MANIFEST"
 
+# podman 6.2 adds ridmap to a CDI device's mounts under --userns keep-id, and crun
+# cannot idmap a file on the composefs root: such containers never start
+# (containers/podman#30233; #101). Held at the version Fedora 45 released with, from
+# the release's own repository, until a podman with the fix reaches Fedora.
+PODMAN_HELD=6.1.3-1.fc45
+if [[ "$(rpm -q --qf '%{VERSION}-%{RELEASE}' podman)" != "$PODMAN_HELD" ]]; then
+    quiet "dnf5 downgrade podman" dnf5 -y downgrade "podman-$PODMAN_HELD" ||
+        die "could not hold podman at $PODMAN_HELD"
+fi
+
 mapfile -t sources < <(package_sources)
 if ((${#sources[@]} == 0)); then
     echo "No Borshevik packages to install"
