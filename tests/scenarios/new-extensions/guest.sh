@@ -81,6 +81,32 @@ else
     ok "off-by-default (none)"
 fi
 
+# 8. each of them works once a user switches it on: ACTIVE, with no extension error in the
+# shell's journal since; then off again, as the account had it. One at a time and a few
+# seconds apart: gnome-extensions calls back to back have the shell enable one twice.
+if [[ -n "$off" ]]; then
+    since="$(date +%s)"
+    bad=""
+    for uuid in $off; do
+        as_user gnome-extensions enable "$uuid" || bad+="$uuid could not be enabled; "
+        sleep 5
+        st="$(as_user gnome-extensions info "$uuid" 2>/dev/null | sed -n 's/^ *State: //p')"
+        [[ "$st" == ACTIVE ]] || bad+="$uuid=${st:-unknown}; "
+    done
+    errors="$(journalctl --since "@$since" -o cat _UID="$uid" _COMM=gnome-shell 2>/dev/null |
+        grep -E 'Extension [^ ]+: .*[Ee]rror|Extension point conflict|JS ERROR|received the invalid value' |
+        cut -c1-160 | sort -u | head -5 | tr '\n' ';')"
+    for uuid in $off; do
+        as_user gnome-extensions disable "$uuid"
+        sleep 2
+    done
+    if [[ -z "$bad" && -z "$errors" ]]; then
+        ok "off-by-default-works ($(wc -l <<<"$off") switched on and off)"
+    else
+        fail off-by-default-works "${bad}${errors}"
+    fi
+fi
+
 if [[ "$failed" -eq 0 ]]; then
     echo "all checks pass"
 fi
