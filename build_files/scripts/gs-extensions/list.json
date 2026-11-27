@@ -60,7 +60,8 @@
         "schemas": "schemas",
         "patches": {
             "twitch-live-defaults.patch": "schemas/org.gnome.shell.extensions.twitchlive.gschema.xml",
-            "twitch-live-symbolic-icons.patch": "."
+            "twitch-live-symbolic-icons.patch": ".",
+            "twitch-live-orientation.patch": "menu_items.js"
         }
     },
     {
