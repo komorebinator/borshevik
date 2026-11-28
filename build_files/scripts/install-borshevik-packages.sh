@@ -8,7 +8,8 @@ set -euo pipefail
 # the builds are mounted at RPMS_DIR from the image build-borshevik-packages.yml
 # keeps. See @ImageBuild#install-borshevik-packages in spec/.
 
-source "$(dirname "$(readlink -f "$0")")/borshevik-packages-lib.sh"
+source "$(dirname "$(readlink -f "$0")")/libs/borshevik-packages-lib.sh"
+source "$(dirname "$(readlink -f "$0")")/libs/unsigned-rpms-lib.sh"
 
 MANIFEST=/usr/share/borshevik/borshevik-packages
 
@@ -17,6 +18,16 @@ trap 'rm -rf "$WORK"' EXIT
 
 mkdir -p "$(dirname "$MANIFEST")"
 : >"$MANIFEST"
+
+# podman 6.2 adds ridmap to a CDI device's mounts under --userns keep-id, and crun
+# cannot idmap a file on the composefs root: such containers never start
+# (containers/podman#30233; #101). Held at the version Fedora 45 released with, from
+# the release's own repository, until a podman with the fix reaches Fedora.
+PODMAN_HELD=6.1.3-1.fc45
+if [[ "$(rpm -q --qf '%{VERSION}-%{RELEASE}' podman)" != "$PODMAN_HELD" ]]; then
+    quiet "dnf5 downgrade podman" dnf5 -y downgrade "podman-$PODMAN_HELD" ||
+        die "could not hold podman at $PODMAN_HELD"
+fi
 
 mapfile -t sources < <(package_sources)
 if ((${#sources[@]} == 0)); then
@@ -58,7 +69,8 @@ for src in "${sources[@]}"; do
         rpms=("$dir"/*.rpm)
         ((${#rpms[@]})) || die "the build of ${src} has no RPM"
         echo "Installing:"; printf '  %s\n' "${rpms[@]##*/}"
-        quiet "rpm-ostree install ${src}" rpm-ostree install -y "${rpms[@]}" ||
+        # The builds are not signed
+        quiet "rpm-ostree install ${src}" with_unsigned_rpms rpm-ostree install -y "${rpms[@]}" ||
             die "rpm-ostree could not install ${src}"
         for f in "${rpms[@]}"; do
             name="$(rpm -qp --qf '%{NAME}' "$f")"
@@ -81,7 +93,7 @@ for src in "${sources[@]}"; do
         replace+=("${built[$name]}")
     done
     echo "Replacing with:"; printf '  %s\n' "${replace[@]##*/}"
-    quiet "rpm-ostree override replace ${src}" rpm-ostree override replace "${replace[@]}" ||
+    quiet "rpm-ostree override replace ${src}" with_unsigned_rpms rpm-ostree override replace "${replace[@]}" ||
         die "rpm-ostree could not replace ${src}'s packages"
 
     # What is installed now is the very RPM from the build, file for file.

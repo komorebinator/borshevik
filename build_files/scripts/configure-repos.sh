@@ -8,7 +8,10 @@ set -euo pipefail
 # behind codecs.fedoraproject.org that GitHub's runners resolve to answers 404
 # for its metadata, and rpm-ostree fails every transaction on it, ignoring the
 # repository's skip_if_unavailable. The openh264 packages the base ships stay.
-OPENH264_REPO=/etc/yum.repos.d/fedora-cisco-openh264.repo
-if [[ -f "$OPENH264_REPO" ]]; then
-    sed -i '/^\[fedora-cisco-openh264\]$/,/^\[/ s/^enabled=1$/enabled=0/' "$OPENH264_REPO"
-fi
+# Fedora 45 moved its repository files from /etc/yum.repos.d to
+# /usr/share/dnf5/repos.d, which rpm-ostree reads too.
+for OPENH264_REPO in /etc/yum.repos.d/fedora-cisco-openh264.repo /usr/share/dnf5/repos.d/fedora-cisco-openh264.repo; do
+    if [[ -f "$OPENH264_REPO" ]]; then
+        sed -i '/^\[fedora-cisco-openh264\]$/,/^\[/ s/^enabled=1$/enabled=0/' "$OPENH264_REPO"
+    fi
+done

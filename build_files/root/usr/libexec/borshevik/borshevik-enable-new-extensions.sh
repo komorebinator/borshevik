@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Enables every GNOME Shell extension the image ships, once per extension per user.
+# Enables every GNOME Shell extension the image ships, once per extension per user, but those
+# it ships switched off (/usr/share/borshevik/extensions-off-by-default): these it neither
+# enables nor records, so one later shipped switched on is offered then.
 #
 # The image's default enabled-extensions is only a system-db default: once a user toggles any
 # extension, their own list takes over and the default is never read again, so an extension
@@ -13,6 +15,7 @@
 set -uo pipefail
 
 EXT_DIR=/usr/share/gnome-shell/extensions
+OFF_BY_DEFAULT=/usr/share/borshevik/extensions-off-by-default
 STATE="${XDG_STATE_HOME:-$HOME/.local/state}/borshevik/offered-extensions"
 
 mkdir -p "$(dirname "$STATE")"
@@ -46,6 +49,7 @@ for dir in "$EXT_DIR"/*/; do
     [[ -d "$dir" ]] || continue
     uuid="$(basename "$dir")"
     grep -qxF "$uuid" "$STATE" && continue
+    grep -qxF "$uuid" "$OFF_BY_DEFAULT" 2>/dev/null && continue
 
     if grep -qF "'$uuid'" <<<"$enabled_list"; then
         echo "$uuid" >> "$STATE"

@@ -51,14 +51,22 @@ pgrep -u "$user" -x gnome-shell >/dev/null && ok shell || fail shell "no gnome-s
 units="$(as_user systemctl --user --failed --no-legend --plain 2>&1 | awk '{print $1}' | tr '\n' ' ')"
 [[ -z "$units" ]] && ok user-units || fail user-units "$units"
 
-# 7. every extension the image ships is running
+# 7. every extension the image ships is running, but those it ships switched off, which load
+# without an error and stay off for tester, a new account
+off_by_default=/usr/share/borshevik/extensions-off-by-default
 bad=""
 for dir in /usr/share/gnome-shell/extensions/*/; do
     uuid="$(basename "$dir")"
     state="$(as_user gnome-extensions info "$uuid" 2>/dev/null | sed -n 's/^ *State: //p')"
-    [[ "$state" == ACTIVE ]] || bad+="$uuid=${state:-unknown} "
+    if grep -qxF "$uuid" "$off_by_default" 2>/dev/null; then
+        [[ "$state" == INACTIVE || "$state" == INITIALIZED ]] || bad+="$uuid=${state:-unknown} (off by default) "
+    else
+        [[ "$state" == ACTIVE ]] || bad+="$uuid=${state:-unknown} "
+    fi
 done
-[[ -z "$bad" ]] && ok extensions || fail extensions "$bad"
+[[ -f "$off_by_default" ]] || bad+="no $off_by_default "
+n_off="$(grep -c . "$off_by_default" 2>/dev/null)"
+[[ -z "$bad" ]] && ok "extensions (${n_off:-0} off by default)" || fail extensions "$bad"
 
 # 8. no extension reported an error
 errors="$(journalctl -b -o cat _UID="$uid" _COMM=gnome-shell 2>/dev/null |
@@ -102,6 +110,24 @@ for bin in /usr/libexec/hiddify/hiddify /usr/libexec/hiddify/HiddifyCli; do
     [[ -z "$missing" ]] || bad+="$bin lacks $missing; "
 done
 [[ -z "$bad" ]] && ok hiddify-libraries || fail hiddify-libraries "$bad"
+
+# 12. a new account gets Borshevik's wallpaper, not the release's, and Settings lists it: read as
+# an account with no settings of its own sees them, from a home of nobody's, on a private bus
+# with gvfs kept out (it would outlive the bus)
+want="'file:///usr/share/backgrounds/borshevik/borshevik-smoke.png'"
+fresh="$(mktemp -d)"
+bad=""
+for key in "org.gnome.desktop.background picture-uri" "org.gnome.desktop.background picture-uri-dark" \
+    "org.gnome.desktop.screensaver picture-uri"; do
+    # shellcheck disable=SC2086 # schema and key, split on purpose
+    got="$(env -i PATH="$PATH" HOME="$fresh" GIO_USE_VFS=local dbus-run-session -- gsettings get $key 2>/dev/null)"
+    [[ "$got" == "$want" ]] || bad+="$key is ${got:-unreadable}; "
+done
+rm -rf "$fresh"
+[[ -f /usr/share/backgrounds/borshevik/borshevik-smoke.png ]] || bad+="no borshevik-smoke.png; "
+grep -q borshevik-smoke.png /usr/share/gnome-background-properties/borshevik.xml 2>/dev/null ||
+    bad+="Settings' list (gnome-background-properties/borshevik.xml) lacks it; "
+[[ -z "$bad" ]] && ok wallpaper || fail wallpaper "$bad"
 
 if [[ "$failed" -eq 0 ]]; then
     echo "all checks pass"

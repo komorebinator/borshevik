@@ -8,7 +8,7 @@
 set -uo pipefail
 
 repo="$(cd "$(dirname "$0")/.." && pwd)"
-image="ghcr.io/ublue-os/silverblue-main:${FEDORA_MAJOR_VERSION:-44}"
+image="ghcr.io/ublue-os/silverblue-main:${FEDORA_MAJOR_VERSION:-45}"
 work="$(mktemp -d "${XDG_CACHE_HOME:-$HOME/.cache}/borshevik-packages-test.XXXXXX")"
 trap 'rm -rf "$work"' EXIT
 failed=0

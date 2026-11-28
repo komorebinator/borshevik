@@ -16,12 +16,17 @@ Record the implicit grab on the grab actor in that case, so it is followed
 like any other implicitly grabbed actor. For the same reason, take
 target-phase actions from the grab actor rather than from the actor under
 the pointer: that one is behind the grab and should not see the press.
+
+Since mutter 51 the top of the chain is `topmost`, which is the grab chrome
+rather than the seat grab's actor when the press lands in the chrome; the
+implicit grab follows `topmost` likewise.
 ---
  clutter/clutter/clutter-sprite.c | 17 +++++++++++++++--
  1 file changed, 15 insertions(+), 2 deletions(-)
+
 --- a/clutter/clutter/clutter-sprite.c
 +++ b/clutter/clutter/clutter-sprite.c
-@@ -372,12 +372,18 @@
+@@ -372,12 +372,18 @@ create_event_emission_chain (ClutterSprite *sprite,
                               ClutterActor  *deepmost)
  {
    ClutterSpritePrivate *priv = clutter_sprite_get_instance_private (sprite);
@@ -40,7 +45,7 @@ the pointer: that one is behind the grab and should not see the press.
    for (i = priv->cur_event_actors->len - 1; i >= 0; i--)
      {
        ClutterActor *actor = g_ptr_array_index (priv->cur_event_actors, i);
-@@ -394,7 +400,7 @@
+@@ -394,7 +400,7 @@ create_event_emission_chain (ClutterSprite *sprite,
        add_actor_to_event_emission_chain (chain, actor, CLUTTER_PHASE_CAPTURE);
      }
  
@@ -49,19 +54,19 @@ the pointer: that one is behind the grab and should not see the press.
      {
        ClutterAction *action = l->data;
  
-@@ -889,7 +895,14 @@
+@@ -906,7 +912,14 @@ clutter_sprite_propagate_event (ClutterFocus       *focus,
    if (is_sequence_begin && setup_implicit_grab (sprite))
      {
        g_assert (priv->implicit_grab_actor == NULL);
 -      priv->implicit_grab_actor = target_actor;
 +      /* The implicit grab is held by the actor its event chain is built for:
-+       * outside the seat grab that is the grab actor, not the actor under the
-+       * pointer, and it is the one to follow if it goes away while the
-+       * sequence lasts.
++       * outside topmost - the seat grab's actor, or its grab chrome - that is
++       * topmost, not the actor under the pointer, and it is the one to follow
++       * if it goes away while the sequence lasts.
 +       */
 +      priv->implicit_grab_actor =
-+        clutter_actor_contains (seat_grab_actor, target_actor) ?
-+        target_actor : seat_grab_actor;
++        clutter_actor_contains (topmost, target_actor) ?
++        target_actor : topmost;
        clutter_actor_set_implicitly_grabbed (priv->implicit_grab_actor, TRUE);
  
-       create_event_emission_chain (sprite, priv->event_emission_chain, seat_grab_actor, target_actor);
+       create_event_emission_chain (sprite, priv->event_emission_chain, topmost, target_actor);

@@ -16,13 +16,13 @@
     },
     {
         "repo": "https://github.com/eonpatapon/gnome-shell-extension-caffeine",
-        "branch": "v60",
+        "branch": "v61",
         "dir": "caffeine@patapon.info",
         "schemas": "schemas"
     },
     {
         "repo": "https://github.com/vchlum/notification-timeout",
-        "branch": "16",
+        "branch": "17",
         "dir": "extension",
         "schemas": "schemas"
     },
@@ -51,18 +51,13 @@
         "repo": "https://github.com/CleoMenezesJr/weather-oclock",
         "dir": "weatheroclock@CleoMenezesJr.github.io",
         "schemas": "schemas",
-        "branch": "v50.0",
-        "forceGnomeVersion": true
+        "branch": "v51.0"
     },
     {
-        "repo": "https://github.com/maweki/twitchlive-extension",
+        "repo": "https://github.com/komorebinator/twitchlive-extension",
         "branch": "master",
-        "forceGnomeVersion": true,
         "schemas": "schemas",
-        "patches": {
-            "twitch-live-defaults.patch": "schemas/org.gnome.shell.extensions.twitchlive.gschema.xml",
-            "twitch-live-symbolic-icons.patch": "."
-        }
+        "enabledByDefault": false
     },
     {
         "repo": "https://github.com/mukul29/legacy-theme-auto-switcher-gnome-extension",
@@ -81,7 +76,7 @@
     },
     {
         "repo": "https://github.com/tuberry/color-picker.git",
-        "branch": "50.2",
+        "branch": "51.1",
         "script": "color-picker.sh"
     },
     {
@@ -97,19 +92,18 @@
         "branch": "master",
         "dir": "status-area-horizontal-spacing@mathematical.coffee.gmail.com",
         "schemas": "schemas",
-        "forceGnomeVersion": true,
         "patches": {
             "status-area-spacer-defaults.patch": "schemas/org.gnome.shell.extensions.status-area-horizontal-spacing.gschema.xml"
         }
     },
     {
         "repo": "https://github.com/andyholmes/gnome-shell-extension-gsconnect.git",
-        "branch": "v72",
+        "branch": "v74",
         "script": "gsconnect.sh"
     },
     {
         "repo": "https://github.com/ubuntu/gnome-shell-extension-appindicator",
-        "branch": "v65",
+        "branch": "v66",
         "script": "appindicator.sh"
     }
 ]

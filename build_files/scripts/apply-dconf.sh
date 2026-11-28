@@ -13,10 +13,13 @@ echo "→ Apply local.d dconf"
 cp -a "$SCRIPT_DIR/dconf/local.d/." /etc/dconf/db/local.d/
 
 echo "→ Enable extensions by default"
+# all the image ships but those list.json ships switched off (install-gs-extensions)
+OFF_BY_DEFAULT=/usr/share/borshevik/extensions-off-by-default
 EXT_DIRS=(/usr/share/gnome-shell/extensions/*)
 LIST=""
 for d in "${EXT_DIRS[@]}"; do
     NAME=$(basename "$d")
+    grep -qxF "$NAME" "$OFF_BY_DEFAULT" 2>/dev/null && continue
     LIST="$LIST,'$NAME'"
 done
 LIST="[${LIST#,}]"

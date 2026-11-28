@@ -9,7 +9,8 @@
 #                                                 written out, with no macros
 
 LIB_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
-PATCHES_DIR="$LIB_DIR/borshevik-packages"
+SCRIPTS_DIR="$(dirname "$LIB_DIR")"
+PATCHES_DIR="$SCRIPTS_DIR/borshevik-packages"
 RPMS_DIR=/tmp/borshevik-rpms
 SUFFIX=borshevik
 
@@ -89,8 +90,8 @@ build_key() {
             echo "patch ${p##*/} $(sha256sum <"$p" | cut -d' ' -f1)"
         done
     fi
-    for f in build-borshevik-packages.sh borshevik-packages-lib.sh; do
-        echo "script $f $(sha256sum <"$LIB_DIR/$f" | cut -d' ' -f1)"
+    for f in "$SCRIPTS_DIR/build-borshevik-packages.sh" "$LIB_DIR/borshevik-packages-lib.sh"; do
+        echo "script ${f##*/} $(sha256sum <"$f" | cut -d' ' -f1)"
     done
 }
 

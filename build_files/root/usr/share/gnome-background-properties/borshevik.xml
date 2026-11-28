@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE wallpapers SYSTEM "gnome-wp-list.dtd">
+<wallpapers>
+  <wallpaper deleted="false">
+    <name>Borshevik</name>
+    <filename>/usr/share/backgrounds/borshevik/borshevik-smoke.png</filename>
+    <filename-dark>/usr/share/backgrounds/borshevik/borshevik-smoke.png</filename-dark>
+    <options>zoom</options>
+    <shade_type>solid</shade_type>
+    <pcolor>#1a1625</pcolor>
+    <scolor>#1a1625</scolor>
+  </wallpaper>
+</wallpapers>

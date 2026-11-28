@@ -8,7 +8,7 @@ components:
     src: build_files/scripts/install-gs-extensions.sh
     functions:
       - id: run
-        description: Installs every extension in extensions-list into the system extensions folder — a release's asset from the release its `tag` names, or the latest one, fetched by the release's own download URL rather than looked up through GitHub's API (decisions#no-api) — applying default-patches and handing over to own-builds where an extension has one. Some extensions declare an older GNOME Shell than the image ships but work on it; for those the installed metadata is rewritten to the image's gnome-shell version, since GNOME Shell refuses to load an extension that does not list its version.
+        description: Installs every extension in extensions-list into the system extensions folder — a release's asset from the release its `tag` names, or the latest one, fetched by the release's own download URL rather than looked up through GitHub's API (decisions#no-api) — applying default-patches and handing over to own-builds where an extension has one. Some extensions declare an older GNOME Shell than the image ships but work on it; for those the installed metadata is rewritten to the image's gnome-shell version, since GNOME Shell refuses to load an extension that does not list its version. For an entry with `enabledByDefault` false it writes the uuids the entry added to the folder — found by listing the folder before and after, so an own-build's extension is found too — to /usr/share/borshevik/extensions-off-by-default, one a line, which it creates empty first; an entry off by default that installs nothing fails the build. @ShellCustomizations#components#apply-dconf and @Services#components#extension-autoenable read that file.
         decisions:
           - id: no-api
             description: "A release asset is downloaded from https://github.com/<owner>/<repo>/releases/download/<tag>/<asset>, or releases/latest/download/<asset> when no tag is named, built from the entry's own fields. The build runs inside buildah, where no GitHub token reaches it, and GitHub's API answers anonymous calls from a runner's shared IP with 403 once their hourly limit is spent: the final layer failed on it on 2026-10-21, 2026-11-16 and 2026-11-17, every time at an asset lookup. Release downloads are not under that limit, which Hiddify's package, fetched the same way since it left the API, has shown."
@@ -20,7 +20,7 @@ components:
     type: "@ConfigFile"
     format: JSON
     src: build_files/scripts/gs-extensions/list.json
-    description: Which extensions ship and where each comes from — a release, a tag or a branch of its upstream repository, including Borshevik's own extensions, which are separate projects, each worked on as the workflow in its own repository describes. An entry pinned to a tag stays put; one that follows a branch or the latest release changes with every image build, so a new upstream commit reaches users without any change in this repository. An entry taking a release's asset takes the latest release's unless it names one by `tag`.
+    description: "Which extensions ship and where each comes from — a release, a tag or a branch of its upstream repository, including Borshevik's own extensions, which are separate projects, each worked on as the workflow in its own repository describes. An entry pinned to a tag stays put; one that follows a branch or the latest release changes with every image build, so a new upstream commit reaches users without any change in this repository. An entry taking a release's asset takes the latest release's unless it names one by `tag`. Every extension is switched on for every account unless its entry sets `enabledByDefault` to false: then it ships switched off, for a user to turn on in the Extensions app (decisions#off-by-default)."
     decisions:
       - id: glass
         description: "The panel, the overview and the dash are given their glass by Borshevik Glass, Borshevik's own extension, in place of Blur my Shell: Glass blurs the wallpaper once and shows it from then on, so it costs nothing frame to frame, tints it dark or light with GNOME's colour scheme and the accent, and restyles GNOME's popups to match — Blur my Shell needed a patch of its defaults to look like Borshevik at all, and a check that its popup blur stayed off."
@@ -28,14 +28,26 @@ components:
           - Blur my Shell, pinned to a tag with its defaults patched, as until 2026-11-20
         by: author
         date: 2026-11-20
+      - id: twitchlive-fork
+        description: "Twitch Live comes from Borshevik's fork, https://github.com/komorebinator/twitchlive-extension, its `master` followed like an upstream branch. Upstream (maweki) has had no commit since 2024-12 and leaves pull requests and issues unanswered, and Borshevik had come to carry three patches of it — its defaults, symbolic panel icons, and GNOME 51's St.BoxLayout `orientation` — then needed two more on GNOME 51: the streamers' columns measured from allocations an actor never allocated has as -Infinity, so the menu was not drawn, and \"Nobody is streaming\" added with Clutter.Actor.add, gone since GNOME 46. In the fork they are commits on top of upstream, which can still be merged in should it move again. The fork keeps upstream's uuid and settings schema, so a machine's streamers and settings carry over, and declares the GNOME versions Borshevik ships it on, so it runs without forceGnomeVersion. A change to it is committed to the fork's `master` once tried in the extensions' test machine."
+        rejected:
+          - patching upstream in this repository, as until 2026-11-27 — five patches, each to be carried onto every upstream change
+          - Parasocial (corngoblin's fork, GNOME 48–51, Twitch and Kick) — another uuid and settings schema, so machines would lose their streamers without a migration, and a young rewrite nobody here has reviewed
+          - dropping the indicator
+        by: author
+        date: 2026-11-27
+      - id: off-by-default
+        description: "An extension few users want ships switched off rather than not at all: it is there for those who turn it on in the Extensions app. Twitch Live is the one, since only some users follow streamers. Switching one off by default touches new accounts and fresh installs only: an account that already has it on keeps it, since the image cannot tell an extension the service enabled from one the user enabled."
+        rejected:
+          - switching it off once for every account that never toggled it — would take it from those who use it without ever having opened the Extensions app
+        by: author
+        date: 2026-11-27
   - id: default-patches
     type: "@Patch"
     src:
-      - build_files/scripts/gs-extensions/twitch-live-defaults.patch
-      - build_files/scripts/gs-extensions/twitch-live-symbolic-icons.patch
       - build_files/scripts/gs-extensions/bluetooth-battery-meter-defaults.patch
       - build_files/scripts/gs-extensions/status-area-spacer-defaults.patch
-    description: "Change upstream extensions so a first login already looks like Borshevik. Most change defaults in an extension's own settings schema — a more compact status area and Twitch indicator, Bluetooth battery shown as text. twitch-live-symbolic-icons.patch changes the extension itself: Twitch Live draws its panel icon from SVGs filled with white, which GNOME Shell shows as they are, so on a light panel — GNOME's light variant, or Borshevik Glass with dark style off — the icon was white on near-white; the patch adds -symbolic.svg copies of them, which the shell recolours with the panel's text colour, and points the panel icon at those. Its notification icon is left as upstream draws it. A patch whose target in list.json is a file is applied to that file; one whose target is `.` is a patch of the whole extension directory, applied with -p1 inside it, which is how a patch adds files."
+    description: "Change upstream extensions' defaults in their own settings schema, so a first login already looks like Borshevik — a more compact status area, Bluetooth battery shown as text. A patch whose target in list.json is a file is applied to that file; one whose target is `.` is a patch of the whole extension directory, applied with -p1 inside it, which is how a patch adds files."
   - id: own-builds
     type: "@Script"
     src:
